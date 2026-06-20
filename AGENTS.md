@@ -12,7 +12,7 @@
 ## This repo is self-contained
 
 This is a **development repository in the Coding Area — intentionally separate from the LhW
-workspace/vault.** Everything a coding agent needs has been copied in: specs (`docs/`), the
+workspace/vault.** Everything a coding agent needs has been copied in: specs (`doc/spec/`), the
 knowledge base (`knowledge/`), and the scaffold (`src/`). You do **not** need access to the vault
 to implement. The vault is the source of truth for these docs; this repo holds working copies.
 
@@ -20,8 +20,8 @@ to implement. The vault is the source of truth for these docs; this repo holds w
 
 | What | Where |
 |---|---|
-| **Requirement spec** (WHAT to build) | `docs/requirement-spec.md` |
-| **Engineering spec** (HOW — architecture, data models, build order) | `docs/engineering-spec.md` |
+| **Requirement spec** (WHAT to build) | `doc/spec/lhw-bot-requirement-spec.md` |
+| **Engineering spec** (HOW — architecture, data models, build order) | `doc/spec/engineering-spec.md` |
 | **Knowledge base** (Agent Lay's brain — what the bot loads) | `knowledge/kb.md` |
 | **KB loader** (reads `knowledge/kb.md`) | `src/kb.js` |
 
@@ -34,7 +34,7 @@ Node.js ≥ 18 · Express · `@line/bot-sdk` v9 · Anthropic SDK · axios (Disco
 ## File map
 
 ```
-├── docs/                    Specs copied from the vault (requirement + engineering)
+├── doc/spec/                Specs copied from the vault (requirement + engineering)
 ├── knowledge/
 │   └── kb.md                The bot's brain — edit this to change what Agent Lay knows
 └── src/
