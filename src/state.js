@@ -5,7 +5,7 @@ const BOT_ACTIVE = 'BOT_ACTIVE';
 const WAITING_HUMAN = 'WAITING_HUMAN';
 const HUMAN_ACTIVE = 'HUMAN_ACTIVE';
 
-// Map<userId, { status, history, pendingTimer, pendingMessages }>
+// Map<userId, { status, history, pendingTimer, pendingMessages, displayName }>
 const sessions = new Map();
 
 function getSession(userId) {
@@ -15,9 +15,18 @@ function getSession(userId) {
       history: [],
       pendingTimer: null,
       pendingMessages: [],   // lossless burst accumulator — drained on debounce fire
+      displayName: null,     // cached from LINE Profile API on first contact
     });
   }
   return sessions.get(userId);
+}
+
+function setDisplayName(userId, name) {
+  getSession(userId).displayName = name;
+}
+
+function getDisplayName(userId) {
+  return getSession(userId).displayName;
 }
 
 function setStatus(userId, status) {
@@ -72,4 +81,6 @@ module.exports = {
   setPendingTimer,
   pushPendingMessage,
   drainPendingMessages,
+  setDisplayName,
+  getDisplayName,
 };

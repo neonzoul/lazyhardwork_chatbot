@@ -74,6 +74,19 @@ async function sendText(userId, text) {
   await lineClient.pushMessage({ to: userId, messages: [{ type: 'text', text }] });
 }
 
+// Fetch display name from LINE Profile API and cache in session (called once per user).
+async function resolveDisplayName(userId) {
+  const cached = state.getDisplayName(userId);
+  if (cached) return cached;
+  try {
+    const profile = await lineClient.getProfile(userId);
+    state.setDisplayName(userId, profile.displayName);
+    return profile.displayName;
+  } catch {
+    return userId; // fallback to raw userId if profile fetch fails
+  }
+}
+
 async function handleHandoff(userId, displayName, history) {
   state.setStatus(userId, state.WAITING_HUMAN);
   await sendText(userId, 'ได้เลยครับ กำลังประสานงานให้คุณมอสมาดูแลต่อนะครับ รบกวนรอสักครู่ ถ้าระหว่างรอมีอะไรอยากถามเพิ่มเติมก็ได้เลยครับ [Agent Lay]');
@@ -132,15 +145,16 @@ async function processPostback(userId, displayName, data) {
 // Lossless debounce accumulator for text messages
 function handleEvent(event) {
   const userId = event.source.userId;
-  const displayName = event.source.displayName || userId;
 
   if (event.type === 'postback') {
-    const data = event.postback.data;
-    processPostback(userId, displayName, data).catch(console.error);
+    resolveDisplayName(userId).then(name =>
+      processPostback(userId, name, event.postback.data)
+    ).catch(console.error);
     return;
   }
 
   if (event.type === 'follow') {
+    resolveDisplayName(userId).catch(() => {}); // warm cache on follow
     sendText(userId, 'สวัสดีครับ 🙏 ยินดีต้อนรับสู่ LazyHardWork นะครับ มีอะไรให้ช่วยได้บ้าง หรือมีบริการไหนที่สนใจเป็นพิเศษมั้ยครับ? [Agent Lay]').catch(console.error);
     return;
   }
@@ -160,7 +174,9 @@ function handleEvent(event) {
   const timer = setTimeout(() => {
     state.setPendingTimer(userId, null);
     const burst = state.drainPendingMessages(userId);
-    processMessage(userId, displayName, burst).catch(console.error);
+    resolveDisplayName(userId)
+      .then(name => processMessage(userId, name, burst))
+      .catch(console.error);
   }, DEBOUNCE_MS);
 
   state.setPendingTimer(userId, timer);
