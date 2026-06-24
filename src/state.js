@@ -5,7 +5,7 @@ const BOT_ACTIVE = 'BOT_ACTIVE';
 const WAITING_HUMAN = 'WAITING_HUMAN';
 const HUMAN_ACTIVE = 'HUMAN_ACTIVE';
 
-// Map<userId, { status, history, pendingTimer, pendingMessages, displayName }>
+// Map<userId, { status, history, pendingTimer, pendingMessages, displayName, lastMessage, updatedAt }>
 const sessions = new Map();
 
 function getSession(userId) {
@@ -16,6 +16,8 @@ function getSession(userId) {
       pendingTimer: null,
       pendingMessages: [],   // lossless burst accumulator — drained on debounce fire
       displayName: null,     // cached from LINE Profile API on first contact
+      lastMessage: null,
+      updatedAt: null,
     });
   }
   return sessions.get(userId);
@@ -29,6 +31,17 @@ function getDisplayName(userId) {
   return getSession(userId).displayName;
 }
 
+// Returns all sessions as an array for the admin dashboard
+function getAllSessions() {
+  return Array.from(sessions.entries()).map(([userId, s]) => ({
+    userId,
+    displayName: s.displayName,
+    status: s.status,
+    lastMessage: s.lastMessage,
+    updatedAt: s.updatedAt,
+  })).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+}
+
 function setStatus(userId, status) {
   getSession(userId).status = status;
 }
@@ -40,8 +53,11 @@ function getStatus(userId) {
 function addMessage(userId, role, content) {
   const session = getSession(userId);
   session.history.push({ role, content });
-  // Keep last 10 messages (spec §3)
   if (session.history.length > 10) session.history.shift();
+  if (role === 'user') {
+    session.lastMessage = content.slice(0, 80);
+    session.updatedAt = Date.now();
+  }
 }
 
 function getHistory(userId) {
@@ -58,7 +74,10 @@ function setPendingTimer(userId, timer) {
 
 // Append one message to the accumulator; called on every incoming message event.
 function pushPendingMessage(userId, text) {
-  getSession(userId).pendingMessages.push(text);
+  const session = getSession(userId);
+  session.pendingMessages.push(text);
+  session.lastMessage = text.slice(0, 80);
+  session.updatedAt = Date.now();
 }
 
 // Drain and return all accumulated messages as a single joined string; clears the accumulator.
@@ -83,4 +102,5 @@ module.exports = {
   drainPendingMessages,
   setDisplayName,
   getDisplayName,
+  getAllSessions,
 };
