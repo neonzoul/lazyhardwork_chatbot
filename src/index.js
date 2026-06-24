@@ -34,33 +34,34 @@ app.get('/admin', (req, res) => {
   const secret = req.query.secret;
   const sessions = state.getAllSessions();
 
+  const STATUS_OPTIONS = ['BOT_ACTIVE', 'WAITING_HUMAN', 'HUMAN_ACTIVE'];
   const statusColor = { BOT_ACTIVE: '#22c55e', WAITING_HUMAN: '#f59e0b', HUMAN_ACTIVE: '#ef4444' };
-  const statusLabel = { BOT_ACTIVE: '🟢 BOT_ACTIVE', WAITING_HUMAN: '🟡 WAITING_HUMAN', HUMAN_ACTIVE: '🔴 HUMAN_ACTIVE' };
+  const statusEmoji = { BOT_ACTIVE: '🟢', WAITING_HUMAN: '🟡', HUMAN_ACTIVE: '🔴' };
 
   const counts = { BOT_ACTIVE: 0, WAITING_HUMAN: 0, HUMAN_ACTIVE: 0 };
   sessions.forEach(s => counts[s.status] = (counts[s.status] || 0) + 1);
 
   const rows = sessions.map(({ userId, displayName, status, lastMessage, updatedAt }) => {
-    const needsAction = status !== state.BOT_ACTIVE;
-    const resumeBtn = needsAction
-      ? `<a href="/admin/resume?secret=${secret}&userId=${userId}" style="background:#3b82f6;color:#fff;padding:4px 10px;border-radius:4px;text-decoration:none;font-size:12px">Resume Bot</a>`
-      : '';
+    const options = STATUS_OPTIONS.map(s =>
+      `<option value="${s}" ${s === status ? 'selected' : ''}>${statusEmoji[s]} ${s}</option>`
+    ).join('');
+    const color = statusColor[status] || '#94a3b8';
     return `
       <tr style="border-bottom:1px solid #1e293b">
         <td style="padding:10px 12px;color:#94a3b8;font-size:12px;font-family:monospace">${userId.slice(0, 12)}…</td>
         <td style="padding:10px 12px;font-weight:600">${displayName || '—'}</td>
         <td style="padding:10px 12px">
-          <span style="background:${statusColor[status]}22;color:${statusColor[status]};padding:3px 8px;border-radius:20px;font-size:12px;font-weight:600">
-            ${statusLabel[status] || status}
-          </span>
+          <select onchange="setStatus('${userId}', this.value)"
+            style="background:#0f172a;color:${color};border:1px solid ${color}44;padding:4px 8px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;outline:none">
+            ${options}
+          </select>
         </td>
-        <td style="padding:10px 12px;color:#94a3b8;font-size:13px;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${lastMessage || '—'}</td>
+        <td style="padding:10px 12px;color:#94a3b8;font-size:13px;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${lastMessage || '—'}</td>
         <td style="padding:10px 12px;color:#64748b;font-size:12px">${updatedAt ? new Date(updatedAt).toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' }) : '—'}</td>
-        <td style="padding:10px 12px">${resumeBtn}</td>
       </tr>`;
   }).join('');
 
-  const emptyRow = `<tr><td colspan="6" style="padding:32px;text-align:center;color:#475569">ยังไม่มี session — รอลูกค้าทัก</td></tr>`;
+  const emptyRow = `<tr><td colspan="5" style="padding:32px;text-align:center;color:#475569">ยังไม่มี session — รอลูกค้าทัก</td></tr>`;
 
   res.send(`<!DOCTYPE html>
 <html lang="th">
@@ -81,10 +82,28 @@ app.get('/admin', (req, res) => {
     table { width: 100%; border-collapse: collapse; background: #1e293b; border-radius: 10px; overflow: hidden; }
     th { text-align: left; padding: 10px 12px; font-size: 12px; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; border-bottom: 1px solid #334155; }
     tr:hover { background: #263348; }
-    .refresh { color: #64748b; font-size: 12px; margin-bottom: 12px; }
+    .toast { position:fixed; bottom:20px; right:20px; background:#1e293b; border:1px solid #334155; color:#e2e8f0; padding:10px 16px; border-radius:8px; font-size:13px; display:none; z-index:99; }
   </style>
 </head>
 <body>
+  <div class="toast" id="toast"></div>
+  <script>
+    function setStatus(userId, newStatus) {
+      fetch('/admin/set-status?secret=${secret}&userId=' + userId + '&status=' + newStatus)
+        .then(r => r.json())
+        .then(d => {
+          const t = document.getElementById('toast');
+          t.textContent = '✅ ' + (d.displayName || userId.slice(0,8)) + ' → ' + newStatus;
+          t.style.display = 'block';
+          setTimeout(() => { t.style.display = 'none'; }, 3000);
+          // Update dropdown color
+          const sel = document.querySelector('select[onchange*="' + userId + '"]');
+          const colors = { BOT_ACTIVE:'#22c55e', WAITING_HUMAN:'#f59e0b', HUMAN_ACTIVE:'#ef4444' };
+          if (sel) { sel.style.color = colors[newStatus]; sel.style.borderColor = colors[newStatus] + '44'; }
+        })
+        .catch(() => alert('Error — check server'));
+    }
+  </script>
   <h1>🤖 Agent Lay — Admin Dashboard</h1>
   <p class="sub">LazyHardWork LINE OA · auto-refreshes every 30 s</p>
 
@@ -103,7 +122,6 @@ app.get('/admin', (req, res) => {
         <th>Status</th>
         <th>Last Message</th>
         <th>Updated</th>
-        <th>Action</th>
       </tr>
     </thead>
     <tbody>
@@ -348,7 +366,18 @@ app.get('/admin/docs', (req, res) => {
 </html>`);
 });
 
-// Resume bot: GET /admin/resume?secret=xxx&userId=Uxxxxx
+// Set any status: GET /admin/set-status?secret=xxx&userId=Uxxxxx&status=BOT_ACTIVE
+app.get('/admin/set-status', (req, res) => {
+  const { userId, status } = req.query;
+  const VALID = [state.BOT_ACTIVE, state.WAITING_HUMAN, state.HUMAN_ACTIVE];
+  if (!userId) return res.status(400).json({ error: 'userId required' });
+  if (!VALID.includes(status)) return res.status(400).json({ error: `status must be one of ${VALID.join(', ')}` });
+  const prev = state.getStatus(userId);
+  state.setStatus(userId, status);
+  res.json({ userId, displayName: state.getDisplayName(userId), prev, now: status });
+});
+
+// Resume bot (legacy shortcut): GET /admin/resume?secret=xxx&userId=Uxxxxx
 app.get('/admin/resume', (req, res) => {
   const userId = req.query.userId;
   const secret = req.query.secret;
