@@ -1,96 +1,166 @@
 const line = require('@line/bot-sdk');
 const config = require('./config');
 const state = require('./state');
-const { chat } = require('./llm');
-const { postCrmHandoff } = require('./discord');
+const { chat, hasBuyingSignal, extractLead } = require('./llm');
+const { postLead, postCrmHandoff } = require('./discord');
 
 const lineClient = new line.messagingApi.MessagingApiClient({
   channelAccessToken: config.line.channelAccessToken,
 });
 
-const DEBOUNCE_MS = 6500; // spec §3: 6–7 sec
+// Spec §3: 6–7 s debounce (engineering spec uses 6.5 s)
+const DEBOUNCE_MS = 6500;
 
-// Human handoff trigger phrases
 const HANDOFF_PATTERNS = [
   /คุยกับคนจริง/,
   /ขอคุยกับมอส/,
   /อยากนัดคุย/,
   /คุยกับคน/,
+  /ขอคุยกับคน/,
 ];
 
 function isHandoffRequest(text) {
   return HANDOFF_PATTERNS.some((p) => p.test(text));
 }
 
-function isWithinBusinessHours() {
-  const now = new Date();
-  const hour = parseInt(
-    now.toLocaleString('en-US', { timeZone: 'Asia/Bangkok', hour: 'numeric', hour12: false }),
-    10
-  );
-  return hour >= config.contact.hoursStart && hour < config.contact.hoursEnd;
+// Rich Menu button postback → canned reply text
+const MENU_REPLIES = {
+  MENU_SERVICES: `📋 บริการของ LazyHardWork มี 3 อย่างหลักครับ:
+
+1️⃣ LINE OA แชทบอต AI — ตอบลูกค้า / รับออเดอร์ / จองคิว อัตโนมัติ 24 ชม.
+2️⃣ ออโตเมชันงานซ้ำด้วย AI — รวม lead / คีย์ข้อมูล / ตอบกลับ อัตโนมัติ
+3️⃣ เซตอัป AI ผู้ช่วยให้ทีม — วาง Custom GPT/Claude + สอนทีมใช้
+
+สนใจบริการไหนเป็นพิเศษมั้ยครับ? [Agent Lay]`,
+
+  MENU_PORTFOLIO: `💼 ผลงานของเราครับ:
+
+✅ Fastwork 135 งาน · เรต 4.9★
+✅ บอทตัวนี้ที่คุณกำลังคุยด้วยอยู่ก็เป็นผลงานของเรา
+✅ ผู้สร้าง zFiN — AI ผู้ช่วยบัญชีที่ทำงานจริงบน LINE OA
+
+ดูเพิ่มเติมได้ที่ Fastwork: ${config.contact.fastworkUrl} [Agent Lay]`,
+
+  MENU_PRICING: `💰 ราคาเริ่มต้น (ปรับตามขอบเขตจริง):
+
+| แพ็ก | ราคา |
+Starter → ฿15,000
+Advanced → ฿20,000
+Operation → ฿30,000
+
+ดูแลรายเดือน: ฿2,500/เดือน
+มัดจำ 50% ก่อนเริ่ม · ที่เหลือตอนส่งมอบ
+
+อยากให้ Mos ประเมินงานของคุณโดยตรงมั้ยครับ? [Agent Lay]`,
+
+  MENU_CONTACT: `📞 ติดต่อเราได้เลยครับ:
+
+📱 โทร: ${config.contact.phone}
+📧 Email: ${config.contact.email}
+🕑 เวลาทำการ: 13:00–22:00 ทุกวัน
+
+หรือดูผลงานได้ที่ Fastwork: ${config.contact.fastworkUrl} [Agent Lay]`,
+};
+
+async function showTyping(userId) {
+  try {
+    await lineClient.showLoadingAnimation({ chatId: userId, loadingSeconds: 5 });
+  } catch {
+    // typing indicator is best-effort — ignore failures
+  }
 }
 
-async function handleHandoff(userId, displayName, summary) {
+async function sendText(userId, text) {
+  await lineClient.pushMessage({ to: userId, messages: [{ type: 'text', text }] });
+}
+
+async function handleHandoff(userId, displayName, history) {
   state.setStatus(userId, state.WAITING_HUMAN);
-  await lineClient.pushMessage({
-    to: userId,
-    messages: [{
-      type: 'text',
-      text: 'ได้เลยครับ กำลังประสานงานให้คุณมอสมาดูแลต่อนะครับ รบกวนรอสักครู่ ถ้าระหว่างรอมีอะไรอยากถามเพิ่มเติมก็ได้เลยครับ [Agent Lay]',
-    }],
-  });
+  await sendText(userId, 'ได้เลยครับ กำลังประสานงานให้คุณมอสมาดูแลต่อนะครับ รบกวนรอสักครู่ ถ้าระหว่างรอมีอะไรอยากถามเพิ่มเติมก็ได้เลยครับ [Agent Lay]');
+  const summary = history.length ? history[history.length - 1].content.slice(0, 100) : '—';
   await postCrmHandoff({ displayName, summary });
 }
 
 async function processMessage(userId, displayName, text) {
   const status = state.getStatus(userId);
 
-  if (status === state.HUMAN_ACTIVE) return; // bot is fully silent
+  if (status === state.HUMAN_ACTIVE) return;
 
   if (status === state.WAITING_HUMAN) {
-    await lineClient.pushMessage({
-      to: userId,
-      messages: [{ type: 'text', text: 'กำลังรอคุณมอสมาดูแลอยู่นะครับ [Agent Lay]' }],
-    });
+    await sendText(userId, 'กำลังรอคุณมอสมาดูแลอยู่นะครับ [Agent Lay]');
     return;
   }
 
-  // BOT_ACTIVE
+  // BOT_ACTIVE path
   if (isHandoffRequest(text)) {
-    const history = state.getHistory(userId);
-    const summary = history.length ? history[history.length - 1].content.slice(0, 80) : text;
-    await handleHandoff(userId, displayName, summary);
+    await handleHandoff(userId, displayName, state.getHistory(userId));
     return;
   }
 
   state.addMessage(userId, 'user', text);
-  const history = state.getHistory(userId);
+  const historyBeforeReply = state.getHistory(userId).slice(0, -1);
 
-  const { reply } = await chat(userId, text, history.slice(0, -1)); // history before this msg
+  const { reply } = await chat(userId, text, historyBeforeReply);
   state.addMessage(userId, 'assistant', reply);
 
-  await lineClient.pushMessage({
-    to: userId,
-    messages: [{ type: 'text', text: reply }],
-  });
+  await sendText(userId, reply);
+
+  // Lead capture: fire async after replying so it doesn't block the response
+  if (hasBuyingSignal(text)) {
+    extractLead(displayName, state.getHistory(userId))
+      .then((lead) => postLead(lead))
+      .catch(console.error);
+  }
 }
 
-// Entry point called by the webhook handler.
-// Applies 6–7 sec debounce per user so multi-message bursts are batched.
+async function processPostback(userId, displayName, data) {
+  if (data === 'MENU_HANDOFF') {
+    if (state.getStatus(userId) === state.BOT_ACTIVE) {
+      await handleHandoff(userId, displayName, state.getHistory(userId));
+    } else {
+      await sendText(userId, 'กำลังรอคุณมอสมาดูแลอยู่นะครับ [Agent Lay]');
+    }
+    return;
+  }
+
+  const reply = MENU_REPLIES[data];
+  if (reply) {
+    await sendText(userId, reply);
+  }
+}
+
+// Lossless debounce accumulator for text messages
 function handleEvent(event) {
+  const userId = event.source.userId;
+  const displayName = event.source.displayName || userId;
+
+  if (event.type === 'postback') {
+    const data = event.postback.data;
+    processPostback(userId, displayName, data).catch(console.error);
+    return;
+  }
+
+  if (event.type === 'follow') {
+    sendText(userId, 'สวัสดีครับ 🙏 ยินดีต้อนรับสู่ LazyHardWork นะครับ มีอะไรให้ช่วยได้บ้าง หรือมีบริการไหนที่สนใจเป็นพิเศษมั้ยครับ? [Agent Lay]').catch(console.error);
+    return;
+  }
+
   if (event.type !== 'message' || event.message.type !== 'text') return;
 
-  const userId = event.source.userId;
   const text = event.message.text;
-  const displayName = event.source.displayName || userId;
+
+  state.pushPendingMessage(userId, text);
 
   const existing = state.getPendingTimer(userId);
   if (existing) clearTimeout(existing);
 
+  // Show typing indicator immediately — best-effort
+  showTyping(userId);
+
   const timer = setTimeout(() => {
     state.setPendingTimer(userId, null);
-    processMessage(userId, displayName, text).catch(console.error);
+    const burst = state.drainPendingMessages(userId);
+    processMessage(userId, displayName, burst).catch(console.error);
   }, DEBOUNCE_MS);
 
   state.setPendingTimer(userId, timer);
