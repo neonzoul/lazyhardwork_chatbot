@@ -90,7 +90,7 @@ async function extractLead(displayName, history) {
     model,
     max_tokens: 512,
     messages: [
-      { role: 'system', content: 'Extract lead info from this LINE chat transcript. Reply ONLY with valid JSON, no explanation, no markdown.' },
+      { role: 'system', content: 'Extract lead info from this LINE chat transcript. Reply ONLY with valid JSON, no explanation, no markdown. "contact" = the CUSTOMER\'s phone/email/LINE ID, NOT the business contact info.' },
       { role: 'user', content: `Transcript:\n${transcript}\n\nExtract into JSON (use "—" for unknown fields):\n{"name":"","business":"","problem":"","budget":"","contact":"","keyRemark":""}` },
     ],
   });
