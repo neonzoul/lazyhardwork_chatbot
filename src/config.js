@@ -23,4 +23,5 @@ module.exports = {
     hoursEnd: parseInt(process.env.BUSINESS_HOURS_END || '22', 10),
   },
   port: parseInt(process.env.PORT || '3000', 10),
+  adminSecret: process.env.ADMIN_SECRET,
 };
