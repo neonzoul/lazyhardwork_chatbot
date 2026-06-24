@@ -10,7 +10,8 @@ LINE OA chatbot for LazyHardWork's own channel. Answers leads from a knowledge b
 - **Human handoff** — `คุยกับคนจริง` → `WAITING_HUMAN` → Discord `#crm` notify → bot goes silent
 - **Rich Menu** — 5 buttons: บริการ / ผลงาน / ราคา / คุยกับคนจริง / ติดต่อ
 - **Out-of-hours notice** — bot stays active in KB scope and informs the user
-- **Admin resume** — HTTP endpoint to bring bot back to `BOT_ACTIVE` after human handoff
+- **Admin dashboard** — web UI to monitor sessions, change bot status per user, auto-refreshes every 30s
+- **Thai admin guide** — `/admin/docs` explains the system in plain Thai for non-technical admins
 
 ## Stack
 
@@ -81,16 +82,21 @@ Edit `knowledge/kb.md` and restart the server. No code changes needed.
 
 All admin endpoints require `?secret=<ADMIN_SECRET>`.
 
-**Resume bot after human handoff:**
-```
-GET /admin/resume?secret=xxx&userId=U<lineUserId>
-```
-Sets the user's status back to `BOT_ACTIVE`. The `userId` is in the Discord `#crm` notification.
+| Endpoint | Description |
+|---|---|
+| `GET /admin` | HTML dashboard — session table with live status dropdowns |
+| `GET /admin/docs` | Thai admin guide for non-technical admins |
+| `GET /admin/set-status` | Set a user's bot status (`userId` + `status` params) |
+| `GET /admin/resume` | Legacy shortcut — sets userId to `BOT_ACTIVE` |
+| `GET /admin/status` | JSON status check for a single userId |
 
-**Check current status:**
+**Change a user's status (e.g. resume bot after handoff):**
 ```
-GET /admin/status?secret=xxx&userId=U<lineUserId>
+GET /admin/set-status?secret=xxx&userId=U<lineUserId>&status=BOT_ACTIVE
 ```
+Valid values: `BOT_ACTIVE`, `WAITING_HUMAN`, `HUMAN_ACTIVE`. Returns `{ userId, displayName, prev, now }`.
+
+The `userId` appears in every Discord `#crm` notification. The dashboard also lists all active sessions with a dropdown to change status without touching the URL.
 
 ## Bot State Machine
 
