@@ -58,12 +58,13 @@ async function chat(userId, userMessage, history) {
     messages,
   });
 
-  const reply = response.choices[0].message.content;
+  // Strip trailing [Agent Lay] if the LLM duplicated the sign-off it was told to put at the start
+  const raw = response.choices[0].message.content;
+  const reply = raw.replace(/\s*\[Agent Lay\]\s*$/i, '').trimEnd();
 
   // KB gap heuristic — triggers Discord #crm feedback if KB appears to lack the answer
-  const kbGap = reply.includes('ไม่มีข้อมูล') || reply.includes('ไม่ทราบ')
-    ? userMessage
-    : null;
+  const KB_GAP_SIGNALS = ['ไม่มีข้อมูล', 'ไม่ทราบ', 'ไม่ได้รับข้อมูล', 'ไม่สามารถตอบ', 'ไม่มีในข้อมูล', 'นอกขอบเขต', 'ไม่ครอบคลุม'];
+  const kbGap = KB_GAP_SIGNALS.some(s => reply.includes(s)) ? userMessage : null;
 
   if (kbGap) {
     await postCrmFeedback({ question: kbGap });

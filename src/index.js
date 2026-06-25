@@ -394,6 +394,14 @@ app.get('/admin/status', (req, res) => {
   res.json({ userId, status: state.getStatus(userId) });
 });
 
+// Full session dump for testing: GET /admin/session?secret=xxx&userId=Uxxxxx
+app.get('/admin/session', (req, res) => {
+  const userId = req.query.userId;
+  if (!userId) return res.status(400).json({ error: 'userId required' });
+  const s = state.getSession(userId);
+  res.json({ userId, status: s.status, history: s.history, pendingHandoffOffer: s.pendingHandoffOffer, lastMessage: s.lastMessage });
+});
+
 app.listen(config.port, () => {
   console.log(`Agent Lay listening on port ${config.port}`);
 });

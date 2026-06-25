@@ -115,6 +115,7 @@ async function handleHandoff(userId, displayName, history) {
   if (!isWithinBusinessHours()) {
     msg += `\n\n(ขณะนี้นอกเวลาทำการ ถ้าเร่งด่วนโทรได้เลยครับ: ${config.contact.phone})`;
   }
+  state.addMessage(userId, 'assistant', msg);
   await sendText(userId, msg);
   const summary = history.length ? history[history.length - 1].content.slice(0, 100) : '—';
   await postCrmHandoff({ displayName, summary });
@@ -126,7 +127,9 @@ async function processMessage(userId, displayName, text) {
   if (status === state.HUMAN_ACTIVE) return;
 
   if (status === state.WAITING_HUMAN) {
-    await sendText(userId, '[Agent Lay]\nกำลังรอคุณมอสอยู่นะครับ\nรบกวนรอสักครู่');
+    const waitMsg = '[Agent Lay]\nกำลังรอคุณมอสอยู่นะครับ\nรบกวนรอสักครู่';
+    state.addMessage(userId, 'assistant', waitMsg);
+    await sendText(userId, waitMsg);
     return;
   }
 
@@ -150,12 +153,12 @@ async function processMessage(userId, displayName, text) {
   const { reply, kbGap } = await chat(userId, text, historyBeforeReply);
   state.addMessage(userId, 'assistant', reply);
 
-  await sendText(userId, reply);
-
-  // If bot hit a KB gap, flag that it offered to escalate — next confirmation triggers handoff
+  // Set flag before sendText so it survives even if delivery fails
   if (kbGap) {
     state.setPendingHandoffOffer(userId, true);
   }
+
+  await sendText(userId, reply);
 
   // Lead capture: fire async after replying so it doesn't block the response
   if (hasBuyingSignal(text)) {
@@ -177,6 +180,7 @@ async function processPostback(userId, displayName, data) {
 
   const reply = MENU_REPLIES[data];
   if (reply) {
+    state.addMessage(userId, 'assistant', reply);
     await sendText(userId, reply);
   }
 }
@@ -198,7 +202,16 @@ function handleEvent(event) {
     return;
   }
 
-  if (event.type !== 'message' || event.message.type !== 'text') return;
+  if (event.type === 'message' && event.message.type !== 'text') {
+    // Non-text messages (image, sticker, file, etc.) — acknowledge but can't process
+    const nonTextReply = '[Agent Lay]\nขออภัยครับ ผมอ่านรูปภาพหรือไฟล์ไม่ได้\nถ้าอยากสอบถามอะไร พิมพ์มาได้เลยนะครับ';
+    state.addMessage(userId, 'assistant', nonTextReply);
+    resolveDisplayName(userId).catch(() => {});
+    sendText(userId, nonTextReply).catch(console.error);
+    return;
+  }
+
+  if (event.type !== 'message') return;
 
   const text = event.message.text;
 
