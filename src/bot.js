@@ -92,7 +92,7 @@ async function resolveDisplayName(userId) {
 
 async function handleHandoff(userId, displayName, history) {
   state.setStatus(userId, state.WAITING_HUMAN);
-  await sendText(userId, '[Agent Lay]\nได้เลยครับ กำลังประสานงานให้คุณมอสมาดูแลต่อนะครับ รบกวนรอสักครู่ ถ้าระหว่างรอมีอะไรอยากถามเพิ่มเติมก็ได้เลยครับ');
+  await sendText(userId, '[Agent Lay]\nได้เลยครับ\nกำลังประสานงานให้คุณมอสมาดูแลต่อนะครับ รบกวนรอสักครู่\nถ้าระหว่างรอมีอะไรอยากถามเพิ่มเติมก็ได้เลยครับ');
   const summary = history.length ? history[history.length - 1].content.slice(0, 100) : '—';
   await postCrmHandoff({ displayName, summary });
 }
@@ -103,7 +103,7 @@ async function processMessage(userId, displayName, text) {
   if (status === state.HUMAN_ACTIVE) return;
 
   if (status === state.WAITING_HUMAN) {
-    await sendText(userId, '[Agent Lay]\nกำลังรอคุณมอสมาดูแลอยู่นะครับ');
+    await sendText(userId, '[Agent Lay]\nกำลังรอคุณมอสอยู่นะครับ\nรบกวนรอสักครู่');
     return;
   }
 
@@ -134,7 +134,7 @@ async function processPostback(userId, displayName, data) {
     if (state.getStatus(userId) === state.BOT_ACTIVE) {
       await handleHandoff(userId, displayName, state.getHistory(userId));
     } else {
-      await sendText(userId, '[Agent Lay]\nกำลังรอคุณมอสมาดูแลอยู่นะครับ');
+      await sendText(userId, '[Agent Lay]\nกำลังรอคุณมอสอยู่นะครับ\nรบกวนรอสักครู่');
     }
     return;
   }
