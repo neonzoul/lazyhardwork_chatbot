@@ -19,8 +19,26 @@ const HANDOFF_PATTERNS = [
   /ขอคุยกับคน/,
 ];
 
+// Affirmative replies after bot offers to escalate due to KB gap
+const HANDOFF_CONFIRM_PATTERNS = [
+  /^ก$/, /^ก\.?$/, /ข้อ\s*ก/, /ส่งให้/, /ส่งคำถาม/, /ขอให้ส่ง/,
+  /ได้เลย/, /เอาเลย/, /โอเค/, /^ok$/i, /^yes$/i, /ใช่/, /ขอรอ/, /รอได้/, /รอมอส/,
+];
+
 function isHandoffRequest(text) {
   return HANDOFF_PATTERNS.some((p) => p.test(text));
+}
+
+function isHandoffConfirmation(text) {
+  return HANDOFF_CONFIRM_PATTERNS.some((p) => p.test(text.trim()));
+}
+
+function isWithinBusinessHours() {
+  const hour = parseInt(
+    new Date().toLocaleString('en-US', { timeZone: 'Asia/Bangkok', hour: 'numeric', hour12: false }),
+    10
+  );
+  return hour >= config.contact.hoursStart && hour < config.contact.hoursEnd;
 }
 
 // Rich Menu button postback → canned reply text
@@ -92,7 +110,12 @@ async function resolveDisplayName(userId) {
 
 async function handleHandoff(userId, displayName, history) {
   state.setStatus(userId, state.WAITING_HUMAN);
-  await sendText(userId, '[Agent Lay]\nได้เลยครับ\nกำลังประสานงานให้คุณมอสมาดูแลต่อนะครับ รบกวนรอสักครู่\nถ้าระหว่างรอมีอะไรอยากถามเพิ่มเติมก็ได้เลยครับ');
+  state.setPendingHandoffOffer(userId, false);
+  let msg = '[Agent Lay]\nได้เลยครับ\nกำลังประสานงานให้คุณมอสมาดูแลต่อนะครับ รบกวนรอสักครู่\nถ้าระหว่างรอมีอะไรอยากถามเพิ่มเติมก็ได้เลยครับ';
+  if (!isWithinBusinessHours()) {
+    msg += `\n\n(ขณะนี้นอกเวลาทำการ ถ้าเร่งด่วนโทรได้เลยครับ: ${config.contact.phone})`;
+  }
+  await sendText(userId, msg);
   const summary = history.length ? history[history.length - 1].content.slice(0, 100) : '—';
   await postCrmHandoff({ displayName, summary });
 }
@@ -108,6 +131,14 @@ async function processMessage(userId, displayName, text) {
   }
 
   // BOT_ACTIVE path
+
+  // C2: third trigger — bot previously offered to escalate (KB gap), user confirms
+  if (state.getPendingHandoffOffer(userId) && isHandoffConfirmation(text)) {
+    await handleHandoff(userId, displayName, state.getHistory(userId));
+    return;
+  }
+  state.setPendingHandoffOffer(userId, false); // clear offer if user didn't confirm
+
   if (isHandoffRequest(text)) {
     await handleHandoff(userId, displayName, state.getHistory(userId));
     return;
@@ -116,10 +147,15 @@ async function processMessage(userId, displayName, text) {
   state.addMessage(userId, 'user', text);
   const historyBeforeReply = state.getHistory(userId).slice(0, -1);
 
-  const { reply } = await chat(userId, text, historyBeforeReply);
+  const { reply, kbGap } = await chat(userId, text, historyBeforeReply);
   state.addMessage(userId, 'assistant', reply);
 
   await sendText(userId, reply);
+
+  // If bot hit a KB gap, flag that it offered to escalate — next confirmation triggers handoff
+  if (kbGap) {
+    state.setPendingHandoffOffer(userId, true);
+  }
 
   // Lead capture: fire async after replying so it doesn't block the response
   if (hasBuyingSignal(text)) {

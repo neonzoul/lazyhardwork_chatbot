@@ -5,7 +5,7 @@ const BOT_ACTIVE = 'BOT_ACTIVE';
 const WAITING_HUMAN = 'WAITING_HUMAN';
 const HUMAN_ACTIVE = 'HUMAN_ACTIVE';
 
-// Map<userId, { status, history, pendingTimer, pendingMessages, displayName, lastMessage, updatedAt }>
+// Map<userId, { status, history, pendingTimer, pendingMessages, displayName, lastMessage, updatedAt, pendingHandoffOffer }>
 const sessions = new Map();
 
 function getSession(userId) {
@@ -18,6 +18,7 @@ function getSession(userId) {
       displayName: null,     // cached from LINE Profile API on first contact
       lastMessage: null,
       updatedAt: null,
+      pendingHandoffOffer: false, // true after bot asks "want me to escalate?" due to KB gap
     });
   }
   return sessions.get(userId);
@@ -87,6 +88,14 @@ function drainPendingMessages(userId) {
   return msgs.join('\n');
 }
 
+function setPendingHandoffOffer(userId, value) {
+  getSession(userId).pendingHandoffOffer = value;
+}
+
+function getPendingHandoffOffer(userId) {
+  return getSession(userId).pendingHandoffOffer || false;
+}
+
 module.exports = {
   BOT_ACTIVE,
   WAITING_HUMAN,
@@ -103,4 +112,6 @@ module.exports = {
   setDisplayName,
   getDisplayName,
   getAllSessions,
+  setPendingHandoffOffer,
+  getPendingHandoffOffer,
 };
