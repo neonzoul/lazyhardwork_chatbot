@@ -25,25 +25,27 @@ function isHandoffRequest(text) {
 
 // Rich Menu button postback → canned reply text
 const MENU_REPLIES = {
-  MENU_SERVICES: `📋 บริการของ LazyHardWork มี 3 อย่างหลักครับ:
+  MENU_SERVICES: `[Agent Lay]
+📋 บริการของ LazyHardWork มี 3 อย่างหลักครับ:
 
 1️⃣ LINE OA แชทบอต AI — ตอบลูกค้า / รับออเดอร์ / จองคิว อัตโนมัติ 24 ชม.
 2️⃣ ออโตเมชันงานซ้ำด้วย AI — รวม lead / คีย์ข้อมูล / ตอบกลับ อัตโนมัติ
 3️⃣ เซตอัป AI ผู้ช่วยให้ทีม — วาง Custom GPT/Claude + สอนทีมใช้
 
-สนใจบริการไหนเป็นพิเศษมั้ยครับ? [Agent Lay]`,
+สนใจบริการไหนเป็นพิเศษมั้ยครับ?`,
 
-  MENU_PORTFOLIO: `💼 ผลงานของเราครับ:
+  MENU_PORTFOLIO: `[Agent Lay]
+💼 ผลงานของเราครับ:
 
 ✅ Fastwork 135 งาน · เรต 4.9★
 ✅ บอทตัวนี้ที่คุณกำลังคุยด้วยอยู่ก็เป็นผลงานของเรา
 ✅ ผู้สร้าง zFiN — AI ผู้ช่วยบัญชีที่ทำงานจริงบน LINE OA
 
-ดูเพิ่มเติมได้ที่ Fastwork: ${config.contact.fastworkUrl} [Agent Lay]`,
+ดูเพิ่มเติมได้ที่ Fastwork: ${config.contact.fastworkUrl}`,
 
-  MENU_PRICING: `💰 ราคาเริ่มต้น (ปรับตามขอบเขตจริง):
+  MENU_PRICING: `[Agent Lay]
+💰 ราคาเริ่มต้น (ปรับตามขอบเขตจริง):
 
-| แพ็ก | ราคา |
 Starter → ฿15,000
 Advanced → ฿20,000
 Operation → ฿30,000
@@ -51,15 +53,16 @@ Operation → ฿30,000
 ดูแลรายเดือน: ฿2,500/เดือน
 มัดจำ 50% ก่อนเริ่ม · ที่เหลือตอนส่งมอบ
 
-อยากให้ Mos ประเมินงานของคุณโดยตรงมั้ยครับ? [Agent Lay]`,
+อยากให้ Mos ประเมินงานของคุณโดยตรงมั้ยครับ?`,
 
-  MENU_CONTACT: `📞 ติดต่อเราได้เลยครับ:
+  MENU_CONTACT: `[Agent Lay]
+📞 ติดต่อเราได้เลยครับ:
 
 📱 โทร: ${config.contact.phone}
 📧 Email: ${config.contact.email}
 🕑 เวลาทำการ: 13:00–22:00 ทุกวัน
 
-หรือดูผลงานได้ที่ Fastwork: ${config.contact.fastworkUrl} [Agent Lay]`,
+หรือดูผลงานได้ที่ Fastwork: ${config.contact.fastworkUrl}`,
 };
 
 async function showTyping(userId) {
@@ -89,7 +92,7 @@ async function resolveDisplayName(userId) {
 
 async function handleHandoff(userId, displayName, history) {
   state.setStatus(userId, state.WAITING_HUMAN);
-  await sendText(userId, 'ได้เลยครับ กำลังประสานงานให้คุณมอสมาดูแลต่อนะครับ รบกวนรอสักครู่ ถ้าระหว่างรอมีอะไรอยากถามเพิ่มเติมก็ได้เลยครับ [Agent Lay]');
+  await sendText(userId, '[Agent Lay]\nได้เลยครับ กำลังประสานงานให้คุณมอสมาดูแลต่อนะครับ รบกวนรอสักครู่ ถ้าระหว่างรอมีอะไรอยากถามเพิ่มเติมก็ได้เลยครับ');
   const summary = history.length ? history[history.length - 1].content.slice(0, 100) : '—';
   await postCrmHandoff({ displayName, summary });
 }
@@ -100,7 +103,7 @@ async function processMessage(userId, displayName, text) {
   if (status === state.HUMAN_ACTIVE) return;
 
   if (status === state.WAITING_HUMAN) {
-    await sendText(userId, 'กำลังรอคุณมอสมาดูแลอยู่นะครับ [Agent Lay]');
+    await sendText(userId, '[Agent Lay]\nกำลังรอคุณมอสมาดูแลอยู่นะครับ');
     return;
   }
 
@@ -131,7 +134,7 @@ async function processPostback(userId, displayName, data) {
     if (state.getStatus(userId) === state.BOT_ACTIVE) {
       await handleHandoff(userId, displayName, state.getHistory(userId));
     } else {
-      await sendText(userId, 'กำลังรอคุณมอสมาดูแลอยู่นะครับ [Agent Lay]');
+      await sendText(userId, '[Agent Lay]\nกำลังรอคุณมอสมาดูแลอยู่นะครับ');
     }
     return;
   }
@@ -155,7 +158,7 @@ function handleEvent(event) {
 
   if (event.type === 'follow') {
     resolveDisplayName(userId).catch(() => {}); // warm cache on follow
-    sendText(userId, 'สวัสดีครับ 🙏 ยินดีต้อนรับสู่ LazyHardWork นะครับ มีอะไรให้ช่วยได้บ้าง หรือมีบริการไหนที่สนใจเป็นพิเศษมั้ยครับ? [Agent Lay]').catch(console.error);
+    sendText(userId, '[Agent Lay]\nสวัสดีครับ 🙏 ยินดีต้อนรับสู่ LazyHardWork นะครับ มีอะไรให้ช่วยได้บ้าง หรือมีบริการไหนที่สนใจเป็นพิเศษมั้ยครับ?').catch(console.error);
     return;
   }
 
