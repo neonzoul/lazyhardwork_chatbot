@@ -1,7 +1,7 @@
 const line = require('@line/bot-sdk');
 const config = require('./config');
 const state = require('./state');
-const { chat, hasBuyingSignal, extractLead } = require('./llm');
+const { chat, hasBuyingSignal, hasLeadPattern, extractLead } = require('./llm');
 const { postLead, postCrmHandoff } = require('./discord');
 
 const lineClient = new line.messagingApi.MessagingApiClient({
@@ -160,10 +160,18 @@ async function processMessage(userId, displayName, text) {
 
   await sendText(userId, reply);
 
-  // Lead capture: fire async after replying so it doesn't block the response
-  if (hasBuyingSignal(text)) {
+  // Lead capture: fire async after replying so it doesn't block the response.
+  // Trigger on buying-signal keyword OR free-text pattern (name + business + problem + budget).
+  // Gate: skip Discord notify when <2 fields are filled (prevents false positives from keyword-only messages).
+  if (hasBuyingSignal(text) || hasLeadPattern(text)) {
     extractLead(displayName, state.getHistory(userId))
-      .then((lead) => postLead(lead))
+      .then((lead) => {
+        const filledCount = [lead.name, lead.business, lead.problem, lead.budget]
+          .filter(v => v && v !== '—').length;
+        if (filledCount >= 2) {
+          return postLead(lead);
+        }
+      })
       .catch(console.error);
   }
 }

@@ -41,6 +41,7 @@ ${KB}
 2. หากไม่มีข้อมูลในคำถามนั้น → บอกตรงๆ ว่าไม่มี แล้วถามว่าจะ (ก) ให้ส่งคำถามให้ Mos หรือ (ข) โทร/email โดยตรง
 3. ราคา custom / ดีลพิเศษ / ส่วนลด → ต้อง escalate ไม่ตอบเอง
 4. ขอข้อมูล lead เฉพาะเมื่อลูกค้าแสดง buying signal เท่านั้น (เช่น "สนใจจ้าง", "เริ่มยังไง")
+5. ห้ามลงท้ายด้วย "ครับ" ซ้ำ — ถ้าประโยคสุดท้ายจบด้วย "ครับ" แล้ว ไม่ต้องเพิ่ม "ครับ" อีก
 ${!isWithinBusinessHours() ? `\nขณะนี้นอกเวลาทำการ (${config.contact.hoursStart}:00–${config.contact.hoursEnd}:00) — แจ้งลูกค้าว่าจะมีคนมาตอบให้เร็วที่สุด และยังถามเพิ่มได้` : ''}`;
 }
 
@@ -83,6 +84,19 @@ function hasBuyingSignal(text) {
   return BUYING_SIGNALS.some((p) => p.test(text));
 }
 
+// Free-text lead pattern — fires when user provides ≥3 of: name, business type, problem, budget
+// Catches leads that skip buying-signal keywords and go straight to providing details
+const FREE_TEXT_LEAD_SIGNALS = [
+  { key: 'name',     pattern: /ชื่อ\s*[ก-๙a-zA-Z]{2,}/ },
+  { key: 'business', pattern: /ธุรกิจ|ร้าน|สอน|ขาย|บริษัท|คลินิก|โรงแรม|คาเฟ่|สตูดิโอ|ฟิตเนส|สปา/ },
+  { key: 'problem',  pattern: /ปัญหา|ตอบไม่ทัน|ไม่มีคน|ทำเอง|ลูกค้าเยอะ|พลาด|ช้าไป/ },
+  { key: 'budget',   pattern: /\b\d+\s*[kK]\b|\d[\d,]{3,}\s*(?:บาท|฿)|หมื่น|แสน/ },
+];
+
+function hasLeadPattern(text) {
+  return FREE_TEXT_LEAD_SIGNALS.filter(s => s.pattern.test(text)).length >= 3;
+}
+
 // Second LLM call to extract structured lead fields from conversation history
 async function extractLead(displayName, history) {
   const transcript = history
@@ -93,8 +107,8 @@ async function extractLead(displayName, history) {
     model,
     max_tokens: 512,
     messages: [
-      { role: 'system', content: 'Extract lead info from this LINE chat transcript. Reply ONLY with valid JSON, no explanation, no markdown. "contact" = the CUSTOMER\'s phone/email/LINE ID, NOT the business contact info.' },
-      { role: 'user', content: `Transcript:\n${transcript}\n\nExtract into JSON (use "—" for unknown fields):\n{"name":"","business":"","problem":"","budget":"","contact":"","keyRemark":""}` },
+      { role: 'system', content: 'Extract lead info from this LINE chat transcript. Reply ONLY with valid JSON, no explanation, no markdown. "contact" = the CUSTOMER\'s phone/email/LINE ID, NOT the business contact info. "keyRemark" = 1 Thai sentence summarising what the customer wants and their budget (e.g. "ต้องการบอท LINE สำหรับร้านสอนกีต้าร์ งบ 30,000 บาท"). Use "—" for unknown fields.' },
+      { role: 'user', content: `Transcript:\n${transcript}\n\nExtract into JSON:\n{"name":"","business":"","problem":"","budget":"","contact":"","keyRemark":""}` },
     ],
   });
 
@@ -110,4 +124,4 @@ async function extractLead(displayName, history) {
   }
 }
 
-module.exports = { chat, hasBuyingSignal, extractLead };
+module.exports = { chat, hasBuyingSignal, hasLeadPattern, extractLead };
