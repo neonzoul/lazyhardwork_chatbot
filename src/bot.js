@@ -12,11 +12,12 @@ const lineClient = new line.messagingApi.MessagingApiClient({
 const DEBOUNCE_MS = 7000;
 
 const HANDOFF_PATTERNS = [
-    /คุยกับคนจริง/,
-    /ขอคุยกับมอส/,
-    /อยากนัดคุย/,
-    /คุยกับคน/,
-    /ขอคุยกับคน/,
+    /คุย\s*กับ\s*คน\s*จริง/,
+    /(?:ขอ|อยาก)\s*คุย\s*กับ\s*(?:มอส|mos)/i,
+    /(?:ขอ|อยาก)\s*(?:นัด|คุย)\s*กับ\s*คน/,
+    /(?:ขอ|อยาก)\s*นัดคุย/,
+    /ให้\s*คน\s*มา\s*คุย/,
+    /ขอ\s*คุย\s*กับ\s*(?:มอส|mos)/i,
 ];
 
 // Affirmative replies after bot offers to escalate due to KB gap
@@ -134,20 +135,42 @@ async function resolveDisplayName(userId) {
 async function handleHandoff(userId, displayName, history) {
     state.setStatus(userId, state.WAITING_HUMAN);
     state.setPendingHandoffOffer(userId, false);
+    const summary = history.length
+        ? history[history.length - 1].content.slice(0, 100)
+        : '—';
+
+    // Notify Mos FIRST — only tell the customer after the action is confirmed.
+    // If Discord fails, tell the customer to contact directly instead of making a broken promise.
+    try {
+        await postCrmHandoff({ displayName, summary });
+    } catch (err) {
+        console.error('CRM handoff failed:', err);
+        const fallbackMsg = `[Agent Lay]\nขออภัยครับ ระบบประสานงานมีปัญหาชั่วคราว\nกรุณาติดต่อ Mos โดยตรงที่ ${config.contact.phone} หรือ ${config.contact.email} ครับ`;
+        state.addMessage(userId, 'assistant', fallbackMsg);
+        await sendText(userId, fallbackMsg);
+        return;
+    }
+
     let msg =
-        '[Agent Lay]\nได้เลยครับ\nกำลังประสานงานให้คุณมอสมาดูแลต่อนะครับ รบกวนรอสักครู่\nถ้าระหว่างรอมีอะไรอยากถามเพิ่มเติมก็ได้เลยครับ';
+        '[Agent Lay]\nได้เลยครับ ส่งเรื่องให้คุณมอสแล้ว รบกวนรอสักครู่นะครับ\nถ้าระหว่างรอมีอะไรอยากถามเพิ่มเติมก็ได้เลยครับ';
     if (!isWithinBusinessHours()) {
         msg += `\n\n(ขณะนี้นอกเวลาทำการ ถ้าเร่งด่วนโทรได้เลยครับ: ${config.contact.phone})`;
     }
     state.addMessage(userId, 'assistant', msg);
     await sendText(userId, msg);
-    const summary = history.length
-        ? history[history.length - 1].content.slice(0, 100)
-        : '—';
-    await postCrmHandoff({ displayName, summary });
+}
+
+function sanitizeInput(text) {
+    return text
+        .replace(/\[SYSTEM[^\]]*\]/gi, '')
+        .replace(/<system[\s\S]*?<\/system>/gi, '')
+        .replace(/###\s*system\s*###[\s\S]*?###/gi, '')
+        .replace(/IGNORE\s+(ALL\s+)?(PREVIOUS|PRIOR|ABOVE)\s+(INSTRUCTIONS?|RULES?|PROMPTS?)[^\n]*/gi, '')
+        .trim();
 }
 
 async function processMessage(userId, displayName, text) {
+    text = sanitizeInput(text);
     const status = state.getStatus(userId);
 
     if (status === state.HUMAN_ACTIVE) return;
@@ -162,7 +185,8 @@ async function processMessage(userId, displayName, text) {
     // BOT_ACTIVE path
 
     // C2: third trigger — bot previously offered to escalate (KB gap), user confirms
-    if (state.getPendingHandoffOffer(userId) && isHandoffConfirmation(text)) {
+    // Cap at 60 chars: a real confirmation is short ("ก", "โอเค", "ได้เลย") — a long message is a new question
+    if (state.getPendingHandoffOffer(userId) && text.length <= 60 && isHandoffConfirmation(text)) {
         await handleHandoff(userId, displayName, state.getHistory(userId));
         return;
     }
@@ -182,6 +206,14 @@ async function processMessage(userId, displayName, text) {
     // Set flag before sendText so it survives even if delivery fails
     if (kbGap) {
         state.setPendingHandoffOffer(userId, true);
+    }
+
+    // If the bot promised to escalate to Mos (complaint handling, rule 7),
+    // actually notify Mos and set WAITING_HUMAN — broken promise is worse than silence.
+    const promisedEscalation = /(?:ส่งเรื่อง|ประสานงาน|จัดการให้|ติดต่อให้).*(?:Mos|มอส)|(?:Mos|มอส).*(?:ดูแลต่อ|มาช่วย|ติดต่อกลับ|มาดูแล)/.test(reply);
+    if (promisedEscalation && state.getStatus(userId) !== state.WAITING_HUMAN) {
+        state.setStatus(userId, state.WAITING_HUMAN);
+        await postCrmHandoff({ displayName, summary: text.slice(0, 100) });
     }
 
     await sendText(userId, reply);
