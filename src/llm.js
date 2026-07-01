@@ -107,15 +107,27 @@ function hasLeadPattern(text) {
 
 // Second LLM call to extract structured lead fields from conversation history
 async function extractLead(displayName, history) {
+  // Label roles unambiguously so the LLM cannot confuse "[Customer]" with a person's name
   const transcript = history
-    .map((m) => `${m.role === 'user' ? 'ลูกค้า' : 'บอท'}: ${m.content}`)
+    .map((m) => `${m.role === 'user' ? '[Customer]' : '[Agent]'}: ${m.content}`)
     .join('\n');
 
   const response = await client.chat.completions.create({
     model,
     max_tokens: 512,
     messages: [
-      { role: 'system', content: 'Extract lead info from this LINE chat transcript. Reply ONLY with valid JSON, no explanation, no markdown. "contact" = the CUSTOMER\'s phone/email/LINE ID, NOT the business contact info. "keyRemark" = 1 Thai sentence summarising what the customer wants and their budget (e.g. "ต้องการบอท LINE สำหรับร้านสอนกีต้าร์ งบ 30,000 บาท"). Use "—" for unknown fields.' },
+      {
+        role: 'system',
+        content:
+          'Extract lead info from [Customer] lines only — ignore [Agent] lines entirely.\n' +
+          'Rules:\n' +
+          '- "name": customer\'s real name if they stated it. "[Customer]" is a role label, NOT a name — use "—" if no name given.\n' +
+          '- "budget": only if the customer explicitly stated a number. Do NOT use prices mentioned by [Agent].\n' +
+          '- "contact": customer\'s phone/email/LINE ID, NOT the business contact info.\n' +
+          '- "keyRemark": 1 Thai sentence — what the customer wants + their budget (e.g. "ต้องการบอท LINE สำหรับร้านสอนกีต้าร์ งบ 20,000 บาท").\n' +
+          '- Use "—" for any field not explicitly stated by the customer.\n' +
+          'Reply ONLY with valid JSON, no explanation, no markdown.',
+      },
       { role: 'user', content: `Transcript:\n${transcript}\n\nExtract into JSON:\n{"name":"","business":"","problem":"","budget":"","contact":"","keyRemark":""}` },
     ],
   });
