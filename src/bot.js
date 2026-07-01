@@ -197,7 +197,7 @@ async function processMessage(userId, displayName, text) {
                 const filledCount = [lead.business, lead.problem, lead.budget, lead.contact]
                     .filter((v) => v && v !== '—').length;
                 if (filledCount >= 2) {
-                    return postLead(lead);
+                    return postLead({ ...lead, lineDisplayName: displayName });
                 }
             })
             .catch(console.error);

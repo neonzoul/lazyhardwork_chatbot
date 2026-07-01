@@ -5,6 +5,7 @@ async function postLead(lead) {
   if (!config.discord.leadsWebhook) return;
   const content = [
     '🟢 New Lead',
+    `LINE: ${lead.lineDisplayName || '—'}`,
     `ชื่อ: ${lead.name || '—'}`,
     `ธุรกิจ: ${lead.business || '—'}`,
     `ปัญหา: ${lead.problem || '—'}`,
