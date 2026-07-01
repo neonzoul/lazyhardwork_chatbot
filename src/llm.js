@@ -34,7 +34,13 @@ function buildSystemPrompt() {
 - เวลาทำการ: ${config.contact.hoursStart}:00–${config.contact.hoursEnd}:00 ทุกวัน
 
 Knowledge Base:
-${KB}
+${KB
+  .replace(/{CONTACT_PHONE}/g, config.contact.phone)
+  .replace(/{CONTACT_EMAIL}/g, config.contact.email)
+  .replace(/{FASTWORK_URL}/g, config.contact.fastworkUrl)
+  .replace(/{HOURS_START}/g, config.contact.hoursStart)
+  .replace(/{HOURS_END}/g, config.contact.hoursEnd)
+}
 
 กฎการตอบ:
 1. ตอบจาก KB เท่านั้น — ห้ามแต่งข้อมูลที่ไม่มีใน KB
