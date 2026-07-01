@@ -32,9 +32,11 @@ async function postCrmHandoff({ displayName, summary }) {
 
 async function postCrmFeedback({ question }) {
   if (!config.discord.crmWebhook) return;
+  const MAX = 300;
+  const trimmed = question.length > MAX ? question.slice(0, MAX) + '…' : question;
   const content = [
     '❓ KB Gap — ลูกค้าถามแล้วบอทไม่รู้',
-    `คำถาม: ${question}`,
+    `คำถาม: ${trimmed}`,
     `เวลา: ${new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' })}`,
   ].join('\n');
   await axios.post(config.discord.crmWebhook, { content }).catch(console.error);
