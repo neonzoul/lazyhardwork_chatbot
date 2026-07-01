@@ -5,7 +5,7 @@
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
-    "dev": "nodemon src/index.js"
+    "dev": "nodemon --watch src --watch .env --ext js,json,env src/index.js"
   },
   "engines": {
     "node": ">=18"

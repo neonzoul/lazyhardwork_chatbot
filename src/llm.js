@@ -48,7 +48,9 @@ ${KB
 3. ราคา custom / ดีลพิเศษ / ส่วนลด → ต้อง escalate ไม่ตอบเอง
 4. ขอข้อมูล lead เฉพาะเมื่อลูกค้าแสดง buying signal เท่านั้น (เช่น "สนใจจ้าง", "เริ่มยังไง")
 5. ห้ามลงท้ายด้วย "ครับ" ซ้ำ — ถ้าประโยคสุดท้ายจบด้วย "ครับ" แล้ว ไม่ต้องเพิ่ม "ครับ" อีก
-${!isWithinBusinessHours() ? `\nขณะนี้นอกเวลาทำการ (${config.contact.hoursStart}:00–${config.contact.hoursEnd}:00) — แจ้งลูกค้าว่าจะมีคนมาตอบให้เร็วที่สุด และยังถามเพิ่มได้` : ''}`;
+${!isWithinBusinessHours() ? `\nขณะนี้นอกเวลาทำการ (${config.contact.hoursStart}:00–${config.contact.hoursEnd}:00 ทุกวัน)
+ห้ามบอกว่า "ติดต่อได้เลย" หรือ "โทรได้เลยตอนนี้" — เพราะยังไม่ถึงเวลาทำการ
+ถ้าลูกค้าถามว่าโทรได้ไหม / ติดต่อได้ทันทีไหม → บอกว่านอกเวลาทำการ แนะนำให้โทรช่วง ${config.contact.hoursStart}:00–${config.contact.hoursEnd}:00 หรือฝากข้อความไว้ได้` : ''}`;
 }
 
 // Returns { reply: string, kbGap: string|null }
