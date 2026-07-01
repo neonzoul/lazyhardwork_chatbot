@@ -98,7 +98,7 @@ const FREE_TEXT_LEAD_SIGNALS = [
   { key: 'name',     pattern: /ชื่อ\s*[ก-๙a-zA-Z]{2,}/ },
   { key: 'business', pattern: /ธุรกิจ|ร้าน|สอน|ขาย|บริษัท|คลินิก|โรงแรม|คาเฟ่|สตูดิโอ|ฟิตเนส|สปา/ },
   { key: 'problem',  pattern: /ปัญหา|ตอบไม่ทัน|ไม่มีคน|ทำเอง|ลูกค้าเยอะ|พลาด|ช้าไป/ },
-  { key: 'budget',   pattern: /\b\d+\s*[kK]\b|\d[\d,]{3,}\s*(?:บาท|฿)|หมื่น|แสน/ },
+  { key: 'budget',   pattern: /งบ\s*[\d,.]+|\b\d+\s*[kK]\b|\d[\d,]{3,}\s*(?:บาท|฿)|หมื่น|แสน/ },
 ];
 
 function hasLeadPattern(text) {
