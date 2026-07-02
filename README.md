@@ -106,13 +106,56 @@ BOT_ACTIVE  ──(handoff trigger)──►  WAITING_HUMAN  ──(Mos sets man
                                     BOT_ACTIVE  ◄────────(admin /resume)───────────┘
 ```
 
-Handoff triggers: `คุยกับคนจริง` · `ขอคุยกับมอส` · `อยากนัดคุย` · `คุยกับคน` · Rich Menu button
+Handoff triggers: `คุยกับคนจริง` · `ขอคุยกับ Mos` · `อยากนัดคุย` · `ขอคุยกับคน` · Rich Menu button · complaint detected in reply
 
-## Deployment
+## Deployment (Railway)
 
-**Render (recommended):**
-1. Connect GitHub repo → auto-deploy on push to branch
-2. Set all env vars in Render dashboard
-3. Update LINE webhook URL to the Render HTTPS URL + `/webhook`
+### 1. Create project
 
-> Free tier sleeps after 15 min — upgrade to Starter ($7/mo) for always-on.
+Go to [railway.app](https://railway.app) → **New Project** → **Deploy from GitHub repo** → select this repo.
+
+Railway auto-detects Node.js and runs `npm start`. No Dockerfile needed.
+
+### 2. Set environment variables
+
+Railway → your service → **Variables** → add each key:
+
+| Variable | Description |
+|---|---|
+| `LINE_CHANNEL_SECRET` | LINE Developers → Messaging API → Channel secret |
+| `LINE_CHANNEL_ACCESS_TOKEN` | LINE Developers → Messaging API → Channel access token (long-lived) |
+| `OPENAI_API_KEY` | OpenAI API key |
+| `DISCORD_LEADS_WEBHOOK` | Discord webhook URL for `#leads` |
+| `DISCORD_CRM_WEBHOOK` | Discord webhook URL for `#crm` |
+| `CONTACT_PHONE` | Business phone number shown to customers |
+| `CONTACT_EMAIL` | Business email shown to customers |
+| `FASTWORK_URL` | Fastwork profile URL |
+| `BUSINESS_HOURS_START` | Hour business opens (24h, Bangkok TZ) — default `13` |
+| `BUSINESS_HOURS_END` | Hour business closes — default `22` |
+| `ADMIN_SECRET` | Any random string for admin endpoints |
+
+`PORT` is injected automatically by Railway — do not add it.
+
+### 3. Get public URL
+
+Railway → your service → **Settings** → **Networking** → **Generate Domain**
+
+This gives you `https://your-app.up.railway.app`.
+
+### 4. Set LINE webhook
+
+1. [LINE Developers Console](https://developers.line.biz) → your channel → **Messaging API**
+2. Webhook URL → `https://your-app.up.railway.app/webhook`
+3. **Use webhook** ON · **Auto-reply messages** OFF · **Greeting messages** OFF
+4. Click **Verify** → should return 200 OK
+
+### 5. Smoke test
+
+```
+GET https://your-app.up.railway.app/health
+→ { "status": "ok" }
+```
+
+### Redeploys
+
+Railway auto-deploys on every push to the connected branch. Environment variable changes take effect on the next deploy (trigger manually from the Railway dashboard if needed).
