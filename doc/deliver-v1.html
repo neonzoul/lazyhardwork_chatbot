@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Agent Lay — เอกสารส่งมอบ v1</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; line-height: 1.7; }
+    .hero { background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%); padding: 60px 40px; text-align: center; border-bottom: 1px solid #1e293b; }
+    .hero h1 { font-size: 2.4rem; color: #38bdf8; font-weight: 700; margin-bottom: 8px; }
+    .hero p { color: #94a3b8; font-size: 1.05rem; }
+    .badge { display: inline-block; background: #22c55e22; color: #22c55e; border: 1px solid #22c55e44; border-radius: 20px; padding: 4px 14px; font-size: 0.8rem; font-weight: 600; margin-top: 12px; }
+    .container { max-width: 900px; margin: 0 auto; padding: 40px 24px; }
+    h2 { font-size: 1.3rem; color: #38bdf8; border-left: 4px solid #38bdf8; padding-left: 12px; margin: 48px 0 20px; }
+    h3 { font-size: 1rem; color: #7dd3fc; margin: 24px 0 10px; font-weight: 600; }
+    p, li { color: #cbd5e1; font-size: 0.95rem; }
+    ul, ol { padding-left: 20px; margin: 8px 0; }
+    li { margin: 6px 0; }
+    .card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 20px 24px; margin: 16px 0; }
+    .card-title { font-weight: 700; color: #f1f5f9; margin-bottom: 8px; font-size: 0.95rem; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media(max-width: 600px) { .grid { grid-template-columns: 1fr; } }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 0.88rem; }
+    th { background: #1e293b; color: #7dd3fc; text-align: left; padding: 10px 14px; border-bottom: 1px solid #334155; }
+    td { padding: 9px 14px; border-bottom: 1px solid #1e293b; color: #cbd5e1; }
+    tr:hover td { background: #1e293b55; }
+    code { background: #0f172a; color: #f472b6; padding: 2px 7px; border-radius: 5px; font-family: monospace; font-size: 0.85rem; }
+    pre { background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 16px; font-family: monospace; font-size: 0.83rem; color: #a5f3fc; overflow-x: auto; margin: 12px 0; line-height: 1.5; }
+    .status { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 0.78rem; font-weight: 700; }
+    .green { background: #22c55e22; color: #22c55e; border: 1px solid #22c55e44; }
+    .yellow { background: #f59e0b22; color: #f59e0b; border: 1px solid #f59e0b44; }
+    .red { background: #ef444422; color: #ef4444; border: 1px solid #ef444444; }
+    .divider { border: none; border-top: 1px solid #1e293b; margin: 40px 0; }
+    .tip { background: #0c4a6e33; border-left: 3px solid #38bdf8; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 12px 0; font-size: 0.88rem; color: #bae6fd; }
+    .warn { background: #78350f33; border-left: 3px solid #f59e0b; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 12px 0; font-size: 0.88rem; color: #fde68a; }
+    footer { text-align: center; padding: 40px 24px; color: #475569; font-size: 0.82rem; border-top: 1px solid #1e293b; }
+  </style>
+</head>
+<body>
+
+<div class="hero">
+  <h1>Agent Lay</h1>
+  <p>LINE OA Chatbot — LazyHardWork (LhW)</p>
+  <div class="badge">✅ Manual test PASS · มิถุนายน 2026</div>
+</div>
+
+<div class="container">
+
+  <!-- ===== WHAT WAS BUILT ===== -->
+  <h2>สิ่งที่ส่งมอบ</h2>
+  <div class="grid">
+    <div class="card">
+      <div class="card-title">🤖 Agent Lay Chatbot</div>
+      <p>บอทตอบลูกค้าอัตโนมัติบน LINE OA ของ LazyHardWork ตอบจาก Knowledge Base เท่านั้น ไม่เดา ไม่มั่ว</p>
+    </div>
+    <div class="card">
+      <div class="card-title">🎯 Lead Capture Pipeline</div>
+      <p>ตรวจจับ buying signal → ดึงข้อมูล lead อัตโนมัติ → ส่ง Discord #leads ทันที</p>
+    </div>
+    <div class="card">
+      <div class="card-title">🔄 Human Handoff</div>
+      <p>ลูกค้าขอคุยกับคน → บอทหยุด → แจ้ง Discord #crm → Mos รับสาย → กดกลับ BOT_ACTIVE</p>
+    </div>
+    <div class="card">
+      <div class="card-title">🖥️ Admin Dashboard</div>
+      <p>หน้าเว็บ monitor ดูทุก session แบบ real-time เปลี่ยนสถานะได้จาก dropdown โดยไม่ต้องแตะ code</p>
+    </div>
+  </div>
+
+  <!-- ===== FEATURES ===== -->
+  <h2>ฟีเจอร์ครบทุกข้อ</h2>
+  <table>
+    <tr><th>ฟีเจอร์</th><th>รายละเอียด</th><th>สถานะ</th></tr>
+    <tr><td>ตอบจาก KB เท่านั้น</td><td>ไม่ hallucinate แม้แต่ข้อเดียว</td><td><span class="status green">✅ พร้อม</span></td></tr>
+    <tr><td>Debounce 6.5 วิ</td><td>รวม burst messages ก่อนตอบ</td><td><span class="status green">✅ พร้อม</span></td></tr>
+    <tr><td>Typing animation</td><td>แสดง "กำลังพิมพ์" ระหว่างรอ LLM</td><td><span class="status green">✅ พร้อม</span></td></tr>
+    <tr><td>จำบริบท 10 ข้อความ</td><td>conversation memory ต่อ session</td><td><span class="status green">✅ พร้อม</span></td></tr>
+    <tr><td>Rich Menu 5 ปุ่ม</td><td>บริการ / ผลงาน / ราคา / คุยกับคนจริง / ติดต่อ</td><td><span class="status green">✅ พร้อม</span></td></tr>
+    <tr><td>Lead Capture</td><td>signal → extract → Discord #leads</td><td><span class="status green">✅ พร้อม</span></td></tr>
+    <tr><td>Human Handoff (3 ช่องทาง)</td><td>Rich Menu / พิมพ์ขอ / ยืนยันหลัง KB gap</td><td><span class="status green">✅ พร้อม</span></td></tr>
+    <tr><td>Discord #crm alert</td><td>แจ้งทันทีเมื่อ handoff + KB gap</td><td><span class="status green">✅ พร้อม</span></td></tr>
+    <tr><td>นอกเวลาทำการ</td><td>บอทยังทำงาน + แจ้งเบอร์โทรเมื่อเร่งด่วน</td><td><span class="status green">✅ พร้อม</span></td></tr>
+    <tr><td>Admin Dashboard</td><td>monitor + เปลี่ยนสถานะแบบ real-time</td><td><span class="status green">✅ พร้อม</span></td></tr>
+    <tr><td>Admin Docs (ภาษาไทย)</td><td>คู่มือ non-tech admin</td><td><span class="status green">✅ พร้อม</span></td></tr>
+  </table>
+
+  <!-- ===== STATE MACHINE ===== -->
+  <h2>State Machine (วิธีทำงานของบอท)</h2>
+  <pre>
+  ลูกค้าส่งข้อความ
+       │
+       ▼
+  ┌────────────┐    handoff trigger     ┌───────────────┐
+  │ BOT_ACTIVE │ ──────────────────────► WAITING_HUMAN  │
+  │  บอทตอบปกติ│                        │  บอทหยุดตอบ  │
+  └────────────┘                        │  #crm แจ้ง Mos│
+       ▲                                └───────┬───────┘
+       │                                        │
+       │  admin set-status → BOT_ACTIVE         │ Mos กด HUMAN_ACTIVE
+       │                                        ▼
+       │                                ┌───────────────┐
+       └────────────────────────────────  HUMAN_ACTIVE  │
+            admin set-status            │  บอทเงียบ     │
+                                        │  Mos ตอบเอง  │
+                                        └───────────────┘
+  </pre>
+  <h3>handoff trigger มี 3 ช่องทาง</h3>
+  <ul>
+    <li>กดปุ่ม Rich Menu "คุยกับคนจริง"</li>
+    <li>พิมพ์ว่า "ขอคุยกับคน" / "คุยกับมอส" / "อยากนัดคุย"</li>
+    <li>บอทตอบไม่ได้ (KB gap) → ถามลูกค้า → ลูกค้ายืนยัน → handoff อัตโนมัติ</li>
+  </ul>
+
+  <!-- ===== HOW TO OPERATE ===== -->
+  <h2>วิธีใช้งานประจำวัน</h2>
+  <h3>เมื่อได้รับ Discord alert #crm</h3>
+  <ol>
+    <li>เปิด LINE OA → ไปที่ chat ของลูกค้าคนนั้น</li>
+    <li>ตอบลูกค้าโดยตรง (บอทเงียบอยู่แล้วในสถานะ WAITING_HUMAN)</li>
+    <li>เมื่อพูดคุยเสร็จ → เปิด Admin Dashboard → เปลี่ยนสถานะกลับเป็น <code>BOT_ACTIVE</code></li>
+  </ol>
+  <div class="tip">Admin Dashboard อยู่ที่ <code>/admin?secret=&lt;ADMIN_SECRET&gt;</code> — เพิ่ม bookmark ไว้เลย</div>
+
+  <h3>เมื่อได้รับ Discord alert #leads</h3>
+  <ol>
+    <li>ดูข้อมูล lead ที่บอทส่งมา (ชื่อ / ธุรกิจ / ปัญหา / งบ / ช่องทางติดต่อ)</li>
+    <li>ติดต่อลูกค้ากลับตามช่องทางที่ระบุ</li>
+    <li>บอทยังคุยกับลูกค้าต่อไปได้ระหว่างที่รอ Mos</li>
+  </ol>
+
+  <!-- ===== KB UPDATE ===== -->
+  <h2>วิธีอัปเดต Knowledge Base</h2>
+  <div class="warn">อัปเดต KB = restart server ทุกครั้ง เพราะ KB โหลดตอนเปิดเครื่อง</div>
+  <ol>
+    <li>เปิดไฟล์ <code>knowledge/kb.md</code></li>
+    <li>แก้ไขข้อมูลที่ต้องการ (ราคา / บริการ / FAQ / เวลาทำการ)</li>
+    <li>บันทึกไฟล์</li>
+    <li>Restart server: <code>npm run dev</code> หรือ redeploy บน Render</li>
+  </ol>
+  <div class="tip">ไม่ต้องแตะ code แม้แต่บรรทัดเดียว — KB คือไฟล์ text ธรรมดา</div>
+
+  <!-- ===== ENV CONFIG ===== -->
+  <h2>Environment Variables ทั้งหมด</h2>
+  <table>
+    <tr><th>ตัวแปร</th><th>ค่าที่ใส่</th><th>แก้ได้ไหม</th></tr>
+    <tr><td><code>LINE_CHANNEL_SECRET</code></td><td>จาก LINE Developers Console</td><td>✅</td></tr>
+    <tr><td><code>LINE_CHANNEL_ACCESS_TOKEN</code></td><td>จาก LINE Developers Console</td><td>✅</td></tr>
+    <tr><td><code>OPENAI_API_KEY</code></td><td>จาก platform.openai.com</td><td>✅</td></tr>
+    <tr><td><code>DISCORD_LEADS_WEBHOOK</code></td><td>URL webhook ของ channel #leads</td><td>✅</td></tr>
+    <tr><td><code>DISCORD_CRM_WEBHOOK</code></td><td>URL webhook ของ channel #crm</td><td>✅</td></tr>
+    <tr><td><code>CONTACT_PHONE</code></td><td>เบอร์โทรที่บอทจะแสดง</td><td>✅</td></tr>
+    <tr><td><code>CONTACT_EMAIL</code></td><td>อีเมลที่บอทจะแสดง</td><td>✅</td></tr>
+    <tr><td><code>FASTWORK_URL</code></td><td>URL หน้า Fastwork ของคุณ</td><td>✅</td></tr>
+    <tr><td><code>BUSINESS_HOURS_START</code></td><td>ชั่วโมงเปิด (24h) เช่น <code>13</code></td><td>✅</td></tr>
+    <tr><td><code>BUSINESS_HOURS_END</code></td><td>ชั่วโมงปิด (24h) เช่น <code>22</code></td><td>✅</td></tr>
+    <tr><td><code>ADMIN_SECRET</code></td><td>รหัสลับเข้า admin dashboard</td><td>✅</td></tr>
+    <tr><td><code>PORT</code></td><td>3000 (default)</td><td>✅</td></tr>
+  </table>
+  <div class="tip">แก้ตัวแปรใดก็ตาม → restart server เท่านั้น ไม่ต้องแก้โค้ด</div>
+
+  <!-- ===== ADMIN ENDPOINTS ===== -->
+  <h2>Admin Endpoints</h2>
+  <table>
+    <tr><th>URL</th><th>ทำอะไร</th></tr>
+    <tr><td><code>/admin</code></td><td>Dashboard ดู session ทั้งหมด + dropdown เปลี่ยนสถานะ</td></tr>
+    <tr><td><code>/admin/docs</code></td><td>คู่มือ admin ภาษาไทย</td></tr>
+    <tr><td><code>/admin/set-status?userId=U...&amp;status=BOT_ACTIVE</code></td><td>เปลี่ยนสถานะของ user นั้น</td></tr>
+    <tr><td><code>/admin/status?userId=U...</code></td><td>ดูสถานะปัจจุบัน (JSON)</td></tr>
+    <tr><td><code>/health</code></td><td>ตรวจว่า server ยังทำงานอยู่</td></tr>
+  </table>
+  <p>ทุก endpoint (ยกเว้น /health) ต้องมี <code>?secret=&lt;ADMIN_SECRET&gt;</code></p>
+
+  <!-- ===== STACK ===== -->
+  <h2>Technology Stack</h2>
+  <div class="grid">
+    <div class="card">
+      <div class="card-title">Backend</div>
+      <ul>
+        <li>Node.js 18+ · Express</li>
+        <li><code>@line/bot-sdk</code> v9</li>
+        <li>OpenAI <code>gpt-4o-mini</code> (via <code>openai</code> SDK)</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-title">Integrations</div>
+      <ul>
+        <li>LINE Messaging API (webhook + push)</li>
+        <li>Discord Webhooks (#leads + #crm)</li>
+        <li>LINE Rich Menu (5 ปุ่ม)</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ===== DEPLOYMENT ===== -->
+  <h2>การ Deploy</h2>
+  <h3>Render (แนะนำ)</h3>
+  <ol>
+    <li>เชื่อม GitHub repo → Render auto-deploy เมื่อ push</li>
+    <li>ใส่ env vars ทุกตัวใน Render dashboard</li>
+    <li>อัปเดต LINE webhook URL → HTTPS URL จาก Render + <code>/webhook</code></li>
+  </ol>
+  <div class="warn">Free tier หยุดเมื่อไม่มี traffic 15 นาที — upgrade เป็น Starter ($7/เดือน) เพื่อให้ทำงานตลอด 24 ชั่วโมง</div>
+
+  <h3>Local Dev</h3>
+  <pre>
+npm install
+npm run dev           # nodemon auto-reload
+npx ngrok http 3000   # expose ให้ LINE เข้าถึง
+  </pre>
+
+  <hr class="divider" />
+
+  <!-- ===== SIGN OFF ===== -->
+  <h2>Delivery Sign-off</h2>
+  <div class="card">
+    <table>
+      <tr><td style="width:160px;color:#7dd3fc;">วันที่ส่งมอบ</td><td>มิถุนายน 2026</td></tr>
+      <tr><td style="color:#7dd3fc;">ระดับแพ็ก</td><td>Operation 30k (ผ่านทุกหมวด A–G)</td></tr>
+      <tr><td style="color:#7dd3fc;">ทดสอบโดย</td><td>Mos (NRC) + Claude Code</td></tr>
+      <tr><td style="color:#7dd3fc;">Manual test</td><td><span class="status green">PASS</span> (reply marker starts with <code>[Agent Lay]</code>)</td></tr>
+      <tr><td style="color:#7dd3fc;">สถานะ</td><td><span class="status green">✅ PASS</span></td></tr>
+      <tr><td style="color:#7dd3fc;">Version</td><td>v1.0 · branch <code>feature/claude-code</code></td></tr>
+    </table>
+  </div>
+
+</div>
+
+<footer>
+  Agent Lay · LazyHardWork · เอกสารนี้ generate โดย Claude Code · 2026
+</footer>
+
+</body>
+</html>

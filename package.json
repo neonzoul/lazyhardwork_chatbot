@@ -5,7 +5,7 @@
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
-    "dev": "nodemon src/index.js"
+    "dev": "nodemon --watch src --watch .env --ext js,json,env src/index.js"
   },
   "engines": {
     "node": ">=18"
@@ -14,7 +14,8 @@
     "@line/bot-sdk": "^9.4.0",
     "axios": "^1.7.2",
     "dotenv": "^16.4.5",
-    "express": "^4.19.2"
+    "express": "^4.19.2",
+    "openai": "^4.97.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.4"

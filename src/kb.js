@@ -1,9 +1,8 @@
 // Loads the bot's knowledge base from a content file (engine ≠ content).
 // Edit knowledge/kb.md to change what the bot knows — no code change needed.
 //
-// Source of truth (editorial, with Mos's notes): the LhW vault →
-//   Clients/000_lazyhardwork/resources/lhw-bot-knowledge-base.md
-// knowledge/kb.md is the distilled, bot-facing copy kept in sync with that source.
+// Editorial source of truth (vault): Clients/000_lazyhardwork/resources/lhw-bot-knowledge-base.md
+// Runtime copy (dev repo):           knowledge/kb.md  ← loaded here
 
 const fs = require('fs');
 const path = require('path');

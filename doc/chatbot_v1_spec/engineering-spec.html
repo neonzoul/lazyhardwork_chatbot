@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Engineering Spec — LhW Agent Lay v1.0</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bai+Jamjuree:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Thai:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#FAFAF8;--ink:#16130F;--muted:#6B6660;
+    --emerald:#0E6E5C;--code:#0A84FF;
+    --wash:#E8F1ED;--codewash:#E7F0FF;--hair:#E4E1DA;
+    --warn:#7A4F00;--warnwash:#FFF8E6;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
+  body{background:#EFEDE7;font-family:"IBM Plex Sans Thai",sans-serif;color:var(--ink);line-height:1.7;padding:24px 14px 80px;display:flex;justify-content:center}
+  .doc{width:100%;max-width:820px;background:var(--paper);border:1px solid var(--hair)}
+  .mono{font-family:"IBM Plex Mono",monospace}
+  h1,h2,h3,.disp{font-family:"Bai Jamjuree",sans-serif;letter-spacing:-.01em}
+  a{color:var(--emerald);text-decoration:none}
+  a:hover{text-decoration:underline}
+
+  /* hero */
+  .hero{padding:48px 40px 36px;border-bottom:2px solid var(--ink)}
+  .mark{font-family:"Bai Jamjuree",sans-serif;font-weight:700;font-size:36px;letter-spacing:.02em}
+  .mark .br{border:3px solid var(--ink);border-radius:8px;padding:0 8px;margin-right:2px}
+  .mark .h{color:var(--code)}
+  .hero-title{font-family:"Bai Jamjuree",sans-serif;font-weight:700;font-size:26px;margin-top:20px;line-height:1.2}
+  .hero-sub{font-size:15px;color:var(--muted);margin-top:8px}
+  .meta-row{display:flex;flex-wrap:wrap;gap:10px;margin-top:20px}
+  .badge{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.08em;padding:5px 12px;border-radius:4px;border:1px solid var(--hair)}
+  .badge.em{background:var(--wash);color:var(--emerald);border-color:#C4DDD6}
+  .badge.cd{background:var(--codewash);color:var(--code);border-color:#C5DCFF}
+  .badge.dk{background:var(--ink);color:#F4F2EC;border-color:var(--ink)}
+
+  /* nav */
+  .nav{padding:22px 40px;border-bottom:1px solid var(--hair);background:#fff}
+  .nav .lbl{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:12px}
+  .nav-grid{display:grid;grid-template-columns:1fr 1fr;gap:2px 24px}
+  .nav a{display:block;font-size:13.5px;color:var(--ink);padding:3px 0}
+  .nav a:hover{color:var(--emerald)}
+  .nav .num{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--muted);margin-right:6px}
+
+  /* sections */
+  .part{padding:38px 40px 10px;border-top:2px solid var(--ink)}
+  .part-tag{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--emerald);font-weight:600}
+  .part-tag.cd{color:var(--code)}
+  .part h2{font-size:28px;margin-top:6px;line-height:1.2}
+  .part .desc{color:var(--muted);font-size:15px;margin-top:8px;max-width:60ch}
+
+  section{padding:28px 40px;border-top:1px solid var(--hair)}
+  .sec-no{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--emerald);font-weight:600;letter-spacing:.08em}
+  .sec-no.cd{color:var(--code)}
+  section h3{font-family:"Bai Jamjuree",sans-serif;font-size:20px;margin-top:4px;margin-bottom:16px}
+  section h4{font-family:"Bai Jamjuree",sans-serif;font-size:16px;margin:18px 0 10px;color:var(--ink)}
+  p{margin-bottom:12px;font-size:15px}
+  b,strong{font-weight:600}
+
+  ul.plain{list-style:none;display:grid;gap:8px;margin:8px 0 14px}
+  ul.plain li{display:flex;gap:10px;font-size:14.5px;align-items:flex-start}
+  ul.plain li .m{color:var(--emerald);font-family:"IBM Plex Mono",monospace;font-size:13px;flex-shrink:0;margin-top:2px}
+  ul.plain li.cd .m{color:var(--code)}
+
+  /* code blocks */
+  .codeblock{background:#0E1822;color:#D6E4F0;border-radius:8px;padding:18px 22px;font-family:"IBM Plex Mono",monospace;font-size:12px;line-height:1.75;overflow-x:auto;margin:14px 0;white-space:pre}
+  .chip{display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:11px;background:var(--codewash);color:var(--code);border:1px solid #CFE2FF;padding:3px 9px;border-radius:4px;margin:2px 3px 2px 0}
+  .chip.em{background:var(--wash);color:var(--emerald);border-color:#C4DDD6}
+
+  /* tables */
+  table{width:100%;border-collapse:collapse;font-size:14px;margin:14px 0}
+  th{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;text-align:left;padding:8px 12px;background:var(--ink);color:#F4F2EC;font-weight:500}
+  td{padding:9px 12px;border-bottom:1px solid var(--hair);vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  tr:nth-child(even) td{background:#F5F4F1}
+  td code,th code{font-family:"IBM Plex Mono",monospace;font-size:11.5px}
+  td .tag-copy{font-size:12px;font-family:"IBM Plex Mono",monospace;color:var(--emerald)}
+  td .tag-rewrite{font-size:12px;font-family:"IBM Plex Mono",monospace;color:var(--code)}
+
+  /* build steps */
+  .steps{display:grid;gap:12px;margin:8px 0}
+  .step{display:flex;gap:16px;align-items:flex-start;padding:12px 14px;background:#F5F4F1;border-radius:6px;border:1px solid var(--hair)}
+  .step .n{font-family:"IBM Plex Mono",monospace;font-weight:600;color:var(--emerald);flex-shrink:0;font-size:15px;min-width:24px}
+  .step .body{flex:1}
+  .step .body strong{display:block;font-size:14.5px;margin-bottom:3px}
+  .step .body .hint{font-size:13px;color:var(--muted)}
+
+  /* state machine */
+  .sm{display:grid;gap:0;margin:14px 0}
+  .sm-box{border:1.5px solid var(--ink);border-radius:8px;padding:14px 18px;margin-bottom:4px}
+  .sm-box.active{border-color:var(--emerald);background:var(--wash)}
+  .sm-box.waiting{border-color:var(--warn);background:var(--warnwash)}
+  .sm-box.human{border-color:var(--muted);background:#F2F1EE}
+  .sm-box .sm-tag{font-family:"IBM Plex Mono",monospace;font-size:11px;font-weight:600;letter-spacing:.1em}
+  .sm-box.active .sm-tag{color:var(--emerald)}
+  .sm-box.waiting .sm-tag{color:var(--warn)}
+  .sm-box.human .sm-tag{color:var(--muted)}
+  .sm-box .sm-title{font-family:"Bai Jamjuree",sans-serif;font-weight:600;font-size:16px;margin-top:4px}
+  .sm-box .sm-desc{font-size:13.5px;color:var(--muted);margin-top:4px}
+  .sm-arrow{text-align:center;font-family:"IBM Plex Mono",monospace;font-size:13px;color:var(--muted);padding:2px 0}
+
+  /* info box */
+  .infobox{border-left:3px solid var(--emerald);padding:10px 16px;margin:14px 0;background:var(--wash);border-radius:0 6px 6px 0;font-size:14px}
+  .infobox.cd{border-color:var(--code);background:var(--codewash)}
+  .infobox .ib-tag{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;font-weight:600;color:var(--emerald);margin-bottom:4px}
+  .infobox.cd .ib-tag{color:var(--code)}
+
+  /* arch diagram */
+  .arch{background:#0E1822;border-radius:8px;padding:22px 24px;margin:14px 0;overflow-x:auto}
+  .arch-flow{display:grid;gap:0;min-width:480px}
+  .arch-node{font-family:"IBM Plex Mono",monospace;font-size:12px;line-height:1.6}
+  .arch-line{color:#5FA8E8}
+  .arch-label{color:#A8C8E8}
+  .arch-box{color:#D6E4F0}
+  .arch-green{color:#52C99A}
+  .arch-orange{color:#E8A44A}
+  .arch-dim{color:#4A6680}
+
+  /* file tree */
+  .filetree{background:#F2F1EE;border:1px solid var(--hair);border-radius:8px;padding:16px 20px;font-family:"IBM Plex Mono",monospace;font-size:12.5px;line-height:1.9;overflow-x:auto;margin:14px 0}
+  .ft-dir{color:var(--ink);font-weight:500}
+  .ft-file{color:var(--muted)}
+  .ft-note{color:var(--code)}
+  .ft-note-em{color:var(--emerald)}
+
+  /* flow burst */
+  .burst-flow{background:#F2F1EE;border:1px solid var(--hair);border-radius:8px;padding:16px 20px;font-family:"IBM Plex Mono",monospace;font-size:12.5px;line-height:2;margin:14px 0}
+  .bf-msg{color:var(--code)}
+  .bf-arrow{color:var(--muted)}
+  .bf-fire{color:var(--emerald);font-weight:600}
+
+  /* kb scale table */
+  .kb-scale td:nth-child(3){font-size:13px;color:var(--muted)}
+  .kb-scale tr:first-child td{background:var(--wash);font-weight:600}
+
+  /* pricing */
+  .price-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:14px 0}
+  .price-card{border:1.5px solid var(--hair);border-radius:8px;padding:16px;text-align:center}
+  .price-card .pkg{font-family:"Bai Jamjuree",sans-serif;font-weight:600;font-size:14px;color:var(--muted);letter-spacing:.05em}
+  .price-card .amt{font-family:"Bai Jamjuree",sans-serif;font-weight:700;font-size:26px;color:var(--emerald);margin-top:8px}
+  .price-card .note{font-size:12px;color:var(--muted);margin-top:4px}
+
+  footer{padding:28px 40px;border-top:2px solid var(--ink);font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--muted);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+
+  @media(max-width:520px){
+    .hero,.nav,.part,section,footer{padding-left:20px;padding-right:20px}
+    .mark{font-size:28px}.hero-title{font-size:20px}.part h2{font-size:22px}
+    .nav-grid{grid-template-columns:1fr}.price-grid{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+<main class="doc">
+
+  <!-- HERO -->
+  <header class="hero">
+    <div class="mark"><span class="br">L</span><span class="h">h</span>.<span>W</span></div>
+    <div class="hero-title">Engineering Spec<br>Agent Lay — LINE OA Bot</div>
+    <div class="hero-sub">สเปคทางวิศวกรรม: วิธีสร้างบอท LINE OA สำหรับ LazyHardWork (Client 000)</div>
+    <div class="meta-row">
+      <span class="badge em">v1.0</span>
+      <span class="badge cd">TASK-002</span>
+      <span class="badge em">→ 2026-07-07</span>
+      <span class="badge dk">feature/antigravity · feature/claude-code</span>
+    </div>
+  </header>
+
+  <!-- NAV -->
+  <nav class="nav">
+    <div class="lbl">สารบัญ</div>
+    <div class="nav-grid">
+      <div>
+        <a href="#s1"><span class="num">01</span>สถาปัตยกรรม</a>
+        <a href="#s2"><span class="num">02</span>เทคโนโลยี</a>
+        <a href="#s3"><span class="num">03</span>Data Models</a>
+        <a href="#s4"><span class="num">04</span>State Machine</a>
+        <a href="#s5"><span class="num">05</span>LLM Integration</a>
+        <a href="#s6"><span class="num">06</span>โครงสร้างไฟล์</a>
+      </div>
+      <div>
+        <a href="#s7"><span class="num">07</span>การตั้งค่า</a>
+        <a href="#s8"><span class="num">08</span>ลำดับการพัฒนา</a>
+        <a href="#s9"><span class="num">09</span>การ Deploy</a>
+        <a href="#s10"><span class="num">10</span>เปรียบเทียบ Branch</a>
+        <a href="#s11"><span class="num">11</span>Scaffold สำหรับโปรเจกต์ใหม่</a>
+        <a href="#s12"><span class="num">12</span>ราคา</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- §1 ARCHITECTURE -->
+  <div class="part" id="s1">
+    <div class="part-tag">§ 01</div>
+    <h2>สถาปัตยกรรมระบบ</h2>
+    <p class="desc">ภาพรวมการไหลของข้อมูลตั้งแต่ผู้ใช้ส่งข้อความจนถึงการตอบกลับ</p>
+  </div>
+  <section>
+    <div class="arch">
+      <pre class="arch-node"><span class="arch-label">LINE User</span>
+  <span class="arch-dim">│</span> ส่งข้อความ
+  <span class="arch-dim">▼</span>
+<span class="arch-line">LINE Messaging API ──webhook──►</span> <span class="arch-box">Express /webhook</span>
+                                    <span class="arch-dim">│</span>
+                              <span class="arch-green">ตรวจสอบ Signature</span>
+                              <span class="arch-dim">(LINE middleware)</span>
+                                    <span class="arch-dim">│</span>
+                              <span class="arch-green">Lossless Debounce 12 วิ</span>
+                              <span class="arch-dim">รวมข้อความใน burst ก่อนประมวลผล</span>
+                                    <span class="arch-dim">│</span>
+                              <span class="arch-green">ตรวจสอบสถานะ (State)</span>
+                   <span class="arch-dim">┌──────────┴──────────┐</span>
+              <span class="arch-green">BOT_ACTIVE</span>        <span class="arch-orange">WAITING_HUMAN</span>
+                   <span class="arch-dim">│</span>               <span class="arch-orange">HUMAN_ACTIVE</span>
+           <span class="arch-dim">Handoff trigger?</span>   <span class="arch-dim">──►</span> <span class="arch-dim">ตอบ fixed / เงียบ</span>
+            <span class="arch-dim">│          │</span>
+           <span class="arch-green">YES</span>        <span class="arch-dim">NO</span>
+            <span class="arch-dim">│          │</span>
+     <span class="arch-orange">handleHandoff</span>   <span class="arch-line">LLM call (Anthropic)</span>
+     <span class="arch-dim">WAITING_HUMAN   system prompt = KB + rules</span>
+     <span class="arch-dim">แจ้ง #crm       history = 10 ข้อความล่าสุด</span>
+            <span class="arch-dim">│          │</span>
+            <span class="arch-dim">└────┬─────┘</span>
+                 <span class="arch-dim">▼</span>
+          <span class="arch-green">LINE pushMessage (text)</span>
+                 <span class="arch-dim">│</span>
+         <span class="arch-dim">KB gap? → แจ้ง #crm Discord</span>
+         <span class="arch-dim">Lead?   → แจ้ง #leads Discord</span></pre>
+    </div>
+    <div class="infobox">
+      <div class="ib-tag">หลักการสำคัญ</div>
+      <strong>ไม่ใช้ Tool-calling</strong> — LLM ตอบตรงจาก KB ที่ฉีดเข้าไปใน system prompt
+      Business logic ทั้งหมด (state machine, handoff, lead detection) อยู่ใน <span class="chip">bot.js</span> ไม่ใช่ใน LLM
+    </div>
+  </section>
+
+  <!-- §2 TECH STACK -->
+  <div class="part" id="s2">
+    <div class="part-tag">§ 02</div>
+    <h2>เทคโนโลยีที่ใช้</h2>
+  </div>
+  <section>
+    <table>
+      <thead><tr><th>Layer</th><th>เลือกใช้</th><th>เหตุผล</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Runtime</strong></td><td><code>Node.js ≥ 18</code></td><td>LINE SDK รองรับดีที่สุด; มี debounce logic พร้อม</td></tr>
+        <tr><td><strong>Framework</strong></td><td><code>Express</code></td><td>เบา เข้าใจง่าย ไม่มี overhead</td></tr>
+        <tr><td><strong>LINE SDK</strong></td><td><code>@line/bot-sdk v9</code></td><td>Official; จัดการ signature verification ให้อัตโนมัติ</td></tr>
+        <tr><td><strong>LLM</strong></td><td><code>claude-haiku-4-5</code></td><td>เร็ว ราคาถูก เหมาะกับภาษาไทย ไม่ต้องการ tool-calling</td></tr>
+        <tr><td><strong>Discord notify</strong></td><td><code>axios</code> POST webhook</td><td>Stateless ไม่ต้องการ library พิเศษ</td></tr>
+        <tr><td><strong>Session store</strong></td><td>In-memory <code>Map</code></td><td>Demo/Phase 1 — เปลี่ยนเป็น Redis สำหรับ production multi-instance</td></tr>
+        <tr><td><strong>Dev tunnel</strong></td><td><code>ngrok</code></td><td>Expose localhost ให้ LINE webhook เข้าถึงได้</td></tr>
+        <tr><td><strong>Deploy</strong></td><td>Render free tier</td><td>Zero-ops ตอนนี้ — ย้าย VPS ทีหลัง</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- §3 DATA MODELS -->
+  <div class="part" id="s3">
+    <div class="part-tag cd">§ 03</div>
+    <h2>Data Models</h2>
+  </div>
+  <section>
+    <div class="sec-no">SESSION — เก็บต่อ userId (in-memory)</div>
+    <h3>สถานะการสนทนาของผู้ใช้แต่ละคน</h3>
+    <pre class="codeblock">{
+  status:          'BOT_ACTIVE' | 'WAITING_HUMAN' | 'HUMAN_ACTIVE',
+  history:         [{ role: 'user'|'assistant', content: string }],  // สูงสุด 10 รายการ
+  pendingTimer:    TimerHandle | null,   // debounce timer ที่กำลังนับถอยหลัง
+  pendingMessages: string[],             // ตะกร้าข้อความ burst — เทเมื่อ timer ยิง
+}</pre>
+    <div class="sec-no" style="margin-top:24px">LEAD OBJECT — ส่งไป Discord #leads</div>
+    <h3 style="margin-top:4px">ข้อมูล Lead ที่จับได้จากบทสนทนา</h3>
+    <pre class="codeblock">{
+  name:       string,   // ชื่อลูกค้า (จากบทสนทนา หรือ LINE display name)
+  business:   string,   // ประเภทธุรกิจ
+  problem:    string,   // ปัญหาที่ต้องการแก้
+  budget:     string,   // งบประมาณ
+  contact:    string,   // ช่องทางติดต่อ
+  keyRemark:  string,   // สรุปประเด็นสำคัญ (bot-generated)
+}</pre>
+    <div class="sec-no" style="margin-top:24px">DISCORD PAYLOADS</div>
+    <h3 style="margin-top:4px">รูปแบบข้อความที่ส่งไป Discord</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
+      <pre class="codeblock" style="margin:0">🔴 Human Required
+ลูกค้า: {displayName}
+เรื่อง: {summary}
+เวลา: {Bangkok timestamp}
+สถานะ: WAITING_HUMAN</pre>
+      <pre class="codeblock" style="margin:0">🟢 New Lead
+ชื่อ: {name}
+ธุรกิจ: {business}
+ปัญหา: {problem}
+งบ: {budget}
+ติดต่อ: {contact}
+ช่องทาง: LINE OA
+สรุป: {keyRemark}</pre>
+    </div>
+  </section>
+
+  <!-- §4 STATE MACHINE -->
+  <div class="part" id="s4">
+    <div class="part-tag">§ 04</div>
+    <h2>State Machine</h2>
+    <p class="desc">บอทมี 3 สถานะ — เปลี่ยนได้ทางเดียว ยกเว้น reset ด้วย Mos</p>
+  </div>
+  <section>
+    <div class="sm">
+      <div class="sm-box active">
+        <div class="sm-tag">BOT_ACTIVE · สถานะเริ่มต้น</div>
+        <div class="sm-title">บอทตอบอัตโนมัติจาก KB</div>
+        <div class="sm-desc">รับข้อความ → debounce → ตรวจ handoff → LLM call ถ้าไม่มี trigger</div>
+      </div>
+      <div class="sm-arrow">│ handoff trigger (keyword / ปุ่ม)</div>
+      <div class="sm-arrow">▼</div>
+      <div class="sm-box waiting">
+        <div class="sm-tag">WAITING_HUMAN</div>
+        <div class="sm-title">รอมอสมาดูแล</div>
+        <div class="sm-desc">บอทตอบเพียง "กำลังรอคุณมอส..." — แจ้งเตือน Discord #crm ทันที</div>
+      </div>
+      <div class="sm-arrow">│ Mos set status → HUMAN_ACTIVE (manual)</div>
+      <div class="sm-arrow">▼</div>
+      <div class="sm-box human">
+        <div class="sm-tag">HUMAN_ACTIVE</div>
+        <div class="sm-title">บอทเงียบ — มอสดูแลเอง</div>
+        <div class="sm-desc">ไม่ตอบใดๆ ทั้งสิ้น กลับ BOT_ACTIVE ได้ด้วย manual reset เท่านั้น</div>
+      </div>
+    </div>
+    <h4>Handoff Trigger Phrases (Thai regex)</h4>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px">
+      <span class="chip em">คุยกับคนจริง</span>
+      <span class="chip em">ขอคุยกับมอส</span>
+      <span class="chip em">อยากนัดคุย</span>
+      <span class="chip em">คุยกับคน</span>
+    </div>
+    <div class="infobox">
+      <div class="ib-tag">นอกเวลาทำการ (ก่อน 13:00 / หลัง 22:00 กรุงเทพฯ)</div>
+      บอทยังคง <strong>BOT_ACTIVE</strong> อยู่ — แต่แนบข้อความแจ้งนอกเวลาไปใน system prompt
+      Mos ยังได้รับแจ้งจาก #crm เหมือนเดิม
+    </div>
+  </section>
+
+  <!-- §5 LLM INTEGRATION -->
+  <div class="part" id="s5">
+    <div class="part-tag cd">§ 05</div>
+    <h2>LLM Integration</h2>
+    <p class="desc">วิธีที่บอทใช้ Claude และจัดการ Knowledge Base</p>
+  </div>
+
+  <section>
+    <div class="sec-no cd">5.1</div>
+    <h3>KB Injection — Full-Context Strategy</h3>
+    <p><span class="chip">kb.js</span> อ่านไฟล์ <span class="chip">knowledge/kb.md</span> ครั้งเดียวตอน server เปิด (Node module cache เก็บไว้ในหน่วยความจำ)
+    ทุกครั้งที่มี LLM call, <span class="chip">buildSystemPrompt()</span> ฉีด KB ทั้งก้อนเข้าไปใน system prompt:</p>
+    <pre class="codeblock">system prompt (ทุก call):
+  [persona + กฎลงท้าย "[Agent Lay]" ทุก response]
+  [ข้อมูลติดต่อจาก config — ไม่ hard-code]
+  [KB ทั้งก้อน: identity · บริการ · ราคา · proof · FAQ · handoff · voice samples]
+  [กฎ: KB-only · ห้ามแต่ง · escalate unknowns]
+  [ถ้านอกเวลา: แนบ notice]
+
+messages: history (≤10 ข้อความ) + joined burst จาก pendingMessages</pre>
+
+    <h4>ทำไมถึงเลือก Full Injection ตอนนี้</h4>
+    <p>KB มีขนาดเล็กโดยออกแบบ (~10 blocks, ~800–1,500 tokens) ค่า Haiku input ($0.25/MTok): ~฿0.01 ต่อ 1,000 calls สำหรับส่วน KB — น้อยมากจนไม่มีนัยสำคัญ ข้อดีของความเรียบง่ายมีมาก: ไม่ต้องมี vector DB, embedding pipeline, ไม่มีปัญหา retrieval miss</p>
+
+    <h4>เมื่อไหร่ Full Injection จะพัง</h4>
+    <table class="kb-scale">
+      <thead><tr><th>ขนาด KB</th><th>ประมาณ Tokens</th><th>ปัญหา</th></tr></thead>
+      <tbody>
+        <tr><td><strong>ปัจจุบัน (~5 KB)</strong></td><td>~1,500</td><td style="color:var(--emerald)">ไม่มี — ถูกต้องแล้ว</td></tr>
+        <tr><td>~20 หน้า</td><td>~10,000</td><td>ค่าใช้จ่ายเริ่มโต ยังพอรับได้</td></tr>
+        <tr><td>~100 หน้า</td><td>~50,000</td><td>"Lost in the middle" — คุณภาพตก + ค่าสูงขึ้นชัดเจน</td></tr>
+        <tr><td>~500 หน้า</td><td>~250,000</td><td>เกิน context window ในทางปฏิบัติ — เป็นไปไม่ได้</td></tr>
+      </tbody>
+    </table>
+    <div class="infobox">
+      <div class="ib-tag">สัญญาณที่ควรเปลี่ยนไปใช้ RAG</div>
+      <ul class="plain" style="margin:4px 0 0">
+        <li><span class="m">→</span> KB เกิน ~30 หน้า (~15K tokens)</li>
+        <li><span class="m">→</span> KB gap alerts พุ่งขึ้น ทั้งที่ KB มีข้อมูลนั้นอยู่ (retrieval failure)</li>
+        <li><span class="m">→</span> ค่า input token กลายเป็นสัดส่วนสำคัญของต้นทุนต่อ conversation</li>
+      </ul>
+    </div>
+    <h4>RAG Architecture (อ้างอิงสำหรับอนาคต)</h4>
+    <pre class="codeblock">Startup:
+  chunk KB → sections ~300 tokens
+  embed แต่ละ chunk (Anthropic Embeddings / text-embedding-3-small)
+  เก็บใน vector index (in-memory / Chroma / Pinecone)
+
+Per message:
+  1. Embed คำถามของผู้ใช้
+  2. Cosine-similarity search → top-3 chunks (~1,500 tokens)
+  3. ฉีดเฉพาะ chunks ที่เกี่ยวข้องใน system prompt
+  4. LLM ตอบจากตัวอย่างที่โฟกัส ไม่ใช่ทั้งห้องสมุด
+
+Trade-off: ต้นทุนต่ำ + คุณภาพดีขึ้นใน KB ขนาดใหญ่
+           vs ความซับซ้อนของ infrastructure ที่เพิ่มขึ้น</pre>
+  </section>
+
+  <section>
+    <div class="sec-no cd">5.2</div>
+    <h3>Multi-Message Burst — Lossless Accumulator</h3>
+    <p>ผู้ใช้ LINE มักส่งหลายข้อความต่อกันเป็นชุด debounce window 12 วิ <strong>เก็บทุกข้อความ</strong>
+    ไว้ใน <span class="chip">session.pendingMessages[]</span> เมื่อ timer ยิง จะรวมทุกข้อความด้วย newline
+    แล้วประมวลผลเป็น block เดียว — LLM เห็น intent ครบทั้งหมด ไม่ใช่แค่ข้อความสุดท้าย</p>
+    <div class="burst-flow">
+      <div><span class="bf-msg">User: "สวัสดี"</span>          <span class="bf-arrow">→ push pendingMessages, reset 12s timer</span></div>
+      <div><span class="bf-msg">User: "ผมสนใจบอท"</span>       <span class="bf-arrow">→ push pendingMessages, reset 12s timer</span></div>
+      <div><span class="bf-msg">User: "ราคาเท่าไหร่"</span>    <span class="bf-arrow">→ push pendingMessages, reset 12s timer</span></div>
+      <div style="margin-top:4px"><span class="bf-fire">12s ไม่มีข้อความใหม่ → drain: "สวัสดี\nผมสนใจบอท\nราคาเท่าไหร่"</span></div>
+      <div><span class="bf-arrow">                           → processMessage(joined burst)</span></div>
+    </div>
+    <p style="font-size:13.5px;color:var(--muted)">ค่า 12 วิ ปรับได้ผ่าน <span class="chip">DEBOUNCE_MS</span> ใน <span class="chip">bot.js</span>
+    — เพิ่มถ้าผู้ใช้พิมพ์ช้า, ลดถ้า latency สำคัญกว่า</p>
+  </section>
+
+  <section>
+    <div class="sec-no cd">5.3</div>
+    <h3>KB Gap & Lead Detection</h3>
+    <ul class="plain">
+      <li><span class="m">→</span><div><strong>KB Gap (heuristic):</strong> ถ้า reply มีคำว่า <span class="chip">ไม่มีข้อมูล</span> หรือ <span class="chip">ไม่ทราบ</span> → ส่งคำถามของผู้ใช้ไป Discord #crm เพื่อให้ Mos อัปเดต KB ทีหลัง</div></li>
+      <li><span class="m">→</span><div><strong>Lead Detection:</strong> ปัจจุบัน manual trigger (ผู้ใช้พูด buying-signal phrases) Phase 2: structured extraction ผ่าน LLM call เพิ่มเติมเมื่อ handoff ยิง</div></li>
+    </ul>
+  </section>
+
+  <!-- §6 FILE STRUCTURE -->
+  <div class="part" id="s6">
+    <div class="part-tag cd">§ 06</div>
+    <h2>โครงสร้างไฟล์</h2>
+  </div>
+  <section>
+    <div class="filetree"><span class="ft-dir">lazyhardwork_chatbot/</span>
+├── <span class="ft-dir">AGENTS.md</span>                  <span class="ft-note-em"># orientation สำหรับ coding agent (อ่านก่อน)</span>
+├── <span class="ft-dir">.env.example</span>               <span class="ft-note-em"># env vars ทั้งหมด พร้อม description</span>
+├── <span class="ft-dir">.gitignore</span>                 <span class="ft-note-em"># node_modules, .env</span>
+├── <span class="ft-dir">package.json</span>
+├── <span class="ft-dir">knowledge/</span>
+│   └── <span class="ft-dir">kb.md</span>                  <span class="ft-note"># KB content file — แก้ที่นี่เพื่อเปลี่ยนความรู้บอท</span>
+└── <span class="ft-dir">src/</span>
+    ├── <span class="ft-dir">index.js</span>               <span class="ft-note-em"># Express server, POST /webhook, GET /health</span>
+    ├── <span class="ft-dir">bot.js</span>                 <span class="ft-note-em"># State machine + lossless debounce + handoff</span>
+    ├── <span class="ft-dir">llm.js</span>                 <span class="ft-note-em"># Anthropic SDK call, system prompt builder</span>
+    ├── <span class="ft-dir">kb.js</span>                  <span class="ft-note-em"># โหลด knowledge/kb.md ตอน startup</span>
+    ├── <span class="ft-dir">state.js</span>               <span class="ft-note-em"># In-memory session store + pendingMessages accumulator</span>
+    ├── <span class="ft-dir">discord.js</span>             <span class="ft-note-em"># #leads และ #crm webhook POSTs</span>
+    ├── <span class="ft-dir">config.js</span>              <span class="ft-note"># Env-based config (secrets + infra เท่านั้น)</span>
+    └── <span class="ft-dir">agents.config.js</span>       <span class="ft-note"># Model definitions ต่อ agent role (version-controlled)</span></div>
+  </section>
+
+  <!-- §7 CONFIGURATION -->
+  <div class="part" id="s7">
+    <div class="part-tag">§ 07</div>
+    <h2>การตั้งค่า</h2>
+    <p class="desc">แยก 2 ไฟล์ตามวัตถุประสงค์ต่างกัน — secrets vs engineering decisions</p>
+  </div>
+  <section>
+    <div class="sec-no">7.1 — .env (Secrets + Infrastructure)</div>
+    <h3>ข้อมูลลับ + Infrastructure เท่านั้น</h3>
+    <pre class="codeblock"># LINE OA
+LINE_CHANNEL_SECRET=
+LINE_CHANNEL_ACCESS_TOKEN=
+
+# LLM API key — model selection อยู่ใน agents.config.js ไม่ใช่ที่นี่
+ANTHROPIC_API_KEY=
+
+# Discord webhooks
+DISCORD_LEADS_WEBHOOK=
+DISCORD_CRM_WEBHOOK=
+
+# ข้อมูลติดต่อ (inject ใน system prompt — ห้าม hard-code)
+CONTACT_PHONE=
+CONTACT_EMAIL=
+
+# เวลาทำการ (format 24h, Asia/Bangkok)
+BUSINESS_HOURS_START=13
+BUSINESS_HOURS_END=22
+
+# Server
+PORT=3000</pre>
+  </section>
+  <section>
+    <div class="sec-no">7.2 — agents.config.js (Model Definitions)</div>
+    <h3>กำหนด Model ต่อ Agent Role — version-controlled</h3>
+    <pre class="codeblock">// src/agents.config.js
+// แก้ที่นี่เพื่อเปลี่ยน model — ไม่ต้องยุ่งกับ .env
+module.exports = {
+  agentLay: {
+    model:       'claude-haiku-4-5-20251001',  // เร็ว ถูก เหมาะภาษาไทย KB-only
+    maxTokens:   1024,
+    description: 'LINE OA reply bot — KB-only answers',
+  },
+  // เพิ่ม sub-agent ในอนาคตที่นี่:
+  // crmSummarizer: { model: 'claude-haiku-4-5-20251001', maxTokens: 512 }
+  // reportAgent:   { model: 'claude-sonnet-4-6',         maxTokens: 4096 }
+};</pre>
+    <div class="infobox cd">
+      <div class="ib-tag cd">เหตุผลที่แยก</div>
+      <strong>Secrets</strong> (.env) = ไม่เคย commit — API keys, tokens, webhook URLs<br>
+      <strong>Model selection</strong> (agents.config.js) = ไม่ใช่ความลับ — เป็น engineering decision ที่ควร version-control, review ใน PR ได้, เปลี่ยนโดยไม่ต้อง redeploy
+      การเปลี่ยน model ของ agent หนึ่งต้องไม่กระทบ agent อื่น
+    </div>
+  </section>
+
+  <!-- §8 BUILD ORDER -->
+  <div class="part" id="s8">
+    <div class="part-tag">§ 08</div>
+    <h2>ลำดับการพัฒนา</h2>
+    <p class="desc">สร้างทีละ layer ตรวจสอบก่อนไปต่อ</p>
+  </div>
+  <section>
+    <div class="steps">
+      <div class="step"><span class="n">01</span><div class="body"><strong>GET /health → {status:"ok"}</strong><span class="hint">ตรวจว่า server เปิดได้ และ LINE webhook เข้าถึงได้ผ่าน ngrok</span></div></div>
+      <div class="step"><span class="n">02</span><div class="body"><strong>POST /webhook รับ LINE event + ตรวจ signature + echo ข้อความกลับ</strong><span class="hint">ยืนยัน round-trip เต็มรูปแบบก่อน logic ใดๆ</span></div></div>
+      <div class="step"><span class="n">03</span><div class="body"><strong>Lossless debounce (12 วิ, message accumulator)</strong><span class="hint">ทดสอบด้วยการส่ง 3 ข้อความต่อกันเร็วๆ — LLM ควรได้รับ joined text ไม่ใช่แค่ข้อความสุดท้าย</span></div></div>
+      <div class="step"><span class="n">04</span><div class="body"><strong>State store (state.js) + status transitions</strong><span class="hint">ทดสอบ set status ด้วย manual call ตรวจ BOT_ACTIVE → WAITING_HUMAN → HUMAN_ACTIVE</span></div></div>
+      <div class="step"><span class="n">05</span><div class="body"><strong>Wire LLM (llm.js + kb.js) สำหรับ BOT_ACTIVE</strong><span class="hint">ทดสอบ KB-only answers — ถาม out-of-KB แล้วต้องไม่ hallucinate</span></div></div>
+      <div class="step"><span class="n">06</span><div class="body"><strong>Handoff trigger → WAITING_HUMAN + discord.js #crm notify</strong><span class="hint">พิมพ์ "คุยกับคนจริง" → state เปลี่ยน → Discord แจ้ง</span></div></div>
+      <div class="step"><span class="n">07</span><div class="body"><strong>Lead detection heuristic + #leads Discord notify</strong><span class="hint">ผู้ใช้แสดง buying signal → Discord #leads ได้รับ payload</span></div></div>
+      <div class="step"><span class="n">08</span><div class="body"><strong>ทดสอบ out-of-hours behavior</strong><span class="hint">Mock ชั่วโมง หรือเปลี่ยน BUSINESS_HOURS_START ชั่วคราว</span></div></div>
+      <div class="step"><span class="n">09</span><div class="body"><strong>Run acceptance criteria ทั้งหมดจาก requirement-spec §11</strong><span class="hint">checklist ครบ pass/fail ทุกข้อก่อน go-live</span></div></div>
+      <div class="step"><span class="n">10</span><div class="body"><strong>ตั้ง LINE webhook URL เป็น production host → smoke test live</strong><span class="hint">ส่งข้อความจริงผ่าน LINE app ตรวจ end-to-end</span></div></div>
+    </div>
+  </section>
+
+  <!-- §9 DEPLOYMENT -->
+  <div class="part" id="s9">
+    <div class="part-tag">§ 09</div>
+    <h2>การ Deploy (Phase 1)</h2>
+  </div>
+  <section>
+    <h4>Render Free Tier (zero-config)</h4>
+    <ul class="plain">
+      <li><span class="m">→</span> Connect GitHub repo → auto-deploy เมื่อ push ไป <span class="chip em">main</span></li>
+      <li><span class="m">→</span> ตั้ง env vars ใน Render dashboard — <strong>ห้ามใส่ใน repo</strong></li>
+      <li><span class="m">→</span> Free tier หลับหลัง 15 นาที ไม่มีคนใช้ — upgrade Starter ($7/mo) หรือ self-host VPS สำหรับ production</li>
+    </ul>
+    <div class="codeblock">Webhook URL: https://{render-subdomain}.onrender.com/webhook</div>
+    <h4 style="margin-top:20px">Local Development</h4>
+    <pre class="codeblock">npm run dev          # nodemon — restart อัตโนมัติเมื่อแก้ไขไฟล์
+ngrok http 3000      # expose localhost → copy HTTPS URL
+                     # วาง URL ใน LINE Developers console → Webhook URL
+                     # ปิด LINE auto-reply ใน console ด้วย</pre>
+  </section>
+
+  <!-- §10 BRANCH COMPARISON -->
+  <div class="part" id="s10">
+    <div class="part-tag">§ 10</div>
+    <h2>แผนเปรียบเทียบ Branch</h2>
+    <p class="desc">ทั้งสอง branch implement จาก spec เดียวกัน — เทียบผลลัพธ์หลัง complete ทั้งคู่</p>
+  </div>
+  <section>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px">
+      <div class="infobox">
+        <div class="ib-tag">feature/antigravity</div>
+        <strong>Antigravity Agent</strong><br>
+        <span style="font-size:13px;color:var(--muted)">implement ด้วย Antigravity AI</span>
+      </div>
+      <div class="infobox cd">
+        <div class="ib-tag cd">feature/claude-code</div>
+        <strong>Claude Code</strong><br>
+        <span style="font-size:13px;color:var(--muted)">implement ด้วย Claude Code CLI</span>
+      </div>
+    </div>
+    <table>
+      <thead><tr><th>เกณฑ์เปรียบเทียบ</th><th>สิ่งที่ตรวจ</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Acceptance criteria</strong></td><td>ทุกข้อใน requirement-spec §11 — pass/fail</td></tr>
+        <tr><td><strong>KB fidelity</strong></td><td>Hallucinate ไหม? ตอบจาก KB เท่านั้นหรือเปล่า?</td></tr>
+        <tr><td><strong>Handoff correctness</strong></td><td>State transitions ถูกต้อง, Discord payloads ครบ</td></tr>
+        <tr><td><strong>Code clarity</strong></td><td>อัปเดต KB / เปลี่ยน tone ง่ายแค่ไหน</td></tr>
+        <tr><td><strong>Deploy friction</strong></td><td>ขั้นตอนไป live กี่ step</td></tr>
+      </tbody>
+    </table>
+    <div class="infobox">
+      <div class="ib-tag">ผลลัพธ์</div>
+      Branch ที่ชนะ merge เป็น <span class="chip em">main</span> ทั้งสอง branch เก็บไว้เป็น reference
+    </div>
+  </section>
+
+  <!-- §11 SCAFFOLD REUSABILITY -->
+  <div class="part" id="s11">
+    <div class="part-tag">§ 11</div>
+    <h2>Scaffold สำหรับโปรเจกต์ Client ใหม่</h2>
+    <p class="desc">ไฟล์ใน <code>scaffold/src/</code> ออกแบบให้ engine นำกลับมาใช้ได้ — เปลี่ยนเฉพาะ layer ที่เป็น client-specific</p>
+  </div>
+  <section>
+    <h4>จำแนก: Copy ได้เลย vs ต้องแก้ไข</h4>
+    <table>
+      <thead><tr><th>ไฟล์</th><th>สำหรับ LINE OA client ใหม่</th><th>หมายเหตุ</th></tr></thead>
+      <tbody>
+        <tr><td><code>index.js</code></td><td><span class="tag-copy">Copy verbatim</span></td><td>เหมือนกันทุก LINE OA webhook</td></tr>
+        <tr><td><code>state.js</code></td><td><span class="tag-copy">Copy verbatim</span></td><td>Generic session store</td></tr>
+        <tr><td><code>kb.js</code></td><td><span class="tag-copy">Copy verbatim</span></td><td>โหลด knowledge/kb.md เสมอ</td></tr>
+        <tr><td><code>config.js</code></td><td><span class="tag-copy">Copy verbatim</span></td><td>Env-driven ไม่มี client-specific content</td></tr>
+        <tr><td><code>discord.js</code></td><td><span class="tag-copy">Copy verbatim</span></td><td>Webhook URL มาจาก env</td></tr>
+        <tr><td><code>agents.config.js</code></td><td><span class="tag-copy">Copy, อัปเดต model</span></td><td>เพิ่ม/เปลี่ยน agent slots ตามโปรเจกต์</td></tr>
+        <tr><td><code>bot.js</code></td><td><span class="tag-rewrite">Copy, แก้ handoff phrases</span></td><td>Business logic เป็น client-specific</td></tr>
+        <tr><td><code>llm.js</code></td><td><span class="tag-rewrite">Rewrite system prompt</span></td><td>Persona, rules, voice เป็น client-specific</td></tr>
+        <tr><td><code>knowledge/kb.md</code></td><td><span class="tag-rewrite">Rewrite ทั้งหมด</span></td><td>KB content ของ client นั้น</td></tr>
+      </tbody>
+    </table>
+
+    <h4 style="margin-top:20px">Checklist เริ่มโปรเจกต์ Client ใหม่</h4>
+    <div class="steps">
+      <div class="step"><span class="n">1</span><div class="body"><strong>Pre-Implement ใน Vault</strong><span class="hint">discovery → requirement-spec → engineering-spec → scaffold/src/</span></div></div>
+      <div class="step"><span class="n">2</span><div class="body"><strong>สร้าง dev repo, copy scaffold/src/ → src/</strong><span class="hint">engine ไฟล์พร้อมใช้งานทันที</span></div></div>
+      <div class="step"><span class="n">3</span><div class="body"><strong>Rewrite llm.js — system prompt ของ client ใหม่</strong><span class="hint">persona, กฎการตอบ, voice, ข้อมูลติดต่อ</span></div></div>
+      <div class="step"><span class="n">4</span><div class="body"><strong>Rewrite knowledge/kb.md — KB ของ client</strong><span class="hint">editorial source อยู่ใน Vault, runtime copy อยู่ใน repo</span></div></div>
+      <div class="step"><span class="n">5</span><div class="body"><strong>อัปเดต agents.config.js ถ้า model ต่างกัน</strong></div></div>
+      <div class="step"><span class="n">6</span><div class="body"><strong>ตั้ง .env ใหม่ — LINE credentials, Discord webhooks, contact info</strong></div></div>
+      <div class="step"><span class="n">7</span><div class="body"><strong>Implement ตาม engineering-spec build order ของโปรเจกต์นั้น</strong></div></div>
+    </div>
+
+    <div class="infobox" style="margin-top:16px">
+      <div class="ib-tag">Non-LINE OA Channel</div>
+      สำหรับ web chat, Discord bot, ฯลฯ — <span class="chip em">state.js</span> <span class="chip em">kb.js</span> <span class="chip em">agents.config.js</span> และ pattern ของ config ยังใช้ได้ conceptually
+      <span class="chip">index.js</span> และ <span class="chip">bot.js</span> ต้องแก้ไขมากเพราะ event shape ต่างกัน
+    </div>
+  </section>
+
+  <!-- §12 PRICING -->
+  <div class="part" id="s12">
+    <div class="part-tag">§ 12</div>
+    <h2>ราคา (Authoritative)</h2>
+    <p class="desc">อ้างอิงจาก <code>00-START-HERE.md §5</code> — ราคา floor ที่ใช้ใน KB และเอกสารทุกฉบับ</p>
+  </div>
+  <section>
+    <div class="price-grid">
+      <div class="price-card">
+        <div class="pkg">STARTER</div>
+        <div class="amt">฿15,000</div>
+        <div class="note">ราคาเริ่มต้น</div>
+      </div>
+      <div class="price-card" style="border-color:var(--emerald)">
+        <div class="pkg">ADVANCED</div>
+        <div class="amt">฿20,000</div>
+        <div class="note">ราคาเริ่มต้น</div>
+      </div>
+      <div class="price-card">
+        <div class="pkg">OPERATION</div>
+        <div class="amt">฿30,000</div>
+        <div class="note">ราคาเริ่มต้น</div>
+      </div>
+    </div>
+    <div class="infobox" style="margin-top:4px">
+      <div class="ib-tag">หมายเหตุ</div>
+      requirement-spec และ KB เวอร์ชันเก่ามีตัวเลขไม่ตรงกัน — <strong>ใช้ตัวเลขชุดนี้เท่านั้น</strong>
+      ราคา custom / ดีลพิเศษ / ส่วนลด → escalate ให้ Mos เสมอ ห้ามบอทตอบเอง
+    </div>
+  </section>
+
+  <footer>
+    <span>LhW Engineering Spec — Agent Lay v1.0</span>
+    <span>Client 000 · TASK-002 · →2026-07-07</span>
+  </footer>
+
+</main>
+</body>
+</html>

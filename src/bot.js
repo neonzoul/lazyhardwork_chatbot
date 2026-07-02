@@ -1,99 +1,312 @@
 const line = require('@line/bot-sdk');
 const config = require('./config');
 const state = require('./state');
-const { chat } = require('./llm');
-const { postCrmHandoff } = require('./discord');
+const { chat, hasBuyingSignal, hasLeadPattern, extractLead } = require('./llm');
+const { postLead, postCrmHandoff } = require('./discord');
 
 const lineClient = new line.messagingApi.MessagingApiClient({
-  channelAccessToken: config.line.channelAccessToken,
+    channelAccessToken: config.line.channelAccessToken,
 });
 
-const DEBOUNCE_MS = 6500; // spec §3: 6–7 sec
+// Spec §3: 6-7 s debounce (engineering spec uses 7 s)
+const DEBOUNCE_MS = 7000;
 
-// Human handoff trigger phrases
 const HANDOFF_PATTERNS = [
-  /คุยกับคนจริง/,
-  /ขอคุยกับมอส/,
-  /อยากนัดคุย/,
-  /คุยกับคน/,
+    /คุย\s*กับ\s*คน\s*จริง/,
+    /(?:ขอ|อยาก)\s*คุย\s*กับ\s*(?:มอส|mos)/i,
+    /(?:ขอ|อยาก)\s*(?:นัด|คุย)\s*กับ\s*คน/,
+    /(?:ขอ|อยาก)\s*นัดคุย/,
+    /ให้\s*คน\s*มา\s*คุย/,
+    /ขอ\s*คุย\s*กับ\s*(?:มอส|mos)/i,
+];
+
+// Affirmative replies after bot offers to escalate due to KB gap
+const HANDOFF_CONFIRM_PATTERNS = [
+    /^ก$/,
+    /^ก\.?$/,
+    /ข้อ\s*ก/,
+    /ส่งให้/,
+    /ส่งคำถาม/,
+    /ขอให้ส่ง/,
+    /ได้เลย/,
+    /เอาเลย/,
+    /โอเค/,
+    /^ok$/i,
+    /^yes$/i,
+    /ใช่/,
+    /ขอรอ/,
+    /รอได้/,
+    /รอมอส/,
 ];
 
 function isHandoffRequest(text) {
-  return HANDOFF_PATTERNS.some((p) => p.test(text));
+    return HANDOFF_PATTERNS.some((p) => p.test(text));
+}
+
+function isHandoffConfirmation(text) {
+    return HANDOFF_CONFIRM_PATTERNS.some((p) => p.test(text.trim()));
 }
 
 function isWithinBusinessHours() {
-  const now = new Date();
-  const hour = parseInt(
-    now.toLocaleString('en-US', { timeZone: 'Asia/Bangkok', hour: 'numeric', hour12: false }),
-    10
-  );
-  return hour >= config.contact.hoursStart && hour < config.contact.hoursEnd;
+    const hour = parseInt(
+        new Date().toLocaleString('en-US', {
+            timeZone: 'Asia/Bangkok',
+            hour: 'numeric',
+            hour12: false,
+        }),
+        10
+    );
+    return hour >= config.contact.hoursStart && hour < config.contact.hoursEnd;
 }
 
-async function handleHandoff(userId, displayName, summary) {
-  state.setStatus(userId, state.WAITING_HUMAN);
-  await lineClient.pushMessage({
-    to: userId,
-    messages: [{
-      type: 'text',
-      text: 'ได้เลยครับ กำลังประสานงานให้คุณมอสมาดูแลต่อนะครับ รบกวนรอสักครู่ ถ้าระหว่างรอมีอะไรอยากถามเพิ่มเติมก็ได้เลยครับ [Agent Lay]',
-    }],
-  });
-  await postCrmHandoff({ displayName, summary });
+// Rich Menu button postback → canned reply text
+const MENU_REPLIES = {
+    MENU_SERVICES: `[Agent Lay]
+📋 บริการของ LazyHardWork มี 3 อย่างหลักครับ:
+
+1️⃣ LINE OA แชทบอต AI — ตอบลูกค้า / รับออเดอร์ / จองคิว อัตโนมัติ 24 ชม.
+2️⃣ ออโตเมชันงานซ้ำด้วย AI — รวม lead / คีย์ข้อมูล / ตอบกลับ อัตโนมัติ
+3️⃣ เซตอัป AI ผู้ช่วยให้ทีม — วาง Custom GPT/Claude + สอนทีมใช้
+
+สนใจบริการไหนเป็นพิเศษมั้ยครับ?`,
+
+    MENU_PORTFOLIO: `[Agent Lay]
+💼 ผลงานของเราครับ:
+
+✅ Fastwork 135 งาน · เรต 4.9★
+✅ บอทตัวนี้ที่คุณกำลังคุยด้วยอยู่ก็เป็นผลงานของเรา
+✅ ผู้สร้าง zFiN — AI ผู้ช่วยบัญชีที่ทำงานจริงบน LINE OA
+
+ดูเพิ่มเติมได้ที่ Fastwork: ${config.contact.fastworkUrl}`,
+
+    MENU_PRICING: `[Agent Lay]
+💰 ราคาเริ่มต้น (ปรับตามขอบเขตจริง):
+
+Starter → ฿15,000
+Advanced → ฿20,000
+Operation → ฿30,000
+
+ดูแลรายเดือน: ฿2,500/เดือน
+มัดจำ 50% ก่อนเริ่ม · ที่เหลือตอนส่งมอบ
+
+อยากให้ Mos ประเมินงานของคุณโดยตรงมั้ยครับ?`,
+
+    MENU_CONTACT: `[Agent Lay]
+📞 ติดต่อเราได้เลยครับ:
+
+📱 โทร: ${config.contact.phone}
+📧 Email: ${config.contact.email}
+🕑 เวลาทำการ: 13:00–22:00 ทุกวัน
+
+หรือดูผลงานได้ที่ Fastwork: ${config.contact.fastworkUrl}`,
+};
+
+async function showTyping(userId) {
+    try {
+        await lineClient.showLoadingAnimation({
+            chatId: userId,
+            loadingSeconds: 5,
+        });
+    } catch {
+        // typing indicator is best-effort — ignore failures
+    }
+}
+
+async function sendText(userId, text) {
+    await lineClient.pushMessage({
+        to: userId,
+        messages: [{ type: 'text', text }],
+    });
+}
+
+// Fetch display name from LINE Profile API and cache in session (called once per user).
+async function resolveDisplayName(userId) {
+    const cached = state.getDisplayName(userId);
+    if (cached) return cached;
+    try {
+        const profile = await lineClient.getProfile(userId);
+        state.setDisplayName(userId, profile.displayName);
+        return profile.displayName;
+    } catch {
+        return userId; // fallback to raw userId if profile fetch fails
+    }
+}
+
+async function handleHandoff(userId, displayName, history) {
+    state.setStatus(userId, state.WAITING_HUMAN);
+    state.setPendingHandoffOffer(userId, false);
+    const summary = history.length
+        ? history[history.length - 1].content.slice(0, 100)
+        : '—';
+
+    // Notify Mos FIRST — only tell the customer after the action is confirmed.
+    // If Discord fails, tell the customer to contact directly instead of making a broken promise.
+    try {
+        await postCrmHandoff({ displayName, summary });
+    } catch (err) {
+        console.error('CRM handoff failed:', err);
+        const fallbackMsg = `[Agent Lay]\nขออภัยครับ ระบบประสานงานมีปัญหาชั่วคราว\nกรุณาติดต่อ Mos โดยตรงที่ ${config.contact.phone} หรือ ${config.contact.email} ครับ`;
+        state.addMessage(userId, 'assistant', fallbackMsg);
+        await sendText(userId, fallbackMsg);
+        return;
+    }
+
+    let msg =
+        '[Agent Lay]\nได้เลยครับ ส่งเรื่องให้คุณมอสแล้ว รบกวนรอสักครู่นะครับ\nถ้าระหว่างรอมีอะไรอยากถามเพิ่มเติมก็ได้เลยครับ';
+    if (!isWithinBusinessHours()) {
+        msg += `\n\n(ขณะนี้นอกเวลาทำการ ถ้าเร่งด่วนโทรได้เลยครับ: ${config.contact.phone})`;
+    }
+    state.addMessage(userId, 'assistant', msg);
+    await sendText(userId, msg);
+}
+
+function sanitizeInput(text) {
+    return text
+        .replace(/\[SYSTEM[^\]]*\]/gi, '')
+        .replace(/<system[\s\S]*?<\/system>/gi, '')
+        .replace(/###\s*system\s*###[\s\S]*?###/gi, '')
+        .replace(/IGNORE\s+(ALL\s+)?(PREVIOUS|PRIOR|ABOVE)\s+(INSTRUCTIONS?|RULES?|PROMPTS?)[^\n]*/gi, '')
+        .trim();
 }
 
 async function processMessage(userId, displayName, text) {
-  const status = state.getStatus(userId);
+    text = sanitizeInput(text);
+    const status = state.getStatus(userId);
 
-  if (status === state.HUMAN_ACTIVE) return; // bot is fully silent
+    if (status === state.HUMAN_ACTIVE) return;
 
-  if (status === state.WAITING_HUMAN) {
-    await lineClient.pushMessage({
-      to: userId,
-      messages: [{ type: 'text', text: 'กำลังรอคุณมอสมาดูแลอยู่นะครับ [Agent Lay]' }],
-    });
-    return;
-  }
+    if (status === state.WAITING_HUMAN) {
+        const waitMsg = '[Agent Lay]\nกำลังรอคุณมอสอยู่นะครับ\nรบกวนรอสักครู่';
+        state.addMessage(userId, 'assistant', waitMsg);
+        await sendText(userId, waitMsg);
+        return;
+    }
 
-  // BOT_ACTIVE
-  if (isHandoffRequest(text)) {
-    const history = state.getHistory(userId);
-    const summary = history.length ? history[history.length - 1].content.slice(0, 80) : text;
-    await handleHandoff(userId, displayName, summary);
-    return;
-  }
+    // BOT_ACTIVE path
 
-  state.addMessage(userId, 'user', text);
-  const history = state.getHistory(userId);
+    // C2: third trigger — bot previously offered to escalate (KB gap), user confirms
+    // Cap at 60 chars: a real confirmation is short ("ก", "โอเค", "ได้เลย") — a long message is a new question
+    if (state.getPendingHandoffOffer(userId) && text.length <= 60 && isHandoffConfirmation(text)) {
+        await handleHandoff(userId, displayName, state.getHistory(userId));
+        return;
+    }
+    state.setPendingHandoffOffer(userId, false); // clear offer if user didn't confirm
 
-  const { reply } = await chat(userId, text, history.slice(0, -1)); // history before this msg
-  state.addMessage(userId, 'assistant', reply);
+    if (isHandoffRequest(text)) {
+        await handleHandoff(userId, displayName, state.getHistory(userId));
+        return;
+    }
 
-  await lineClient.pushMessage({
-    to: userId,
-    messages: [{ type: 'text', text: reply }],
-  });
+    state.addMessage(userId, 'user', text);
+    const historyBeforeReply = state.getHistory(userId).slice(0, -1);
+
+    const { reply, kbGap } = await chat(userId, text, historyBeforeReply);
+    state.addMessage(userId, 'assistant', reply);
+
+    // Set flag before sendText so it survives even if delivery fails
+    if (kbGap) {
+        state.setPendingHandoffOffer(userId, true);
+    }
+
+    // If the bot promised to escalate to Mos (complaint handling, rule 7),
+    // actually notify Mos and set WAITING_HUMAN — broken promise is worse than silence.
+    const promisedEscalation = /(?:ส่งเรื่อง|ประสานงาน|จัดการให้|ติดต่อให้).*(?:Mos|มอส)|(?:Mos|มอส).*(?:ดูแลต่อ|มาช่วย|ติดต่อกลับ|มาดูแล)/.test(reply);
+    if (promisedEscalation && state.getStatus(userId) !== state.WAITING_HUMAN) {
+        state.setStatus(userId, state.WAITING_HUMAN);
+        await postCrmHandoff({ displayName, summary: text.slice(0, 100) });
+    }
+
+    await sendText(userId, reply);
+
+    // Lead capture: fire async after replying so it doesn't block the response.
+    // Trigger on buying-signal keyword OR free-text pattern (name + business + problem + budget).
+    // Gate: skip Discord notify when <2 fields are filled (prevents false positives from keyword-only messages).
+    if (hasBuyingSignal(text) || hasLeadPattern(text)) {
+        extractLead(displayName, state.getHistory(userId))
+            .then((lead) => {
+                // Exclude name: it defaults to displayName (never "—"), so it
+                // would always count even when no real name was in the conversation.
+                const filledCount = [lead.business, lead.problem, lead.budget, lead.contact]
+                    .filter((v) => v && v !== '—').length;
+                if (filledCount >= 2) {
+                    return postLead({ ...lead, lineDisplayName: displayName });
+                }
+            })
+            .catch(console.error);
+    }
 }
 
-// Entry point called by the webhook handler.
-// Applies 6–7 sec debounce per user so multi-message bursts are batched.
+async function processPostback(userId, displayName, data) {
+    if (data === 'MENU_HANDOFF') {
+        if (state.getStatus(userId) === state.BOT_ACTIVE) {
+            await handleHandoff(userId, displayName, state.getHistory(userId));
+        } else {
+            await sendText(
+                userId,
+                '[Agent Lay]\nกำลังรอคุณมอสอยู่นะครับ\nรบกวนรอสักครู่'
+            );
+        }
+        return;
+    }
+
+    const reply = MENU_REPLIES[data];
+    if (reply) {
+        state.addMessage(userId, 'assistant', reply);
+        await sendText(userId, reply);
+    }
+}
+
+// Lossless debounce accumulator for text messages
 function handleEvent(event) {
-  if (event.type !== 'message' || event.message.type !== 'text') return;
+    const userId = event.source.userId;
 
-  const userId = event.source.userId;
-  const text = event.message.text;
-  const displayName = event.source.displayName || userId;
+    if (event.type === 'postback') {
+        resolveDisplayName(userId)
+            .then((name) => processPostback(userId, name, event.postback.data))
+            .catch(console.error);
+        return;
+    }
 
-  const existing = state.getPendingTimer(userId);
-  if (existing) clearTimeout(existing);
+    if (event.type === 'follow') {
+        resolveDisplayName(userId).catch(() => {}); // warm cache on follow
+        sendText(
+            userId,
+            '[Agent Lay]\nสวัสดีครับ 🙏 ยินดีต้อนรับสู่ LazyHardWork นะครับ มีอะไรให้ช่วยได้บ้าง หรือมีบริการไหนที่สนใจเป็นพิเศษมั้ยครับ?'
+        ).catch(console.error);
+        return;
+    }
 
-  const timer = setTimeout(() => {
-    state.setPendingTimer(userId, null);
-    processMessage(userId, displayName, text).catch(console.error);
-  }, DEBOUNCE_MS);
+    if (event.type === 'message' && event.message.type !== 'text') {
+        // Non-text messages (image, sticker, file, etc.) — acknowledge but can't process
+        const nonTextReply =
+            '[Agent Lay]\nขออภัยครับ ผมอ่านรูปภาพหรือไฟล์ไม่ได้\nถ้าอยากสอบถามอะไร พิมพ์มาได้เลยนะครับ';
+        state.addMessage(userId, 'assistant', nonTextReply);
+        resolveDisplayName(userId).catch(() => {});
+        sendText(userId, nonTextReply).catch(console.error);
+        return;
+    }
 
-  state.setPendingTimer(userId, timer);
+    if (event.type !== 'message') return;
+
+    const text = event.message.text;
+
+    state.pushPendingMessage(userId, text);
+
+    const existing = state.getPendingTimer(userId);
+    if (existing) clearTimeout(existing);
+
+    // Show typing indicator immediately — best-effort
+    showTyping(userId);
+
+    const timer = setTimeout(() => {
+        state.setPendingTimer(userId, null);
+        const burst = state.drainPendingMessages(userId);
+        resolveDisplayName(userId)
+            .then((name) => processMessage(userId, name, burst))
+            .catch(console.error);
+    }, DEBOUNCE_MS);
+
+    state.setPendingTimer(userId, timer);
 }
 
 module.exports = { handleEvent };
