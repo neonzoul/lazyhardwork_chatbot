@@ -18,16 +18,22 @@ async function postLead(lead) {
   await axios.post(config.discord.leadsWebhook, { content }).catch(console.error);
 }
 
-async function postCrmHandoff({ displayName, summary }) {
-  if (!config.discord.crmWebhook) return;
+// Unlike postLead/postCrmFeedback, this one must be allowed to throw: it's the only
+// notification that backs a promise made to the customer ("ส่งเรื่องให้คุณมอสแล้ว"), and the
+// caller (bot.js handleHandoff) needs to know when that promise can't be kept.
+async function postCrmHandoff({ userId, displayName, summary }) {
+  if (!config.discord.crmWebhook) {
+    throw new Error('DISCORD_CRM_WEBHOOK is not configured');
+  }
   const content = [
     '🔴 Human Required',
     `ลูกค้า: ${displayName || '—'}`,
+    `userId: ${userId || '—'}`,
     `เรื่อง: ${summary || '—'}`,
     `เวลา: ${new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' })}`,
     `สถานะ: WAITING_HUMAN`,
   ].join('\n');
-  await axios.post(config.discord.crmWebhook, { content }).catch(console.error);
+  await axios.post(config.discord.crmWebhook, { content });
 }
 
 async function postCrmFeedback({ question }) {

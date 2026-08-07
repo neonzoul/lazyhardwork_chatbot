@@ -133,16 +133,16 @@ async function resolveDisplayName(userId) {
 }
 
 async function handleHandoff(userId, displayName, history) {
-    state.setStatus(userId, state.WAITING_HUMAN);
     state.setPendingHandoffOffer(userId, false);
     const summary = history.length
         ? history[history.length - 1].content.slice(0, 100)
         : '—';
 
-    // Notify Mos FIRST — only tell the customer after the action is confirmed.
-    // If Discord fails, tell the customer to contact directly instead of making a broken promise.
+    // Notify Mos FIRST — only flip to WAITING_HUMAN and tell the customer after the
+    // notification actually succeeds. If it fails, the session stays BOT_ACTIVE so the bot
+    // keeps answering instead of leaving the visitor waiting for someone who was never told.
     try {
-        await postCrmHandoff({ displayName, summary });
+        await postCrmHandoff({ userId, displayName, summary });
     } catch (err) {
         console.error('CRM handoff failed:', err);
         const fallbackMsg = `[Agent Lay]\nขออภัยครับ ระบบประสานงานมีปัญหาชั่วคราว\nกรุณาติดต่อ Mos โดยตรงที่ ${config.contact.phone} หรือ ${config.contact.email} ครับ`;
@@ -151,6 +151,7 @@ async function handleHandoff(userId, displayName, history) {
         return;
     }
 
+    state.setStatus(userId, state.WAITING_HUMAN);
     let msg =
         '[Agent Lay]\nได้เลยครับ ส่งเรื่องให้คุณมอสแล้ว รบกวนรอสักครู่นะครับ\nถ้าระหว่างรอมีอะไรอยากถามเพิ่มเติมก็ได้เลยครับ';
     if (!isWithinBusinessHours()) {
@@ -201,22 +202,30 @@ async function processMessage(userId, displayName, text) {
     const historyBeforeReply = state.getHistory(userId).slice(0, -1);
 
     const { reply, kbGap } = await chat(userId, text, historyBeforeReply);
-    state.addMessage(userId, 'assistant', reply);
+    let finalReply = reply;
+
+    // If the bot promised to escalate to Mos (complaint handling, rule 7),
+    // actually notify Mos and set WAITING_HUMAN — broken promise is worse than silence.
+    // If the notify fails, replace the promise with the truth instead of sending it anyway.
+    const promisedEscalation = /(?:ส่งเรื่อง|ประสานงาน|จัดการให้|ติดต่อให้).*(?:Mos|มอส)|(?:Mos|มอส).*(?:ดูแลต่อ|มาช่วย|ติดต่อกลับ|มาดูแล)/.test(reply);
+    if (promisedEscalation && state.getStatus(userId) !== state.WAITING_HUMAN) {
+        try {
+            await postCrmHandoff({ userId, displayName, summary: text.slice(0, 100) });
+            state.setStatus(userId, state.WAITING_HUMAN);
+        } catch (err) {
+            console.error('CRM handoff failed:', err);
+            finalReply = `[Agent Lay]\nขออภัยครับ ระบบประสานงานมีปัญหาชั่วคราว\nกรุณาติดต่อ Mos โดยตรงที่ ${config.contact.phone} หรือ ${config.contact.email} ครับ`;
+        }
+    }
+
+    state.addMessage(userId, 'assistant', finalReply);
 
     // Set flag before sendText so it survives even if delivery fails
     if (kbGap) {
         state.setPendingHandoffOffer(userId, true);
     }
 
-    // If the bot promised to escalate to Mos (complaint handling, rule 7),
-    // actually notify Mos and set WAITING_HUMAN — broken promise is worse than silence.
-    const promisedEscalation = /(?:ส่งเรื่อง|ประสานงาน|จัดการให้|ติดต่อให้).*(?:Mos|มอส)|(?:Mos|มอส).*(?:ดูแลต่อ|มาช่วย|ติดต่อกลับ|มาดูแล)/.test(reply);
-    if (promisedEscalation && state.getStatus(userId) !== state.WAITING_HUMAN) {
-        state.setStatus(userId, state.WAITING_HUMAN);
-        await postCrmHandoff({ displayName, summary: text.slice(0, 100) });
-    }
-
-    await sendText(userId, reply);
+    await sendText(userId, finalReply);
 
     // Lead capture: fire async after replying so it doesn't block the response.
     // Trigger on buying-signal keyword OR free-text pattern (name + business + problem + budget).
@@ -309,4 +318,4 @@ function handleEvent(event) {
     state.setPendingTimer(userId, timer);
 }
 
-module.exports = { handleEvent };
+module.exports = { handleEvent, handleHandoff, processPostback, processMessage };
