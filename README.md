@@ -1,5 +1,7 @@
 # Agent Lay — LazyHardWork LINE OA Chatbot
 
+**Current version: v1.1** — Production-ready. All 9 acceptance criteria passed + v1.1 refinements (hallucination guard, prompt injection protection, handoff integrity, lead detection improvements).
+
 LINE OA chatbot for LazyHardWork's own channel. Answers leads from a knowledge base, captures contact on buying signal, and hands off to Mos via Discord.
 
 ## Features
