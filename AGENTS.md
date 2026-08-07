@@ -64,7 +64,7 @@ Node.js ≥ 18 · Express · `@line/bot-sdk` v9 · Anthropic SDK · axios (Disco
 - **All config from `.env`.** Phone, email, hours, tokens, webhook URLs — never in source.
 - **State before reply.** Check `state.getStatus(userId)` before calling the LLM. If `HUMAN_ACTIVE`, return silently.
 - **Debounce always.** Every incoming message resets the 6.5s timer — never process immediately.
-- **Pricing:** Starter ฿15,000 · Advanced ฿20,000 · Operation ฿30,000. These are the authoritative floor prices; `knowledge/kb.md` must use these.
+- **Pricing:** "ผู้ช่วยประจำร้าน" product, sold in Sprints — Sprint 1 ฿15,000 + ฿2,500/mo · Sprint 1+2 ฿30,000 + ฿3,500/mo (Sprint 3 not sellable yet — never built/delivered). First 3 months of monthly support are included in the setup fee; billing starts month 4. Each Sprint takes 2 weeks (5 of those days are testing — never advertise "5-12 days" as delivery time). These are the authoritative floor prices; `knowledge/kb.md` must use these.
 
 ## Branch plan
 
