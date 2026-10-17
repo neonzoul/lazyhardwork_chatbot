@@ -1,0 +1,381 @@
+{
+  "type": "flex",
+  "altText": "Starter กับ Pro ต่างกันตรงไหน — เปรียบเทียบ Starter / Pro",
+  "contents": {
+    "type": "carousel",
+    "contents": [
+      {
+        "type": "bubble",
+        "size": "kilo",
+        "styles": {
+          "body": {
+            "backgroundColor": "#FAFAF8"
+          },
+          "footer": {
+            "backgroundColor": "#FAFAF8",
+            "separator": false
+          }
+        },
+        "body": {
+          "type": "box",
+          "layout": "vertical",
+          "spacing": "md",
+          "paddingAll": "20px",
+          "contents": [
+            {
+              "type": "box",
+              "layout": "vertical",
+              "spacing": "xs",
+              "contents": [
+                {
+                  "type": "text",
+                  "text": "Starter กับ Pro ต่างกันตรงไหน",
+                  "wrap": true,
+                  "color": "#6B6B6B",
+                  "size": "xs"
+                },
+                {
+                  "type": "text",
+                  "text": "Starter",
+                  "wrap": true,
+                  "color": "#1B1B1B",
+                  "size": "lg",
+                  "weight": "bold"
+                }
+              ]
+            },
+            {
+              "type": "separator",
+              "color": "#E6E4DF"
+            },
+            {
+              "type": "box",
+              "layout": "vertical",
+              "spacing": "sm",
+              "contents": [
+                {
+                  "type": "box",
+                  "layout": "horizontal",
+                  "spacing": "md",
+                  "contents": [
+                    {
+                      "type": "text",
+                      "text": "โฟลเดอร์",
+                      "wrap": true,
+                      "color": "#6B6B6B",
+                      "size": "sm",
+                      "flex": 4
+                    },
+                    {
+                      "type": "text",
+                      "text": "ไม่เกิน 70 ไฟล์",
+                      "wrap": true,
+                      "color": "#1B1B1B",
+                      "size": "sm",
+                      "flex": 7
+                    }
+                  ]
+                },
+                {
+                  "type": "box",
+                  "layout": "horizontal",
+                  "spacing": "md",
+                  "contents": [
+                    {
+                      "type": "text",
+                      "text": "ไฟล์กฎ",
+                      "wrap": true,
+                      "color": "#6B6B6B",
+                      "size": "sm",
+                      "flex": 4
+                    },
+                    {
+                      "type": "text",
+                      "text": "1 ไฟล์",
+                      "wrap": true,
+                      "color": "#1B1B1B",
+                      "size": "sm",
+                      "flex": 7
+                    }
+                  ]
+                },
+                {
+                  "type": "box",
+                  "layout": "horizontal",
+                  "spacing": "md",
+                  "contents": [
+                    {
+                      "type": "text",
+                      "text": "คำสั่งพร้อมใช้",
+                      "wrap": true,
+                      "color": "#6B6B6B",
+                      "size": "sm",
+                      "flex": 4
+                    },
+                    {
+                      "type": "text",
+                      "text": "3 ตัว",
+                      "wrap": true,
+                      "color": "#1B1B1B",
+                      "size": "sm",
+                      "flex": 7
+                    }
+                  ]
+                },
+                {
+                  "type": "box",
+                  "layout": "horizontal",
+                  "spacing": "md",
+                  "contents": [
+                    {
+                      "type": "text",
+                      "text": "ดูแลต่อ",
+                      "wrap": true,
+                      "color": "#6B6B6B",
+                      "size": "sm",
+                      "flex": 4
+                    },
+                    {
+                      "type": "text",
+                      "text": "ถามต่อได้ 7 วัน",
+                      "wrap": true,
+                      "color": "#1B1B1B",
+                      "size": "sm",
+                      "flex": 7
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "separator",
+              "color": "#E6E4DF"
+            },
+            {
+              "type": "box",
+              "layout": "vertical",
+              "spacing": "xs",
+              "contents": [
+                {
+                  "type": "text",
+                  "text": "ราคาเริ่มต้น 4,999 บาท",
+                  "wrap": true,
+                  "color": "#1B1B1B",
+                  "size": "md",
+                  "weight": "bold"
+                }
+              ]
+            }
+          ]
+        },
+        "footer": {
+          "type": "box",
+          "layout": "vertical",
+          "spacing": "sm",
+          "paddingAll": "16px",
+          "paddingTop": "0px",
+          "contents": [
+            {
+              "type": "button",
+              "style": "primary",
+              "color": "#0E6E5C",
+              "height": "sm",
+              "action": {
+                "type": "postback",
+                "label": "สนใจ Starter",
+                "data": "OFFER_A2_starter",
+                "displayText": "สนใจ Starter"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "type": "bubble",
+        "size": "kilo",
+        "styles": {
+          "body": {
+            "backgroundColor": "#FAFAF8"
+          },
+          "footer": {
+            "backgroundColor": "#FAFAF8",
+            "separator": false
+          }
+        },
+        "body": {
+          "type": "box",
+          "layout": "vertical",
+          "spacing": "md",
+          "paddingAll": "20px",
+          "contents": [
+            {
+              "type": "box",
+              "layout": "vertical",
+              "spacing": "xs",
+              "contents": [
+                {
+                  "type": "text",
+                  "text": "Starter กับ Pro ต่างกันตรงไหน",
+                  "wrap": true,
+                  "color": "#6B6B6B",
+                  "size": "xs"
+                },
+                {
+                  "type": "text",
+                  "text": "Pro",
+                  "wrap": true,
+                  "color": "#1B1B1B",
+                  "size": "lg",
+                  "weight": "bold"
+                }
+              ]
+            },
+            {
+              "type": "separator",
+              "color": "#E6E4DF"
+            },
+            {
+              "type": "box",
+              "layout": "vertical",
+              "spacing": "sm",
+              "contents": [
+                {
+                  "type": "box",
+                  "layout": "horizontal",
+                  "spacing": "md",
+                  "contents": [
+                    {
+                      "type": "text",
+                      "text": "โฟลเดอร์",
+                      "wrap": true,
+                      "color": "#6B6B6B",
+                      "size": "sm",
+                      "flex": 4
+                    },
+                    {
+                      "type": "text",
+                      "text": "ไม่เกิน 300 ไฟล์",
+                      "wrap": true,
+                      "color": "#1B1B1B",
+                      "size": "sm",
+                      "flex": 7
+                    }
+                  ]
+                },
+                {
+                  "type": "box",
+                  "layout": "horizontal",
+                  "spacing": "md",
+                  "contents": [
+                    {
+                      "type": "text",
+                      "text": "ไฟล์กฎ",
+                      "wrap": true,
+                      "color": "#6B6B6B",
+                      "size": "sm",
+                      "flex": 4
+                    },
+                    {
+                      "type": "text",
+                      "text": "3 ไฟล์ แยกตามทีม",
+                      "wrap": true,
+                      "color": "#1B1B1B",
+                      "size": "sm",
+                      "flex": 7
+                    }
+                  ]
+                },
+                {
+                  "type": "box",
+                  "layout": "horizontal",
+                  "spacing": "md",
+                  "contents": [
+                    {
+                      "type": "text",
+                      "text": "คำสั่งพร้อมใช้",
+                      "wrap": true,
+                      "color": "#6B6B6B",
+                      "size": "sm",
+                      "flex": 4
+                    },
+                    {
+                      "type": "text",
+                      "text": "8 ตัว",
+                      "wrap": true,
+                      "color": "#1B1B1B",
+                      "size": "sm",
+                      "flex": 7
+                    }
+                  ]
+                },
+                {
+                  "type": "box",
+                  "layout": "horizontal",
+                  "spacing": "md",
+                  "contents": [
+                    {
+                      "type": "text",
+                      "text": "ดูแลต่อ",
+                      "wrap": true,
+                      "color": "#6B6B6B",
+                      "size": "sm",
+                      "flex": 4
+                    },
+                    {
+                      "type": "text",
+                      "text": "ถามต่อได้ 30 วัน",
+                      "wrap": true,
+                      "color": "#1B1B1B",
+                      "size": "sm",
+                      "flex": 7
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "separator",
+              "color": "#E6E4DF"
+            },
+            {
+              "type": "box",
+              "layout": "vertical",
+              "spacing": "xs",
+              "contents": [
+                {
+                  "type": "text",
+                  "text": "ราคาเริ่มต้น 12,900 บาท",
+                  "wrap": true,
+                  "color": "#1B1B1B",
+                  "size": "md",
+                  "weight": "bold"
+                }
+              ]
+            }
+          ]
+        },
+        "footer": {
+          "type": "box",
+          "layout": "vertical",
+          "spacing": "sm",
+          "paddingAll": "16px",
+          "paddingTop": "0px",
+          "contents": [
+            {
+              "type": "button",
+              "style": "primary",
+              "color": "#0E6E5C",
+              "height": "sm",
+              "action": {
+                "type": "postback",
+                "label": "สนใจ Pro",
+                "data": "OFFER_A2_pro",
+                "displayText": "สนใจ Pro"
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

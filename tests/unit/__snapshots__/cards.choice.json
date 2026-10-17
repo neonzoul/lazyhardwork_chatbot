@@ -1,0 +1,176 @@
+{
+  "type": "flex",
+  "altText": "เหมาะกับงานผมไหม — เลือกอาการที่ตรงกับร้านคุณที่สุด",
+  "contents": {
+    "type": "bubble",
+    "size": "kilo",
+    "styles": {
+      "body": {
+        "backgroundColor": "#FAFAF8"
+      },
+      "footer": {
+        "backgroundColor": "#FAFAF8",
+        "separator": false
+      }
+    },
+    "body": {
+      "type": "box",
+      "layout": "vertical",
+      "spacing": "md",
+      "paddingAll": "20px",
+      "contents": [
+        {
+          "type": "box",
+          "layout": "vertical",
+          "spacing": "xs",
+          "contents": [
+            {
+              "type": "text",
+              "text": "เหมาะกับงานผมไหม",
+              "wrap": true,
+              "color": "#1B1B1B",
+              "size": "lg",
+              "weight": "bold"
+            },
+            {
+              "type": "text",
+              "text": "เลือกอาการที่ตรงกับร้านคุณที่สุด",
+              "wrap": true,
+              "color": "#6B6B6B",
+              "size": "sm"
+            }
+          ]
+        }
+      ]
+    },
+    "footer": {
+      "type": "box",
+      "layout": "vertical",
+      "spacing": "sm",
+      "paddingAll": "16px",
+      "paddingTop": "0px",
+      "contents": [
+        {
+          "type": "box",
+          "layout": "vertical",
+          "cornerRadius": "8px",
+          "paddingAll": "12px",
+          "action": {
+            "type": "postback",
+            "label": "ตอบแชทลูกค้าไม่ทัน",
+            "data": "FIT_chat_overload",
+            "displayText": "ตอบแชทลูกค้าไม่ทัน"
+          },
+          "backgroundColor": "#0E6E5C",
+          "contents": [
+            {
+              "type": "text",
+              "text": "ตอบแชทลูกค้าไม่ทัน",
+              "wrap": true,
+              "color": "#FFFFFF",
+              "size": "sm",
+              "align": "center",
+              "weight": "bold"
+            }
+          ]
+        },
+        {
+          "type": "box",
+          "layout": "vertical",
+          "cornerRadius": "8px",
+          "paddingAll": "12px",
+          "action": {
+            "type": "postback",
+            "label": "ข้อมูลกระจาย ต้องตา…",
+            "data": "FIT_scattered_info",
+            "displayText": "ข้อมูลกระจาย ต้องตามงานเอง"
+          },
+          "borderWidth": "1px",
+          "borderColor": "#E6E4DF",
+          "contents": [
+            {
+              "type": "text",
+              "text": "ข้อมูลกระจาย ต้องตามงานเอง",
+              "wrap": true,
+              "color": "#1B1B1B",
+              "size": "sm",
+              "align": "center"
+            }
+          ]
+        },
+        {
+          "type": "box",
+          "layout": "vertical",
+          "cornerRadius": "8px",
+          "paddingAll": "12px",
+          "action": {
+            "type": "postback",
+            "label": "งานซ้ำ คีย์ซ้ำทุกวัน",
+            "data": "FIT_repetitive_entry",
+            "displayText": "งานซ้ำ คีย์ซ้ำทุกวัน"
+          },
+          "borderWidth": "1px",
+          "borderColor": "#E6E4DF",
+          "contents": [
+            {
+              "type": "text",
+              "text": "งานซ้ำ คีย์ซ้ำทุกวัน",
+              "wrap": true,
+              "color": "#1B1B1B",
+              "size": "sm",
+              "align": "center"
+            }
+          ]
+        },
+        {
+          "type": "box",
+          "layout": "vertical",
+          "cornerRadius": "8px",
+          "paddingAll": "12px",
+          "action": {
+            "type": "postback",
+            "label": "อยากให้ AI รู้จักงา…",
+            "data": "FIT_ai_context",
+            "displayText": "อยากให้ AI รู้จักงานผม"
+          },
+          "borderWidth": "1px",
+          "borderColor": "#E6E4DF",
+          "contents": [
+            {
+              "type": "text",
+              "text": "อยากให้ AI รู้จักงานผม",
+              "wrap": true,
+              "color": "#1B1B1B",
+              "size": "sm",
+              "align": "center"
+            }
+          ]
+        },
+        {
+          "type": "box",
+          "layout": "vertical",
+          "cornerRadius": "8px",
+          "paddingAll": "12px",
+          "action": {
+            "type": "postback",
+            "label": "ยังไม่รู้จะเริ่มตรง…",
+            "data": "FIT_unsure",
+            "displayText": "ยังไม่รู้จะเริ่มตรงไหน"
+          },
+          "borderWidth": "1px",
+          "borderColor": "#E6E4DF",
+          "contents": [
+            {
+              "type": "text",
+              "text": "ยังไม่รู้จะเริ่มตรงไหน",
+              "wrap": true,
+              "color": "#1B1B1B",
+              "size": "sm",
+              "align": "center"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

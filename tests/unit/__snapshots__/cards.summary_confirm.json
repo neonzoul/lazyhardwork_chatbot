@@ -1,0 +1,211 @@
+{
+  "type": "flex",
+  "altText": "ขอนัดคุย 30 นาที — รอมอสยืนยัน",
+  "contents": {
+    "type": "bubble",
+    "size": "kilo",
+    "styles": {
+      "body": {
+        "backgroundColor": "#FAFAF8"
+      },
+      "footer": {
+        "backgroundColor": "#FAFAF8",
+        "separator": false
+      }
+    },
+    "body": {
+      "type": "box",
+      "layout": "vertical",
+      "spacing": "md",
+      "paddingAll": "20px",
+      "contents": [
+        {
+          "type": "box",
+          "layout": "vertical",
+          "spacing": "xs",
+          "contents": [
+            {
+              "type": "text",
+              "text": "ขอนัดคุย 30 นาที",
+              "wrap": true,
+              "color": "#1B1B1B",
+              "size": "lg",
+              "weight": "bold"
+            }
+          ]
+        },
+        {
+          "type": "separator",
+          "color": "#E6E4DF"
+        },
+        {
+          "type": "box",
+          "layout": "vertical",
+          "spacing": "sm",
+          "contents": [
+            {
+              "type": "box",
+              "layout": "horizontal",
+              "spacing": "md",
+              "contents": [
+                {
+                  "type": "text",
+                  "text": "ชื่อ",
+                  "wrap": true,
+                  "color": "#6B6B6B",
+                  "size": "sm",
+                  "flex": 4
+                },
+                {
+                  "type": "text",
+                  "text": "คุณต้น",
+                  "wrap": true,
+                  "color": "#1B1B1B",
+                  "size": "sm",
+                  "flex": 7
+                }
+              ]
+            },
+            {
+              "type": "box",
+              "layout": "horizontal",
+              "spacing": "md",
+              "contents": [
+                {
+                  "type": "text",
+                  "text": "ธุรกิจ",
+                  "wrap": true,
+                  "color": "#6B6B6B",
+                  "size": "sm",
+                  "flex": 4
+                },
+                {
+                  "type": "text",
+                  "text": "ร้านกาแฟ 2 สาขา",
+                  "wrap": true,
+                  "color": "#1B1B1B",
+                  "size": "sm",
+                  "flex": 7
+                }
+              ]
+            },
+            {
+              "type": "box",
+              "layout": "horizontal",
+              "spacing": "md",
+              "contents": [
+                {
+                  "type": "text",
+                  "text": "เรื่องที่อยากคุย",
+                  "wrap": true,
+                  "color": "#6B6B6B",
+                  "size": "sm",
+                  "flex": 4
+                },
+                {
+                  "type": "text",
+                  "text": "ตอบแชทลูกค้าไม่ทัน อยากให้บอทช่วยตอบ",
+                  "wrap": true,
+                  "color": "#1B1B1B",
+                  "size": "sm",
+                  "flex": 7
+                }
+              ]
+            },
+            {
+              "type": "box",
+              "layout": "horizontal",
+              "spacing": "md",
+              "contents": [
+                {
+                  "type": "text",
+                  "text": "ช่วงเวลาที่สะดวก",
+                  "wrap": true,
+                  "color": "#6B6B6B",
+                  "size": "sm",
+                  "flex": 4
+                },
+                {
+                  "type": "text",
+                  "text": "พุธ–ศุกร์ หลัง 14:00",
+                  "wrap": true,
+                  "color": "#1B1B1B",
+                  "size": "sm",
+                  "flex": 7
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "box",
+          "layout": "horizontal",
+          "justifyContent": "flex-start",
+          "contents": [
+            {
+              "type": "box",
+              "layout": "vertical",
+              "backgroundColor": "#FFF4D6",
+              "cornerRadius": "999px",
+              "paddingAll": "6px",
+              "paddingStart": "12px",
+              "paddingEnd": "12px",
+              "contents": [
+                {
+                  "type": "text",
+                  "text": "รอมอสยืนยัน",
+                  "wrap": true,
+                  "color": "#B8860B",
+                  "size": "xs",
+                  "weight": "bold"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "footer": {
+      "type": "box",
+      "layout": "vertical",
+      "spacing": "sm",
+      "paddingAll": "16px",
+      "paddingTop": "0px",
+      "contents": [
+        {
+          "type": "button",
+          "style": "primary",
+          "color": "#0E6E5C",
+          "height": "sm",
+          "action": {
+            "type": "postback",
+            "label": "ยืนยัน",
+            "data": "BOOK_CONFIRM",
+            "displayText": "ยืนยัน"
+          }
+        },
+        {
+          "type": "box",
+          "layout": "vertical",
+          "borderWidth": "1px",
+          "borderColor": "#E6E4DF",
+          "cornerRadius": "8px",
+          "contents": [
+            {
+              "type": "button",
+              "style": "link",
+              "color": "#1B1B1B",
+              "height": "sm",
+              "action": {
+                "type": "postback",
+                "label": "ขอแก้ไข",
+                "data": "BOOK_EDIT",
+                "displayText": "ขอแก้ไข"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

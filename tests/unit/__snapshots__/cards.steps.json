@@ -1,0 +1,263 @@
+{
+  "type": "flex",
+  "altText": "เริ่มงานกับมอสยังไง — 4 ขั้นตอน",
+  "contents": {
+    "type": "bubble",
+    "size": "kilo",
+    "styles": {
+      "body": {
+        "backgroundColor": "#FAFAF8"
+      },
+      "footer": {
+        "backgroundColor": "#FAFAF8",
+        "separator": false
+      }
+    },
+    "body": {
+      "type": "box",
+      "layout": "vertical",
+      "spacing": "md",
+      "paddingAll": "20px",
+      "contents": [
+        {
+          "type": "box",
+          "layout": "vertical",
+          "spacing": "xs",
+          "contents": [
+            {
+              "type": "text",
+              "text": "เริ่มงานกับมอสยังไง",
+              "wrap": true,
+              "color": "#1B1B1B",
+              "size": "lg",
+              "weight": "bold"
+            }
+          ]
+        },
+        {
+          "type": "separator",
+          "color": "#E6E4DF"
+        },
+        {
+          "type": "box",
+          "layout": "vertical",
+          "spacing": "md",
+          "contents": [
+            {
+              "type": "box",
+              "layout": "horizontal",
+              "spacing": "md",
+              "alignItems": "flex-start",
+              "contents": [
+                {
+                  "type": "box",
+                  "layout": "vertical",
+                  "flex": 0,
+                  "width": "24px",
+                  "height": "24px",
+                  "cornerRadius": "999px",
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "backgroundColor": "#E6E4DF",
+                  "contents": [
+                    {
+                      "type": "text",
+                      "text": "1",
+                      "wrap": true,
+                      "color": "#1B1B1B",
+                      "size": "xs",
+                      "weight": "bold",
+                      "align": "center"
+                    }
+                  ]
+                },
+                {
+                  "type": "box",
+                  "layout": "vertical",
+                  "flex": 1,
+                  "spacing": "xs",
+                  "contents": [
+                    {
+                      "type": "text",
+                      "text": "คุย 30 นาที",
+                      "wrap": true,
+                      "color": "#1B1B1B",
+                      "size": "sm",
+                      "weight": "bold"
+                    },
+                    {
+                      "type": "text",
+                      "text": "เล่าหน้างานให้ฟัง มอสถามให้ครบ",
+                      "wrap": true,
+                      "color": "#6B6B6B",
+                      "size": "xs"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "box",
+              "layout": "horizontal",
+              "spacing": "md",
+              "alignItems": "flex-start",
+              "contents": [
+                {
+                  "type": "box",
+                  "layout": "vertical",
+                  "flex": 0,
+                  "width": "24px",
+                  "height": "24px",
+                  "cornerRadius": "999px",
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "backgroundColor": "#E6E4DF",
+                  "contents": [
+                    {
+                      "type": "text",
+                      "text": "2",
+                      "wrap": true,
+                      "color": "#1B1B1B",
+                      "size": "xs",
+                      "weight": "bold",
+                      "align": "center"
+                    }
+                  ]
+                },
+                {
+                  "type": "box",
+                  "layout": "vertical",
+                  "flex": 1,
+                  "spacing": "xs",
+                  "contents": [
+                    {
+                      "type": "text",
+                      "text": "มอสส่งขอบเขตและราคา",
+                      "wrap": true,
+                      "color": "#1B1B1B",
+                      "size": "sm",
+                      "weight": "bold"
+                    },
+                    {
+                      "type": "text",
+                      "text": "ภายใน 2 วันทำการ",
+                      "wrap": true,
+                      "color": "#6B6B6B",
+                      "size": "xs"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "box",
+              "layout": "horizontal",
+              "spacing": "md",
+              "alignItems": "flex-start",
+              "contents": [
+                {
+                  "type": "box",
+                  "layout": "vertical",
+                  "flex": 0,
+                  "width": "24px",
+                  "height": "24px",
+                  "cornerRadius": "999px",
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "backgroundColor": "#0E6E5C",
+                  "contents": [
+                    {
+                      "type": "text",
+                      "text": "3",
+                      "wrap": true,
+                      "color": "#FFFFFF",
+                      "size": "xs",
+                      "weight": "bold",
+                      "align": "center"
+                    }
+                  ]
+                },
+                {
+                  "type": "box",
+                  "layout": "vertical",
+                  "flex": 1,
+                  "spacing": "xs",
+                  "contents": [
+                    {
+                      "type": "text",
+                      "text": "ติดตั้งและสอนใช้",
+                      "wrap": true,
+                      "color": "#1B1B1B",
+                      "size": "sm",
+                      "weight": "bold"
+                    },
+                    {
+                      "type": "text",
+                      "text": "90 นาทีที่ร้านหรือออนไลน์",
+                      "wrap": true,
+                      "color": "#6B6B6B",
+                      "size": "xs"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "box",
+              "layout": "horizontal",
+              "spacing": "md",
+              "alignItems": "flex-start",
+              "contents": [
+                {
+                  "type": "box",
+                  "layout": "vertical",
+                  "flex": 0,
+                  "width": "24px",
+                  "height": "24px",
+                  "cornerRadius": "999px",
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "backgroundColor": "#E6E4DF",
+                  "contents": [
+                    {
+                      "type": "text",
+                      "text": "4",
+                      "wrap": true,
+                      "color": "#1B1B1B",
+                      "size": "xs",
+                      "weight": "bold",
+                      "align": "center"
+                    }
+                  ]
+                },
+                {
+                  "type": "box",
+                  "layout": "vertical",
+                  "flex": 1,
+                  "spacing": "xs",
+                  "contents": [
+                    {
+                      "type": "text",
+                      "text": "ถามต่อได้ 7 วัน",
+                      "wrap": true,
+                      "color": "#1B1B1B",
+                      "size": "sm",
+                      "weight": "bold"
+                    },
+                    {
+                      "type": "text",
+                      "text": "ผ่าน LINE นี้",
+                      "wrap": true,
+                      "color": "#6B6B6B",
+                      "size": "xs"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

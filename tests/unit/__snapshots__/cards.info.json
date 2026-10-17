@@ -1,0 +1,136 @@
+{
+  "type": "flex",
+  "altText": "ข้อมูลของร้านปลอดภัยไหม — เก็บที่ไหน ในบัญชีของร้านเอง ไม่ใช่ของมอส, ใครเห็นบ้าง เฉพาะคนที่ร้านให้สิทธิ์, เลิกใช้แล้ว ลบได้ทันที ไม่มีผูกมัด",
+  "contents": {
+    "type": "bubble",
+    "size": "kilo",
+    "styles": {
+      "body": {
+        "backgroundColor": "#FAFAF8"
+      },
+      "footer": {
+        "backgroundColor": "#FAFAF8",
+        "separator": false
+      }
+    },
+    "body": {
+      "type": "box",
+      "layout": "vertical",
+      "spacing": "md",
+      "paddingAll": "20px",
+      "contents": [
+        {
+          "type": "box",
+          "layout": "vertical",
+          "spacing": "xs",
+          "contents": [
+            {
+              "type": "box",
+              "layout": "vertical",
+              "width": "28px",
+              "height": "3px",
+              "backgroundColor": "#0E6E5C",
+              "cornerRadius": "2px",
+              "contents": []
+            },
+            {
+              "type": "text",
+              "text": "ข้อมูลของร้านปลอดภัยไหม",
+              "wrap": true,
+              "color": "#1B1B1B",
+              "size": "lg",
+              "weight": "bold"
+            }
+          ]
+        },
+        {
+          "type": "separator",
+          "color": "#E6E4DF"
+        },
+        {
+          "type": "box",
+          "layout": "vertical",
+          "spacing": "sm",
+          "contents": [
+            {
+              "type": "box",
+              "layout": "horizontal",
+              "spacing": "md",
+              "contents": [
+                {
+                  "type": "text",
+                  "text": "เก็บที่ไหน",
+                  "wrap": true,
+                  "color": "#6B6B6B",
+                  "size": "sm",
+                  "flex": 4
+                },
+                {
+                  "type": "text",
+                  "text": "ในบัญชีของร้านเอง ไม่ใช่ของมอส",
+                  "wrap": true,
+                  "color": "#1B1B1B",
+                  "size": "sm",
+                  "flex": 7
+                }
+              ]
+            },
+            {
+              "type": "box",
+              "layout": "horizontal",
+              "spacing": "md",
+              "contents": [
+                {
+                  "type": "text",
+                  "text": "ใครเห็นบ้าง",
+                  "wrap": true,
+                  "color": "#6B6B6B",
+                  "size": "sm",
+                  "flex": 4
+                },
+                {
+                  "type": "text",
+                  "text": "เฉพาะคนที่ร้านให้สิทธิ์",
+                  "wrap": true,
+                  "color": "#1B1B1B",
+                  "size": "sm",
+                  "flex": 7
+                }
+              ]
+            },
+            {
+              "type": "box",
+              "layout": "horizontal",
+              "spacing": "md",
+              "contents": [
+                {
+                  "type": "text",
+                  "text": "เลิกใช้แล้ว",
+                  "wrap": true,
+                  "color": "#6B6B6B",
+                  "size": "sm",
+                  "flex": 4
+                },
+                {
+                  "type": "text",
+                  "text": "ลบได้ทันที ไม่มีผูกมัด",
+                  "wrap": true,
+                  "color": "#1B1B1B",
+                  "size": "sm",
+                  "flex": 7
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": "รายละเอียดเต็มอยู่ในเอกสารส่งมอบ",
+          "wrap": true,
+          "color": "#6B6B6B",
+          "size": "xs"
+        }
+      ]
+    }
+  }
+}
