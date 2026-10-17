@@ -1,0 +1,281 @@
+{
+  "built_at": "2026-10-17T09:58:21.090Z",
+  "builder": "scripts/kb-build.js",
+  "vault": "F:/_WORK-KERNEL/ANANTAGENT_Vault/DEPARTMENT/LazyHardWork",
+  "project_dir": ".claude/worktrees/laughing-mcnulty-d3105b/Clients/000_lazyhardwork/PJ_lineOA_chatcot_v1",
+  "faq_approved": false,
+  "faq_items": 36,
+  "price_cross_check": {
+    "checked": 27,
+    "mismatches": 0
+  },
+  "outputs": {
+    "kb/about.md": {
+      "sources": [
+        "Clients/000_lazyhardwork/PJ_go_to_market/lhw-public-profile.yaml"
+      ],
+      "source_sha256": {
+        "Clients/000_lazyhardwork/PJ_go_to_market/lhw-public-profile.yaml": "216ed32869c7ebd986a76d52ba002ca69eb693d5288214b07cf2df5913b0148f"
+      },
+      "sha256": "b94442551ca42bcfe74a2eafdbfe82d7977aa592adb5b5facf5329a4179053d0",
+      "chars": 2499,
+      "sections": [
+        "about.brand",
+        "about.mos",
+        "about.proof",
+        "about.contact-policy",
+        "about.hours",
+        "about.prototypes"
+      ],
+      "built_at": "2026-10-17T09:58:21.090Z"
+    },
+    "kb/offer.md": {
+      "sources": [
+        "Clients/000_lazyhardwork/PJ_go_to_market/fastwork-cards-v2-2026-10.md",
+        "Clients/000_lazyhardwork/PJ_go_to_market/growth-ledger.yaml",
+        "Clients/000_lazyhardwork/PJ_go_to_market/lhw-public-profile.yaml"
+      ],
+      "source_sha256": {
+        "Clients/000_lazyhardwork/PJ_go_to_market/fastwork-cards-v2-2026-10.md": "236de3c7bd078d71f190e616a8165d3f7a19b3951b757edd41ccb43dcd7abef8",
+        "Clients/000_lazyhardwork/PJ_go_to_market/growth-ledger.yaml": "ad8c17d600160b8c18e145fb23aff010aed3aa59bc50e4283ab26bdfb1cbe3c3",
+        "Clients/000_lazyhardwork/PJ_go_to_market/lhw-public-profile.yaml": "216ed32869c7ebd986a76d52ba002ca69eb693d5288214b07cf2df5913b0148f"
+      },
+      "sha256": "c359708ad8886b3c5d7f35e7b9af5454c8dd676be025b6b6a79b59ab208577a0",
+      "chars": 24069,
+      "sections": [
+        "offer.overview",
+        "offer.A1",
+        "offer.A1.T1",
+        "offer.A1.T2",
+        "offer.A1.T3",
+        "offer.A1.T4",
+        "offer.A1.care",
+        "offer.A2",
+        "offer.A2.T1",
+        "offer.A2.T2",
+        "offer.A2.T3",
+        "offer.A2.T4",
+        "offer.A2.care",
+        "offer.A2.add-channel",
+        "offer.A3",
+        "offer.A3.T1",
+        "offer.A3.T2",
+        "offer.A3.T3",
+        "offer.A3.T4",
+        "offer.A3.care",
+        "offer.A4",
+        "offer.A4.T1",
+        "offer.A4.T2",
+        "offer.A4.T3",
+        "offer.A4.T4",
+        "offer.A4.care",
+        "offer.C1",
+        "offer.C1.T1",
+        "offer.C1.care",
+        "offer.T4",
+        "offer.symptom-cards",
+        "offer.B1",
+        "offer.B3",
+        "offer.B4",
+        "offer.B5",
+        "offer.B7",
+        "offer.B10",
+        "offer.B13",
+        "offer.B14"
+      ],
+      "built_at": "2026-10-17T09:58:21.090Z"
+    },
+    "kb/fit-map.md": {
+      "sources": [
+        ".claude/worktrees/laughing-mcnulty-d3105b/Clients/000_lazyhardwork/PJ_lineOA_chatcot_v1/fit-map-lay-v2.md",
+        "Clients/000_lazyhardwork/PJ_go_to_market/fastwork-cards-v2-2026-10.md",
+        "Clients/000_lazyhardwork/PJ_go_to_market/growth-ledger.yaml",
+        "Clients/000_lazyhardwork/PJ_go_to_market/lhw-public-profile.yaml"
+      ],
+      "source_sha256": {
+        ".claude/worktrees/laughing-mcnulty-d3105b/Clients/000_lazyhardwork/PJ_lineOA_chatcot_v1/fit-map-lay-v2.md": "a9a7b6d487f1d6f432410d1456c8697e5f60a91b8049a2e8be0f3e5a893f3cfc",
+        "Clients/000_lazyhardwork/PJ_go_to_market/fastwork-cards-v2-2026-10.md": "236de3c7bd078d71f190e616a8165d3f7a19b3951b757edd41ccb43dcd7abef8",
+        "Clients/000_lazyhardwork/PJ_go_to_market/growth-ledger.yaml": "ad8c17d600160b8c18e145fb23aff010aed3aa59bc50e4283ab26bdfb1cbe3c3",
+        "Clients/000_lazyhardwork/PJ_go_to_market/lhw-public-profile.yaml": "216ed32869c7ebd986a76d52ba002ca69eb693d5288214b07cf2df5913b0148f"
+      },
+      "sha256": "1c9d49ea6fb5e1fb8bbe99cba6fe2843e9f37b3f3a1edb1eb0e74325c8c3a184",
+      "chars": 7404,
+      "sections": [
+        "fit.chat-overload",
+        "fit.data-scattered",
+        "fit.repetitive-work",
+        "fit.ai-knows-my-work",
+        "fit.where-to-start"
+      ],
+      "built_at": "2026-10-17T09:58:21.090Z"
+    },
+    "kb/process.md": {
+      "sources": [
+        "Clients/000_lazyhardwork/PJ_go_to_market/lhw-gtm-operating-plan-2026-10.md",
+        "Clients/000_lazyhardwork/PJ_go_to_market/engagement-flow-playbook.md",
+        "Clients/000_lazyhardwork/PJ_go_to_market/fastwork-cards-v2-2026-10.md",
+        "Clients/000_lazyhardwork/PJ_go_to_market/growth-ledger.yaml",
+        "Clients/000_lazyhardwork/PJ_go_to_market/lhw-public-profile.yaml"
+      ],
+      "source_sha256": {
+        "Clients/000_lazyhardwork/PJ_go_to_market/lhw-gtm-operating-plan-2026-10.md": "5ca347bf1faff6f59516faf0881c2bbe38b62bf09c50ee7cb270c9d89ca859b4",
+        "Clients/000_lazyhardwork/PJ_go_to_market/engagement-flow-playbook.md": "80239dbd1e21c94d090fd7181f2e4a3d16638e0f77b40dfa4cc2485d417bec3c",
+        "Clients/000_lazyhardwork/PJ_go_to_market/fastwork-cards-v2-2026-10.md": "236de3c7bd078d71f190e616a8165d3f7a19b3951b757edd41ccb43dcd7abef8",
+        "Clients/000_lazyhardwork/PJ_go_to_market/growth-ledger.yaml": "ad8c17d600160b8c18e145fb23aff010aed3aa59bc50e4283ab26bdfb1cbe3c3",
+        "Clients/000_lazyhardwork/PJ_go_to_market/lhw-public-profile.yaml": "216ed32869c7ebd986a76d52ba002ca69eb693d5288214b07cf2df5913b0148f"
+      },
+      "sha256": "e36b76ef29455b21cb5f835994b9fbf632eb338645adffd53ae87c3d9f432ee6",
+      "chars": 4690,
+      "sections": [
+        "process.steps",
+        "process.short-path",
+        "process.long-path",
+        "process.what-you-prepare",
+        "process.payment",
+        "process.mos-touchpoints",
+        "process.timelines",
+        "process.after-handover"
+      ],
+      "built_at": "2026-10-17T09:58:21.090Z"
+    },
+    "kb/faq.md": {
+      "sources": [
+        ".claude/worktrees/laughing-mcnulty-d3105b/Clients/000_lazyhardwork/PJ_lineOA_chatcot_v1/faq-lay-v2.md"
+      ],
+      "source_sha256": {
+        ".claude/worktrees/laughing-mcnulty-d3105b/Clients/000_lazyhardwork/PJ_lineOA_chatcot_v1/faq-lay-v2.md": "e9b30376b8ecad5af59848b2e9d815ca46b57c6afa4bd7295e857d3edf4ba584"
+      },
+      "sha256": "64999406fdffc24d39ae683958871ad1e9629a3ba8154b7906f0da488960df1c",
+      "chars": 10461,
+      "sections": [
+        "faq.price-range",
+        "faq.what-price-includes",
+        "faq.upfront-vs-monthly",
+        "faq.care-fee",
+        "faq.payment-on-fastwork",
+        "faq.why-not-cheap-platform",
+        "faq.how-to-start",
+        "faq.how-long",
+        "faq.what-to-prepare",
+        "faq.outside-bangkok",
+        "faq.too-small",
+        "faq.data-safety",
+        "faq.which-ai",
+        "faq.wrong-answers",
+        "faq.who-owns",
+        "faq.replace-staff",
+        "faq.can-it-sell",
+        "faq.changes-after-handover",
+        "faq.revisions",
+        "faq.stop-paying-care",
+        "faq.training",
+        "faq.existing-line-oa",
+        "faq.facebook-web",
+        "faq.connect-tools",
+        "faq.existing-ai-subscription",
+        "faq.subsidy-available",
+        "faq.tax-deduction",
+        "faq.who-is-lhw",
+        "faq.human-or-bot",
+        "faq.talk-now",
+        "faq.portfolio",
+        "faq.firm-quote",
+        "faq.discount",
+        "faq.special-price",
+        "faq.help-apply-subsidy",
+        "faq.what-lay-cannot"
+      ],
+      "built_at": "2026-10-17T09:58:21.090Z"
+    },
+    "kb/examples.md": {
+      "sources": [
+        ".claude/worktrees/laughing-mcnulty-d3105b/Clients/000_lazyhardwork/PJ_lineOA_chatcot_v1/examples-lay-v2.md",
+        "Clients/000_lazyhardwork/PJ_go_to_market/lhw-public-profile.yaml"
+      ],
+      "source_sha256": {
+        ".claude/worktrees/laughing-mcnulty-d3105b/Clients/000_lazyhardwork/PJ_lineOA_chatcot_v1/examples-lay-v2.md": "5c11034c927eb1c3245fbf6a97b224cc59afefd95814c461c627227ba4898ae3",
+        "Clients/000_lazyhardwork/PJ_go_to_market/lhw-public-profile.yaml": "216ed32869c7ebd986a76d52ba002ca69eb693d5288214b07cf2df5913b0148f"
+      },
+      "sha256": "6f4e17b4fde2e33083817bc2c62fd2ad150d886c6a68d034fbd738a3a311a44e",
+      "chars": 6867,
+      "sections": [
+        "examples.carousel",
+        "examples.carousel.demo-shops",
+        "examples.carousel.this-bot",
+        "examples.carousel.kv-premium",
+        "examples.carousel.lhw-workspace",
+        "examples.carousel.fastwork-profile",
+        "examples.demo-mode-rules",
+        "examples.demo-cafe",
+        "examples.demo-clinic"
+      ],
+      "built_at": "2026-10-17T09:58:21.090Z"
+    },
+    "kb/benefits.md": {
+      "sources": [
+        "Clients/000_lazyhardwork/PJ_benefits/benefits-register.yaml",
+        "Clients/000_lazyhardwork/PJ_go_to_market/lhw-public-profile.yaml"
+      ],
+      "source_sha256": {
+        "Clients/000_lazyhardwork/PJ_benefits/benefits-register.yaml": "1ce421ea4ace00feac930b66c71ad330c93b119e7bcca71d9bf90295ee4ee936",
+        "Clients/000_lazyhardwork/PJ_go_to_market/lhw-public-profile.yaml": "216ed32869c7ebd986a76d52ba002ca69eb693d5288214b07cf2df5913b0148f"
+      },
+      "sha256": "b21630cdb388a072ffb05247749ef47a87110bed2ca79343d41d77b3004f2331",
+      "chars": 14945,
+      "sections": [
+        "benefits.overview",
+        "benefits.osmep-bds-core",
+        "benefits.osmep-bds-box-10k",
+        "benefits.osmep-spring-board",
+        "benefits.depa-ai-transformation-fy2570",
+        "benefits.depa-otod-ai-transformation-fy2569",
+        "benefits.depa-mini-transformation-voucher-ai",
+        "benefits.depa-digital-transformation-measure",
+        "benefits.rd-tax200-digital",
+        "benefits.rd-training-437",
+        "benefits.rd-stem-training-778",
+        "benefits.rd-automation-776",
+        "benefits.nstda-itap",
+        "benefits.boi-digital-efficiency-sme",
+        "benefits.aipass-gemini-enterprise",
+        "benefits.aipass-base",
+        "benefits.dsd-one-platform",
+        "benefits.gsb-temmax-transformation"
+      ],
+      "built_at": "2026-10-17T09:58:21.090Z"
+    },
+    "kb/policies.md": {
+      "sources": [
+        "Clients/000_lazyhardwork/PJ_go_to_market/lhw-public-profile.yaml",
+        "Clients/000_lazyhardwork/PJ_go_to_market/fastwork-cards-v2-2026-10.md"
+      ],
+      "source_sha256": {
+        "Clients/000_lazyhardwork/PJ_go_to_market/lhw-public-profile.yaml": "216ed32869c7ebd986a76d52ba002ca69eb693d5288214b07cf2df5913b0148f",
+        "Clients/000_lazyhardwork/PJ_go_to_market/fastwork-cards-v2-2026-10.md": "236de3c7bd078d71f190e616a8165d3f7a19b3951b757edd41ccb43dcd7abef8"
+      },
+      "sha256": "484fc1c44abf598af18cf05eacccb64a8d76de055fc27ad53c88b73d46c91ddf",
+      "chars": 4980,
+      "sections": [
+        "policies.ai-disclosure",
+        "policies.what-lay-cannot-decide",
+        "policies.pricing-rules",
+        "policies.subsidy-rules",
+        "policies.banned-claims",
+        "policies.privacy"
+      ],
+      "built_at": "2026-10-17T09:58:21.090Z"
+    },
+    "promotions.yaml": {
+      "sources": [
+        "Clients/000_lazyhardwork/PJ_go_to_market/promotions.yaml"
+      ],
+      "source_sha256": {
+        "Clients/000_lazyhardwork/PJ_go_to_market/promotions.yaml": "b141dc93dddc71646624f5339dbff2a110562922801a96c59e22356e1b66915e"
+      },
+      "sha256": "f3e7bd1130007aa014e8eaa799c1d3dc4679513affcc49e799a0bd34a57b4f4e",
+      "chars": 673,
+      "sections": [],
+      "built_at": "2026-10-17T09:58:21.090Z"
+    }
+  }
+}
