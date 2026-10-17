@@ -379,7 +379,7 @@ function cardContext(pack, config) {
     const ladder = pack?.ladders || {};
     return {
         assets: pack?.assets || {},
-        fastworkUrlFor: (cardId) => pack?.fastworkUrls?.[cardId] || config.contact.fastworkUrl || 'https://fastwork.co/user/mos_lazyhardwork',
+        fastworkUrlFor: (cardId) => pack?.fastworkUrls?.[cardId] || config.contact.fastworkUrl || null,   // no invented handle (D-19)
         priceFor: (cardId, tier) => { const p = ladder[cardId]?.tiers?.[tier]; return p ? { price_from: p, label_th: `ราคาเริ่มต้น ${p.toLocaleString('th-TH')} บาท` } : { price_from: null, label_th: 'ราคาเริ่มต้น ปรับตามขอบเขตจริงหลังคุย' }; },
     };
 }

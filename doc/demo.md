@@ -105,7 +105,9 @@ carousel, square for icons, https via `PUBLIC_BASE_URL`):
 `examples.examplesAssets(config)` maps the keys to `${publicBaseUrl}/assets/<file>`; with no https base the carousel degrades to
 text + buttons (never a broken image).
 
-## Wiring still needed outside this module (turn.js / app)
+## > **Status 2026-10-17 evening:** the hooks listed below are implemented in `src/core/turn.js` / `src/app.js` / `tests/run-scenarios.js` (head engineer). Kept as the record of the contract.
+
+Wiring still needed outside this module (turn.js / app)
 
 1. **Open the carousel on "ขอดูตัวอย่าง"**: in turn.js step 8, when `data === 'MENU_EXAMPLES' || data === 'MENU_PORTFOLIO'` or
    `topics.topicFromText(text) === 'proof'` (and the carousel has not been shown this session, e.g. `!s.topics_covered.includes('proof')`),

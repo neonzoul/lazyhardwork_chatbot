@@ -62,7 +62,9 @@ Phone numbers, emails, LINE userIds, LINE display names (personal data: the lead
 scrubbed with regexes (`[phone]`, `[email]`, `[line-user]`, `[line-id]`) before posting and clipped to 300 chars. Tests in
 `tests/unit/discord.format.test.js` assert this against sample data that contains all of them.
 
-## Hooks this module needs elsewhere (not in `src/discord`)
+## > **Status 2026-10-17 evening:** the hooks listed below are implemented in `src/core/turn.js` / `src/app.js` / `tests/run-scenarios.js` (head engineer). Kept as the record of the contract.
+
+Hooks this module needs elsewhere (not in `src/discord`)
 - `src/core/turn.js`: input kind `mos_release` (set mode `lay`, push `quiet.strings.back` as Lay, `resumed_by: 'mos_release'`) and
   export `INPUT_KINDS` so `commands.releaseToLay` can detect it; until then `/lay` does the same directly through `deps`.
 - `src/core/turn.js`: when `s.mode === 'mos_active' && s.discord_thread_id`, fire-and-forget

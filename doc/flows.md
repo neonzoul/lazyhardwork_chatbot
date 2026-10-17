@@ -116,6 +116,8 @@ model. ยืนยันแล้ว / นัดเรียบร้อย occ
 `BOOK_DAY_<today|tomorrow|other>` · `BOOK_TIME_<morning|afternoon|evening>` · `BOOK_CONFIRM` · `BOOK_EDIT` ·
 `BOOK_EDIT_<name|day|time|problem|business>` · `BOOK_PICK_<i>`.
 
+> **Status 2026-10-17 evening:** the hooks listed below are implemented in `src/core/turn.js` / `src/app.js` / `tests/run-scenarios.js` (head engineer). Kept as the record of the contract.
+
 ## 5. Hooks
 
 Already in `core/turn.js` (used as-is):
