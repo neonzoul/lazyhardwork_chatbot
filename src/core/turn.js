@@ -383,7 +383,7 @@ function createEventHandler(deps, opts = {}) {
     return function handleEvent(event) {
         const input = normalise(event);
         if (!input || !input.userId) return;
-        if (input.chatType !== 'user') { deps.log.info('event.ignored_chat', { chatType: input.chatType }); return; }
+        if (input.chatType !== 'user') { deps.log.info('event.ignored_chat', { chatType: input.chatType, chatId: input.chatId, userId: input.userId, kind: input.kind }); return; }
         if (input.webhookEventId) {
             if (seen.has(input.webhookEventId)) return;
             seen.set(input.webhookEventId, Date.now());
