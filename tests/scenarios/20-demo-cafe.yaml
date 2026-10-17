@@ -1,0 +1,113 @@
+name: demo · ร้านกาแฟตัวอย่าง สั่ง สรุป ยืนยัน กลับไปหา Lay
+covers: ["§9.7 demo enter → order → summary → exit", "§9.2 buttons not prose", "§9.4 never silent", "§9.8 identity"]
+# Runner notes (see doc/demo.md "Scenario runner"):
+#   - the runner does not inject deps.pack, so flows/demo loads knowledge/ itself; sender icons need PUBLIC_BASE_URL
+#   - `sender: demo` in the runner expects the name to contain "ตัวอย่าง" — LINE caps sender names at 20 code points,
+#     so the shop senders are "ริมคลอง · ผู้ช่วย AI" / "ใสใส · ผู้ช่วย AI"; this scenario asserts the name directly
+#     via text and leaves `sender` unset on demo steps until the runner accepts shop names (DEMO_SENDERS)
+#   - cards here carry contents._template, so `card:` asserts work (flows/examples.flexMessage marks them)
+user: { id: Utest-demo, displayName: "พี่เอ" }
+steps:
+  - postback: DEMO_EXAMPLES          # what "ขอดูตัวอย่าง" opens once turn.js routes the proof topic here
+    expect:                          # card: examples needs PUBLIC_BASE_URL (https) in the runner's config — see doc/demo.md
+      replies: 2
+      quick_replies_max: 4
+      sender: lay
+      banned_clean: true
+      emoji_max: 0
+      session: { mode: lay, topics_covered_includes: [proof] }
+  - postback: DEMO_PICK
+    expect:
+      replies: 2
+      card: choice
+      sender: lay
+      banned_clean: true
+      no_prose_list: true
+      session: { mode: lay }
+  - postback: DEMO_ENTER_cafe
+    expect:
+      replies: 1
+      text_contains: ["คาเฟ่ริมคลอง", "ตัวอย่าง"]
+      quick_replies_includes: ["กลับไปคุยกับ Lay"]
+      quick_replies_max: 4
+      action: demo_enter
+      banned_clean: true
+      emoji_max: 0
+      not_notified: [handoff, booking, lead, kbGap]
+      session: { mode: demo }
+  - user: "มีอะไรบ้าง"
+    model:
+      messages:
+        - { type: text, text: "มีอเมริกาโน่ ลาเต้ คาปูชิโน่ มัทฉะลาเต้ ชาไทย โกโก้ และครัวซองต์ครับ รับอะไรดีครับ", explain: false, template: null, alt: null, data: null }
+      quick_replies: ["ลาเต้เย็น 1 แก้ว", "ดูเวลาเปิด", "ส่งถึงบ้านไหม"]
+      topics: []
+      kb_refs: ["examples.demo-cafe"]
+      intent: demo
+      action: null
+      lead_updates: {}
+    expect:
+      replies_min: 1
+      text_contains: ["ลาเต้"]
+      quick_replies: ["ลาเต้เย็น 1 แก้ว", "ดูเวลาเปิด", "ส่งถึงบ้านไหม", "กลับไปคุยกับ Lay"]
+      banned_clean: true
+      emoji_max: 0
+      no_prose_list: true
+      not_notified: [handoff, booking, lead, kbGap]
+      session: { mode: demo }
+  - user: "ลาเต้เย็น 1 แก้ว หวานน้อย รับที่ร้าน 10 โมง ชื่อเอ"
+    model:
+      messages:
+        - type: card
+          text: null
+          explain: false
+          template: summary_confirm
+          alt: "สรุปออเดอร์ (ร้านตัวอย่าง)"
+          data:
+            title: "สรุปออเดอร์ (ร้านตัวอย่าง)"
+            fields:
+              - { k: "รายการ", v: "ลาเต้เย็น หวานน้อย" }
+              - { k: "จำนวน", v: "1 แก้ว" }
+              - { k: "รับที่ร้าน/ส่ง", v: "รับที่ร้าน" }
+              - { k: "เวลารับ", v: "10:00 น." }
+              - { k: "ชื่อผู้รับ", v: "เอ" }
+              - { k: "ยอดรวม", v: "70 บาท" }
+      quick_replies: []
+      topics: []
+      kb_refs: ["examples.demo-cafe"]
+      intent: demo
+      action: booking_confirm
+      lead_updates: {}
+    expect:
+      replies_min: 1
+      card: summary_confirm
+      quick_replies_includes: ["กลับไปคุยกับ Lay"]
+      text_not_contains: ["ยืนยันแล้ว"]
+      banned_clean: true
+      not_notified: [handoff, booking, lead, kbGap]
+      session: { mode: demo }
+  - postback: DEMO_CONFIRM
+    expect:
+      replies: 1
+      text_contains: ["เจ้าของร้าน (ตัวอย่าง)", "รอยืนยัน"]
+      text_not_contains: ["ยืนยันแล้ว", "ส่งให้มอสแล้ว"]
+      quick_replies_includes: ["กลับไปคุยกับ Lay"]
+      banned_clean: true
+      emoji_max: 0
+      not_notified: [handoff, booking, lead, kbGap]
+      session: { mode: demo }
+  - fault: { model: throw }
+  - user: "ขอเพิ่มครัวซองต์"
+    expect:
+      replies: 1
+      text_contains: ["ขัดข้องชั่วคราว", "กลับไปคุยกับ Lay"]
+      quick_replies: ["กลับไปคุยกับ Lay"]
+      banned_clean: true
+      session: { mode: demo }
+  - user: "กลับไปคุยกับ Lay"
+    expect:
+      replies_min: 1
+      sender: lay
+      banned_clean: true
+      action: demo_exit
+      not_notified: [handoff, booking, lead, kbGap]
+      session: { mode: lay }
