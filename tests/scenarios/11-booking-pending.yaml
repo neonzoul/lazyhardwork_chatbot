@@ -1,0 +1,73 @@
+name: booking · long path to pending — notify before promise, no ยืนยันแล้ว
+covers: ["§3.6 long path", "flow §6.2 state machine", "flow §6.4 human gate", "§9 H4 booking integrity", "§3.10 never silent"]
+user: { id: Utest-booking, displayName: "พี่เอ" }
+steps:
+  - user: "เริ่มยังไง"
+    model:
+      messages:
+        - { type: text, text: "ได้เลยครับ ขั้นแรกคือนัดคุยกับมอส 30 นาที เพื่อดูงานจริงก่อน", explain: false, template: null, alt: null, data: null }
+      quick_replies: []
+      topics: [howtostart]
+      kb_refs: ["process.first-call"]
+      intent: booking
+      lead_updates: { business: "ร้านกาแฟ", problem_verbatim: "ตอบแชทลูกค้าไม่ทัน", where_work_lives: null, team_size: null, maintainer: null, urgency: null, budget_frame: null, preferred_contact: null, came_from: null, symptom: null, card: null, name: null }
+      action: booking_start
+    expect:
+      replies: 2                                   # the model's words, then the day question
+      text_contains: ["ได้เลยครับ", "สะดวกคุย"]
+      quick_replies: ["วันนี้", "พรุ่งนี้", "เลือกวันเอง"]
+      card: null
+      sender: lay
+      banned_clean: true
+      emoji_max: 0
+      no_prose_list: true
+      not_notified: [booking]
+      session: { mode: lay, homework_has: [business, problem_verbatim] }
+  - postback: BOOK_DAY_tomorrow
+    expect:
+      replies: 1
+      quick_replies: ["เช้า 9-12", "บ่าย 13-17", "เย็น 18-20"]
+      card: null
+      sender: lay
+      banned_clean: true
+  - postback: BOOK_TIME_afternoon
+    expect:
+      replies: 2                                   # lead line + summary card
+      card: summary_confirm
+      text_contains: ["ขอสรุปก่อนส่งให้มอส"]
+      text_not_contains: ["ยืนยันแล้ว", "นัดเรียบร้อย"]
+      sender: lay
+      banned_clean: true
+      not_notified: [booking]
+  - postback: BOOK_EDIT
+    expect:
+      replies: 1
+      quick_replies: ["ชื่อ", "วัน", "ช่วงเวลา", "เรื่องที่อยากคุย"]
+      card: null
+  - postback: BOOK_EDIT_time
+    expect:
+      replies: 1
+      quick_replies: ["เช้า 9-12", "บ่าย 13-17", "เย็น 18-20"]
+      card: null
+  - postback: BOOK_TIME_morning
+    expect:
+      card: summary_confirm
+      text_not_contains: ["ยืนยันแล้ว"]
+  - postback: BOOK_CONFIRM
+    expect:
+      replies: 1
+      text_contains: ["ส่งให้มอสแล้วครับ", "มอสจะยืนยันเวลากลับมาทางแชทนี้", "1 วันทำการ", "095 569 1674"]
+      text_not_contains: ["ยืนยันแล้ว", "นัดเรียบร้อย"]
+      card: null
+      sender: lay
+      banned_clean: true
+      emoji_max: 0
+      action: booking_confirm
+      notified: [booking]
+      session: { mode: lay }
+  - postback: BOOK_START                           # a second request while pending does not open another booking
+    expect:
+      replies: 1
+      text_contains: ["รอมอสยืนยัน"]
+      text_not_contains: ["ยืนยันแล้ว"]
+      banned_clean: true
