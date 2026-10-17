@@ -111,8 +111,8 @@ const STATUS = Object.freeze({
   declined: { label: 'ยกเลิกแล้ว', fg: color.muted, bg: color.mutedBg },
 });
 
-function statusPill(status) {
-  const s = STATUS[status];
+function statusPill(status, label) {
+  const s = STATUS[status] && (label ? { ...STATUS[status], label } : STATUS[status]);
   if (!s) throw new Error(`unknown status "${status}"`);
   return {
     type: 'box',

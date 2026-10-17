@@ -97,7 +97,11 @@ async function runTurn(input, deps, opts = {}) {
         // 4. เรียก Lay — from any mode
         if (quiet.isCallLay(input)) {
             const was = quiet.callLay(s, now);
-            if (was === 'demo') { s.demo_shop = null; }
+            if (was === 'demo') {
+                const demo = deps.flows?.demo || lazy('../flows/demo');
+                if (demo?.exitDemo) demo.exitDemo(s, now); else { s.demo_shop = null; s.demo_state = null; }
+                if (demo?.onModelAction) { const r = await demo.onModelAction({ action: 'demo_exit', response: null, input, session: s, deps, config, send, persist, done, senders, doHandoff }); if (r && typeof r === 'object') r.action = 'demo_exit'; return r; }
+            }
             const qr = topics.nextQuickReplies(null, s.topics_covered);
             const sent = await send(input, [msg.text(quiet.strings.back)], qr, senders.lay);
             await persist(input, s, sent, { role: 'lay' });
@@ -167,8 +171,13 @@ async function runTurn(input, deps, opts = {}) {
             if (data.startsWith('FIT_') && fit?.onSymptomPostback) { ({ intentHint, userText } = fit.onSymptomPostback(data, s)); }
             else if (data.startsWith('BOOK_') && endings?.onBookingPostback) { return await endings.onBookingPostback({ data, input, session: s, deps, config, send, persist, done, sender: senders.lay, doHandoff, upsertLead }); }
             else if (data.startsWith('DEMO_') && demo?.onDemoPostback) { return await demo.onDemoPostback({ data, input, session: s, deps, config, send, persist, done, senders }); }
+            else if (data === 'MENU_EXAMPLES' || data === 'MENU_PORTFOLIO') { const demo = flows.demo || lazy('../flows/demo'); if (demo?.onDemoPostback) return await demo.onDemoPostback({ data: 'DEMO_EXAMPLES', input, session: s, deps, config, send, persist, done, senders }); }
             else if (data.startsWith('MENU_')) { const t = MENU_TO_TEXT[data]; if (t) { userText = t; intentHint = topics.topicFromText(t) || 'unknown'; } }
             else { userText = data; }
+        }
+        if (input.kind === 'text' && intentHint === 'proof' && !s.examples_shown && [...text.trim()].length <= 20) {
+            const demo = flows.demo || lazy('../flows/demo');
+            if (demo?.onDemoPostback) { s.examples_shown = true; session.unionTopics(s, ['proof']); return await demo.onDemoPostback({ data: 'DEMO_EXAMPLES', input, session: s, deps, config, send, persist, done, senders }); }
         }
         if (isTellMeMore(text) && s.last_kb_refs?.length) intentHint = 'tell_me_more';
 

@@ -39,7 +39,7 @@ function build(data, ctx) {
     P.header(title),
     P.separator(),
     { type: 'box', layout: 'vertical', spacing: 'sm', contents: fields.map((f) => P.kvRow(f.k, f.v)) },
-    P.statusPill(status),
+    P.statusPill(status, typeof data.status_label === 'string' && data.status_label.trim() ? data.status_label.trim() : undefined),
   ];
   return {
     altText: `${title} — ${ALT[status]}`,

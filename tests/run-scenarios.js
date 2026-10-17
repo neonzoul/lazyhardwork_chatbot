@@ -74,7 +74,7 @@ function assertStep(expect, ctx) {
     const want = expect.sender === null ? null : expect.sender === 'demo' ? 'demo' : SENDER_NAMES[expect.sender];
     for (const m of msgs) {
       const got = m.sender?.name || null;
-      if (want === 'demo') check(got && got.includes('ตัวอย่าง'), `sender "${got}" is not a demo shop`);
+      if (want === 'demo') check(got && got.includes('ผู้ช่วย AI') && got !== SENDER_NAMES.lay, `sender "${got}" is not a demo shop`);
       else check(got === want, `sender "${got}" ≠ "${want}"`);
     }
   }

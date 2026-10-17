@@ -21,6 +21,8 @@ function createApp({ overrides = {} } = {}) {
     const pack = overrides.pack || loadPack(path.resolve(config.knowledgeDir));
     const demoFlow = optional('./flows/demo');
     if (demoFlow?.demoShops && !pack.demoShops) pack.demoShops = demoFlow.demoShops(pack);
+    const examplesFlow = optional('./flows/examples');
+    if (examplesFlow?.examplesAssets) pack.assets = { ...(pack.assets || {}), ...examplesFlow.examplesAssets(config) };
     const lineClient = overrides.line || createLineClient({ channelAccessToken: config.line.channelAccessToken, log });
     const model = overrides.model || createModel();
 
