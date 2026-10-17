@@ -59,6 +59,12 @@ async function runTurn(input, deps, opts = {}) {
         // 2. non-conversational events
         if (input.kind === 'unfollow') { s.unfollowed_at = now.toISOString(); await deps.store.sessions.save(s); return done([], null); }
         if (input.kind === 'mos_relay') return await relayFromMos(input, s);
+        if (input.kind === 'mos_release') {
+            session.setMode(s, 'lay', now); s.resumed_by = 'mos_release';
+            const sent = await send({ ...input, replyToken: null }, [msg.text(quiet.strings.back)], topics.nextQuickReplies(null, s.topics_covered), senders.lay, { allowReply: false });
+            await persist(input, s, sent, { role: 'lay' });
+            return done(sent, null);
+        }
 
         if (input.kind === 'follow' || (input.kind !== 'postback' && opening.needsOpening(s, input) && input.kind === 'text' && !topics.topicFromText(input.text) && !handoff.isAskHuman(input.text))) {
             // follow, or a first message that is a plain greeting → opening (a first message that already asks a
@@ -97,8 +103,12 @@ async function runTurn(input, deps, opts = {}) {
         }
 
         // 5. mode gates
-        if (s.mode === 'mos_active') { await deps.store.sessions.save(s); return done([], null, { silent: true }); }
+        if (s.mode === 'mos_active') {
+            if (s.discord_thread_id) deps.notifier.relayToMos({ threadId: s.discord_thread_id, text: text || data }).catch(() => {});
+            await deps.store.sessions.save(s); return done([], null, { silent: true });
+        }
         if (s.mode === 'quiet') {
+            if (s.discord_thread_id) deps.notifier.relayToMos({ threadId: s.discord_thread_id, text: text || data }).catch(() => {});
             if (!s.quiet_acked) {
                 s.quiet_acked = true;
                 const sent = await send(input, [msg.text(quiet.strings.quietAck)], [quiet.CALL_LAY_LABEL], senders.lay);
@@ -384,4 +394,5 @@ function createEventHandler(deps, opts = {}) {
     };
 }
 
-module.exports = { runTurn, createEventHandler, isGreeting, isTellMeMore, countQuestions, sanitizeInput, MENU_TO_TEXT };
+const INPUT_KINDS = ['text', 'postback', 'media', 'follow', 'unfollow', 'mos_relay', 'mos_release'];
+module.exports = { runTurn, createEventHandler, isGreeting, isTellMeMore, countQuestions, sanitizeInput, MENU_TO_TEXT, INPUT_KINDS };

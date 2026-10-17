@@ -67,7 +67,7 @@ function createApp({ overrides = {} } = {}) {
         relay = relayMod.createRelay({
             botToken: config.discord.botToken, guildId: config.discord.guildId, leadsChannelId: config.discord.leadsChannelId, store, log,
             onMosMessage: async ({ userId, text }) => runTurn({ userId, kind: 'mos_relay', text, timestamp: Date.now() }, deps),
-            onCommand: async (cmd) => { const commands = optional('./discord/commands'); if (commands?.handleCommand) return commands.handleCommand({ ...cmd, deps, runTurn }); return { ok: false, error: 'commands not available' }; },
+            onCommand: async (cmd) => { const commands = optional('./discord/commands'); if (commands?.handleCommand) return commands.handleCommand(cmd, { deps, config, runTurn }); return { ok: false, text: 'commands not available' }; },
         });
     }
 
