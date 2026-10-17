@@ -11,7 +11,7 @@ const BANNED = [
   { id: 'agent_tag', re: /\[Agent Lay\]/u, why: 'the tag is gone (D2)' },
   { id: 'stock_closer', re: /ยินดีช่วยเสมอ|ยินดีให้บริการเสมอ/u, why: 'no stock closers' },
   { id: 'booking_confirmed', re: /ยืนยันแล้ว|นัดเรียบร้อย|นัดหมายเรียบร้อย/u, why: 'only after Mos approves', conditional: 'booking_confirmed' },
-  { id: 'registered_provider', re: /ผู้ให้บริการที่ขึ้นทะเบียน(?!.*(?:ยังไม่|ไม่ได้))/u, why: 'LhW is not a registered provider' },
+  { id: 'registered_provider', re: /(?:LazyHardWork|LhW|เรา|ผม)\s*(?:เป็น|คือ)\s*ผู้ให้บริการที่ขึ้นทะเบียน(?!.*(?:ยังไม่|ไม่ได้))/u, why: 'LhW is not a registered provider' },
 ];
 
 // allow: set of banned ids that are permitted in this context (e.g. 'booking_confirmed' after Mos approved)
@@ -52,16 +52,16 @@ function hasProseList(text) {
   return PROSE_LIST_RES.some((re) => re.test(text));
 }
 
-const MARKDOWN_RE = /\*\*[^*]+\*\*|__[^_]+__|^#{1,6}\s|`[^`\n]+`/mu;
+const MARKDOWN_RE = /\*\*[^*]+\*\*|__[^_]+__|^#{1,6}\s|`[^`\n]+`|\[[^\]]+\]\([^)]+\)/mu;
 function hasMarkdown(text) { return !!text && MARKDOWN_RE.test(text); }
 function stripMarkdown(text) {
   return String(text || '')
     .replace(/\*\*(.+?)\*\*/gs, '$1').replace(/__(.+?)__/gs, '$1')
-    .replace(/^#{1,6}\s+/gm, '').replace(/`([^`\n]+)`/g, '$1');
+    .replace(/^#{1,6}\s+/gm, '').replace(/`([^`\n]+)`/g, '$1').replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
 }
 
 // ~3 short lines: count lines and characters (Thai has no spaces; use chars).
-function tooLong(text, { maxLines = 4, maxChars = 220 } = {}) {
+function tooLong(text, { maxLines = 4, maxChars = 300 } = {}) {
   if (!text) return false;
   const lines = text.split('\n').filter((l) => l.trim()).length;
   return lines > maxLines || text.length > maxChars;

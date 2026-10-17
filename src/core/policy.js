@@ -152,7 +152,7 @@ function applyPolicy(input, { session = {}, pack = null, allow, userText } = {})
 }
 
 function fallbackReply({ reason = 'error', config } = {}) {
-  const phone = config && config.contact && config.contact.phone;
+  const phone = config && config.contact && (config.contact.phoneDisplay || config.contact.phone);
   const response = emptyResponse({
     messages: [{ type: 'text', text: strings.fallback(phone), explain: false, template: null, alt: null, data: null }],
     quick_replies: [strings.fallbackQuickReply],

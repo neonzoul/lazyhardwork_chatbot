@@ -70,7 +70,7 @@ test('banned content, emoji policy, prose list and too-long are regenerate-level
   assert.equal(sev('ส่งเมลมาที่ mos@example.com'), 'regenerate');
   assert.equal(sev('ยินดีครับ 🙏'), 'regenerate');
   assert.equal(sev('มี 3 แพ็กครับ\n1. ลองก่อน\n2. วางระบบ\n3. รันเอง'), 'regenerate');
-  assert.equal(sev('ก'.repeat(300)), 'regenerate');
+  assert.equal(sev('ก'.repeat(320)), 'regenerate');
   const rules = applyPolicy(resp(['[Agent Lay] ยินดีช่วยเสมอครับ 😊']), {}).violations.map((v) => v.rule).sort();
   assert.deepEqual(rules, ['banned:agent_tag', 'banned:stock_closer', 'emoji']);
   // an explain bubble may carry structural emoji

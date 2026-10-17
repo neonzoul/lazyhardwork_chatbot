@@ -29,7 +29,7 @@ test('follow → opening with 3 quick replies, Lay sender, via reply token', asy
 });
 
 test('a question goes to the model; topics union; follow-up quick replies filtered', async () => {
-  const w = world([text('แล้วแต่งานครับ ราคาเริ่มต้น 4,900 บาท', { topics: ['pricing'], intent: 'pricing', quick_replies: ['ราคาเท่าไหร่', 'เริ่มยังไง'] })]);
+  const w = world([text('แล้วแต่งานครับ ราคาเริ่มต้น 4,900 บาท', { topics: ['pricing'], intent: 'pricing', kb_refs: ['faq.price-range'], quick_replies: ['ราคาเท่าไหร่', 'เริ่มยังไง'] })]);
   const r = await runTurn(w.input({ text: 'ราคาเท่าไหร่' }), w.deps);
   assert.equal(r.errors.length, 0);
   assert.deepEqual(r.session.topics_covered, ['pricing']);

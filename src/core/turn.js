@@ -248,12 +248,12 @@ async function runTurn(input, deps, opts = {}) {
             if (policy?.applyPolicy) {
                 let p = policy.applyPolicy(response, { session: sess, pack, allow: new Set() });
                 if (p.severity === 'regenerate') {
-                    d.log.warn('policy.regenerate', { violations: p.violations });
-                    response = await attempt(`คำตอบก่อนหน้าละเมิดกฎ: ${p.violations.join(', ')} — ตอบใหม่โดยไม่ละเมิด`);
+                    d.log.warn('policy.regenerate', { violations: p.violations.map((v) => v.rule || v).join(',') });
+                    response = await attempt(`คำตอบก่อนหน้าละเมิดกฎ: ${p.violations.map((v) => v.rule || v).join(', ')} — ตอบใหม่โดยไม่ละเมิด`);
                     p = policy.applyPolicy(response, { session: sess, pack, allow: new Set() });
-                    if (p.severity === 'regenerate' || p.severity === 'fallback') throw Object.assign(new Error(`policy: ${p.violations.join(', ')}`), { kind: 'policy' });
+                    if (p.severity === 'regenerate' || p.severity === 'fallback') throw Object.assign(new Error(`policy: ${p.violations.map((v) => v.rule || v).join(', ')}`), { kind: 'policy' });
                 } else if (p.severity === 'fallback') {
-                    throw Object.assign(new Error(`policy: ${p.violations.join(', ')}`), { kind: 'policy' });
+                    throw Object.assign(new Error(`policy: ${p.violations.map((v) => v.rule || v).join(', ')}`), { kind: 'policy' });
                 }
                 response = p.response;
                 if (p.violations?.length) await d.store.events.append({ kind: 'policy_violation', user_id: sess.user_id, payload: { violations: p.violations, fixed: p.fixed }, created_at: at.toISOString() });

@@ -35,7 +35,7 @@ test('markdown and length', () => {
   assert.equal(lint.hasMarkdown('**ราคา** 4,900'), true);
   assert.equal(lint.stripMarkdown('## หัวข้อ\n**ราคา** `4,900`'), 'หัวข้อ\nราคา 4,900');
   assert.equal(lint.tooLong('สั้นๆ'), false);
-  assert.equal(lint.tooLong('ก'.repeat(300)), true);
+  assert.equal(lint.tooLong('ก'.repeat(320)), true);
   assert.equal(lint.tooLong('a\nb\nc\nd\ne'), true);
 });
 
