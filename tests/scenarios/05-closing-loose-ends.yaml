@@ -1,0 +1,54 @@
+name: 05 · ลูกค้าจะเงียบ — ขอบคุณครับ หลัง 2 เรื่อง → เช็คเรื่องค้างครั้งเดียว แล้วไม่ตื๊อ
+covers: ["§9.1", "§9.2", "§9.6", "H3.2", "H3.4", "§3.3"]
+user: { id: U05, displayName: "คุณเจ" }
+steps:
+  - user: "ราคาเท่าไหร่"
+    model:
+      messages:
+        - { type: text, text: "แล้วแต่งานครับ แพ็กเริ่มต้นมีตั้งแต่ 4,900 บาท ทุกตัวเป็นราคาเริ่มต้น ปรับตามขอบเขตจริงหลังคุย", explain: false, template: null, alt: null, data: null }
+      quick_replies: ["ใช้เวลานานไหม", "เริ่มยังไง"]
+      topics: [pricing]
+      kb_refs: ["faq.price-range"]
+      intent: pricing
+    expect: { replies: 1, quick_replies: ["ใช้เวลานานไหม", "เริ่มยังไง"], sender: lay, banned_clean: true, emoji_max: 0 }
+  - user: "ใช้เวลานานไหม"
+    model:
+      messages:
+        - { type: text, text: "แพ็กเริ่มต้นส่วนใหญ่ 1 ถึง 2 สัปดาห์ครับ ระบบงานภายในประมาณ 3 ถึง 4 สัปดาห์ นับจากวันที่ได้ข้อมูลครบ", explain: false, template: null, alt: null, data: null }
+      quick_replies: ["เริ่มยังไง", "เหมาะกับงานผมไหม"]
+      topics: [timeline]
+      kb_refs: ["process.timelines"]
+      intent: timeline
+    expect:
+      replies: 1
+      quick_replies: ["เริ่มยังไง", "เหมาะกับงานผมไหม"]    # follow-ups exclude pricing (covered)
+      sender: lay
+      banned_clean: true
+      emoji_max: 0
+      session: { topics_covered_includes: [pricing, timeline] }
+  - user: "ขอบคุณครับ"
+    expect:
+      replies: 1                                             # deterministic loose-ends check, no model call
+      text_contains: ["อีก 2 เรื่องที่คนมักถามก่อนตัดสินใจ", "ทำอะไรได้บ้าง", "เหมาะกับงานผมไหม"]
+      quick_replies: ["ทำอะไรได้บ้าง", "เหมาะกับงานผมไหม", "นัดคุยกับมอส"]
+      sender: lay
+      banned_clean: true
+      emoji_max: 0
+      no_prose_list: true
+      not_notified: [handoff, booking]
+  - user: "ขอคิดดูก่อนครับ"
+    model:
+      messages:
+        - { type: text, text: "ได้เลยครับ ไม่รีบ ถ้านึกอะไรออกทักมาได้ตลอด", explain: false, template: null, alt: null, data: null }
+      quick_replies: []
+      topics: []
+      kb_refs: []
+      intent: closing
+    expect:
+      replies: 1                                             # loose-ends fires once only; closing gets one calm line, no CTA
+      text_not_contains: ["อีก 2 เรื่อง", "นัดคุย", "ยินดีช่วยเสมอ"]
+      quick_replies: []
+      sender: lay
+      banned_clean: true
+      emoji_max: 0
+      not_notified: [handoff, booking]

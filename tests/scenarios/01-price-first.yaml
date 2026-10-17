@@ -1,0 +1,75 @@
+name: 01 · ราคาก่อนเลย — ลูกค้าถามราคาเป็นข้อความแรก แล้วค่อยเล่างาน
+covers: ["§9.1", "§9.2", "§9.3", "§9.5", "§9.6", "§9.8", "H3.2", "H2.2"]
+# Fastwork pattern: the first line is a price question, the business comes out two turns later.
+user: { id: U01, displayName: "คุณบี" }
+steps:
+  - user: "ราคาเท่าไหร่ครับ"
+    model:
+      messages:
+        - { type: text, text: "แล้วแต่งานครับ แพ็กเริ่มต้นมีตั้งแต่ 4,900 บาท ไปจนถึงระบบงานภายในที่เริ่มต้น 49,000 บาท ทุกตัวเป็นราคาเริ่มต้น ปรับตามขอบเขตจริงหลังคุยครับ\nตอนนี้งานที่อยากให้ช่วยเป็นเรื่องไหนครับ", explain: false, template: null, alt: null, data: null }
+      quick_replies: ["ใช้เวลานานไหม", "เริ่มยังไง"]
+      topics: [pricing]
+      kb_refs: ["faq.price-range"]
+      intent: pricing
+    expect:
+      replies: 1
+      text_contains: ["ราคาเริ่มต้น"]
+      text_not_contains: ["Sprint", "[Agent Lay]"]
+      quick_replies: ["ใช้เวลานานไหม", "เริ่มยังไง"]
+      sender: lay
+      banned_clean: true
+      emoji_max: 0
+      no_prose_list: true
+      action: null
+      session: { mode: lay, topics_covered_includes: [pricing], questions_asked_max: 1 }
+  - user: "รวมอะไรบ้างครับ"
+    model:
+      messages:
+        - { type: text, text: "รวมออกแบบ สร้าง ทดสอบกับข้อมูลจริง ติดตั้ง สอนใช้ และคู่มือครับ แพ็กแชทบอทกับระบบงานภายในดูแลให้ 3 เดือนแรกด้วย ไม่ใช่แค่ค่าโค้ดครับ", explain: false, template: null, alt: null, data: null }
+      quick_replies: ["ใช้เวลานานไหม", "เริ่มยังไง"]
+      topics: [pricing]
+      kb_refs: ["faq.what-price-includes"]
+      intent: faq
+    expect:
+      replies: 1
+      text_not_contains: ["ยังไม่มีข้อมูล"]
+      quick_replies: ["ใช้เวลานานไหม", "เริ่มยังไง"]
+      sender: lay
+      banned_clean: true
+      emoji_max: 0
+      no_prose_list: true
+  - user: "ร้านขายเสื้อผ้าออนไลน์ครับ ลูกค้าทักมาเยอะตอบไม่ทัน"
+    model:
+      messages:
+        - { type: text, text: "เคสนี้ตรงกับแชทบอทเลยครับ คำถามซ้ำอย่างไซซ์ ราคา ค่าส่ง ให้บอทตอบเองได้ทั้งวัน พอเรื่องไหนเกินมือค่อยส่งต่อให้คนตอบ", explain: false, template: null, alt: null, data: null }
+      quick_replies: ["ใช้เวลานานไหม", "เริ่มยังไง"]
+      topics: [fit]
+      kb_refs: ["fit.chat-overload"]
+      intent: fit
+      lead_updates: { business: "ร้านขายเสื้อผ้าออนไลน์", problem_verbatim: "ลูกค้าทักมาเยอะตอบไม่ทัน", symptom: chat_overload, card: A2 }
+    expect:
+      replies_min: 1                   # same-turn offer card is BUG-2 (pinned in 16); here the draft/homework must land
+      text_contains: ["แชทบอท"]
+      text_not_contains: ["ยืนยันแล้ว", "ลดคน"]
+      sender: lay
+      banned_clean: true
+      emoji_max: 0
+      no_prose_list: true
+      session: { homework_has: [business, problem_verbatim], draft_has: [symptom, card], topics_covered_includes: [pricing, fit], questions_asked_max: 1 }
+  - user: "แพ็กแชทบอทเริ่มเท่าไหร่"
+    model:
+      messages:
+        - { type: text, text: "แชทบอท LINE OA ราคาเริ่มต้น 15,000 บาทครับ ราคาที่เห็นคือราคาเริ่มต้น ปรับตามขอบเขตจริงหลังคุย รายละเอียดแพ็กอยู่ในการ์ดนี้", explain: false, template: null, alt: null, data: null }
+      quick_replies: ["ใช้เวลานานไหม", "เริ่มยังไง"]
+      topics: [pricing]
+      kb_refs: ["offer.A2.T1"]
+      intent: pricing
+    expect:
+      replies_min: 2
+      card: offer                      # short path: the need fits the A2 door package → offer card, price from the pack
+      text_contains: ["ราคาเริ่มต้น"]
+      text_not_contains: ["ยืนยันแล้ว"]
+      sender: lay
+      banned_clean: true
+      emoji_max: 0
+      session: { draft_has: [symptom, card], questions_asked_max: 1 }

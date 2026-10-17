@@ -1,0 +1,38 @@
+name: 60 · identity — 10 เทิร์น ทุกข้อความมีผู้ส่ง Lay · มอสมาเป็น "มอส" · ไม่มี [Agent Lay] ที่ไหนเลย
+covers: ["§9.8", "§9.5", "H1.5", "flow §11.1", "design §6.1"]
+# Short scripted strings are enough here: the subject is the sender on every bubble, not the words.
+user: { id: U60, displayName: "คุณอาร์ม" }
+steps:
+  - follow: true
+    expect: { replies: 1, sender: lay, text_contains: ["ผม Lay ผู้ช่วย AI ของมอส"], text_not_contains: ["[Agent Lay]"], emoji_max: 0 }
+  - user: "ทำอะไรได้บ้าง"
+    model: "หลักๆ ผมช่วยเอา AI ไปรับงานซ้ำในธุรกิจครับ แชทบอท ระบบตามงาน หรือตั้งค่า AI ให้รู้จักงานของคุณ"
+    expect: { replies: 1, sender: lay, text_not_contains: ["[Agent Lay]"], banned_clean: true, emoji_max: 0 }
+  - postback: MENU_FIT                                        # Rich Menu tile (the typed label is pinned in 02/16 — BUG-1)
+    model: "ขอดูอาการก่อนครับ ตอนนี้เรื่องที่กินเวลาที่สุดคืออะไร"
+    expect: { replies: 1, sender: lay, text_not_contains: ["[Agent Lay]"], banned_clean: true }
+  - postback: FIT_repetitive_work
+    model: "งานคีย์ซ้ำทุกวันคือจุดที่ออโตเมชันช่วยได้ตรงที่สุดครับ เปลี่ยนขั้นตอนที่ทำมือเป็นอัตโนมัติ มีจุดให้คนตรวจก่อนทุกขั้นสำคัญ"
+    expect: { replies_min: 1, sender: lay, text_not_contains: ["[Agent Lay]"], banned_clean: true }
+  - user: "ราคาเท่าไหร่"
+    model: { messages: [{ type: text, text: "ออโตเมชันราคาเริ่มต้น 12,000 บาทครับ ราคาที่เห็นคือราคาเริ่มต้น ปรับตามขอบเขตจริงหลังคุย", explain: false, template: null, alt: null, data: null }], topics: [pricing], kb_refs: ["offer.A3.T1"], intent: pricing }
+    expect: { replies_min: 1, sender: lay, text_not_contains: ["[Agent Lay]"], banned_clean: true }   # the A3 offer card may ride along
+  - user: "ใช้เวลานานไหม"
+    model: "ประมาณ 1 ถึง 2 สัปดาห์หลังได้ข้อมูลครบครับ"
+    expect: { replies: 1, sender: lay, text_not_contains: ["[Agent Lay]"], banned_clean: true }
+  - user: "ขอดูตัวอย่าง"
+    model: "ตัวอย่างที่ใกล้ตัวที่สุดคือบอทตัวนี้ครับ กับระบบงานของ LazyHardWork เองที่ผมใช้ทุกวัน"
+    expect: { replies: 1, sender: lay, text_not_contains: ["[Agent Lay]", "181"], banned_clean: true }
+  - user: "นี่คนหรือบอท"                                      # turn 8 (H1.5): still a straight answer
+    model: "ผมเป็น Lay ผู้ช่วย AI ของมอสครับ ถ้าอยากคุยกับมอสเอง บอกได้เลย เดี๋ยวผมเรียกให้"
+    expect: { replies: 1, sender: lay, text_contains: ["Lay", "ผู้ช่วย AI"], text_not_contains: ["[Agent Lay]"], banned_clean: true }
+  - user: "ขอคุยกับมอส"
+    expect: { replies: 1, sender: lay, text_not_contains: ["[Agent Lay]"], action: handoff_human, session: { mode: quiet } }
+  - mos: { threadId: T1, text: "สวัสดีครับ มอสครับ อ่านที่คุยกับ Lay แล้ว เดี๋ยวดูเรื่องงานคีย์ซ้ำให้" }
+    expect: { replies: 1, sender: mos, text_contains: ["มอสครับ"], text_not_contains: ["[Agent Lay]"], session: { mode: mos_active } }
+  - user: "ขอบคุณครับ"
+    expect: { silent: true, replies: 0, notified: [relayToMos], session: { mode: mos_active } }
+  - clock: { advance_minutes: 31 }
+  - user: "เริ่มยังไง"
+    model: "เริ่มจากนัดคุยกับมอส 30 นาทีครับ"
+    expect: { replies_min: 1, sender: lay, text_not_contains: ["[Agent Lay]"], session: { mode: lay } }

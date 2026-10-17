@@ -1,0 +1,47 @@
+name: 41 · faults — Discord down on ask-human (truth + phone, Lay stays) and on booking confirm (no false "ส่งให้มอสแล้ว")
+covers: ["§9.4", "§3.9", "H4.4", "flow §5.4", "flow §7"]
+user: { id: U41, displayName: "คุณนัท" }
+session: { homework: { business: "ร้านอาหาร", problem_verbatim: "ตอบแชทไม่ทัน", preferred_contact: "นัดคุย 30 นาที" } }
+steps:
+  - fault: { notifier: handoff }
+  - user: "ขอคุยกับมอสหน่อยครับ"
+    expect:
+      replies: 1
+      text_contains: ["ระบบส่งเรื่องขัดข้อง", "095 569 1674"]
+      text_not_contains: ["ส่งเรื่องให้มอสแล้ว", "เดี๋ยวมอสเข้ามาคุยเอง"]    # never promise what did not happen
+      quick_replies: ["เรียก Lay"]
+      sender: lay
+      banned_clean: true
+      emoji_max: 0
+      action: null
+      notified: [handoff]                                   # the call was made (and threw)
+      session: { mode: lay }                                # no quiet window: Lay keeps serving
+  - user: "ขอคุยกับมอสหน่อยครับ"                              # Discord back: the same request now succeeds
+    expect:
+      replies: 1
+      text_contains: ["ส่งเรื่องให้มอสแล้ว"]
+      action: handoff_human
+      sender: lay
+      banned_clean: true
+      session: { mode: quiet }
+  - postback: CALL_LAY
+    expect: { replies: 1, text_contains: ["Lay กลับมาดูแลต่อครับ"], session: { mode: lay } }
+  - user: "นัดคุยกับมอส"
+    expect: { replies: 1, quick_replies: ["วันนี้", "พรุ่งนี้", "เลือกวันเอง"], sender: lay }
+  - postback: BOOK_DAY_tomorrow
+    expect: { replies: 1, quick_replies: ["เช้า 9-12", "บ่าย 13-17", "เย็น 18-20"] }
+  - postback: BOOK_TIME_afternoon
+    expect: { replies: 2, card: summary_confirm, text_not_contains: ["ยืนยันแล้ว"], banned_clean: true }
+  - fault: { notifier: booking }
+  - postback: BOOK_CONFIRM
+    expect:
+      replies: 1
+      text_contains: ["ระบบส่งคำขอนัดให้มอสขัดข้อง", "ยังไม่ถึงมอส", "095 569 1674"]
+      text_not_contains: ["ส่งให้มอสแล้วครับ", "ยืนยันแล้ว", "นัดเรียบร้อย"]
+      quick_replies: ["ถามเรื่องอื่นต่อ"]
+      sender: lay
+      banned_clean: true
+      emoji_max: 0
+      action: null
+      notified: [booking]
+      session: { mode: lay }

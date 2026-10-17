@@ -1,0 +1,71 @@
+name: 12 · นัดคุยทางยาว — pending → มอส /propose → ลูกค้าเลือก BOOK_PICK → pending อีกครั้ง
+covers: ["§9.3", "§9.5", "§9.8", "H2.1", "H4.1", "H4.3", "flow §6.2", "flow §6.5"]
+# ≤2 free-text inputs in the whole booking (problem, business); the day/time are buttons. No ยืนยันแล้ว anywhere.
+user: { id: U12, displayName: "คุณโอ๊ต" }
+steps:
+  - user: "นัดคุยกับมอส"
+    expect:
+      replies: 1
+      text_contains: ["เล่าสั้นๆ"]                     # homework gap 1: problem in their words
+      sender: lay
+      banned_clean: true
+      emoji_max: 0
+      not_notified: [booking]
+      session: { questions_asked_max: 1 }
+  - user: "อยากได้ระบบตามงานช่างในทีม ตอนนี้ข้อมูลกระจายหลายที่"
+    expect:
+      replies: 1
+      text_contains: ["ธุรกิจของคุณทำอะไร"]            # homework gap 2: business
+      sender: lay
+      banned_clean: true
+      session: { homework_has: [problem_verbatim], questions_asked_max: 2 }
+  - user: "ศูนย์บริการดูแลรถครับ"
+    expect:
+      replies: 1
+      text_contains: ["สะดวกคุย"]                      # name known from the profile → straight to the day
+      quick_replies: ["วันนี้", "พรุ่งนี้", "เลือกวันเอง"]
+      sender: lay
+      banned_clean: true
+      session: { homework_has: [problem_verbatim, business], questions_asked_max: 2 }
+  - postback: BOOK_DAY_today
+    expect: { replies: 1, quick_replies: ["เช้า 9-12", "บ่าย 13-17", "เย็น 18-20"], sender: lay }
+  - postback: BOOK_TIME_evening
+    expect:
+      replies: 2
+      card: summary_confirm
+      text_contains: ["ขอสรุปก่อนส่งให้มอส"]
+      text_not_contains: ["ยืนยันแล้ว", "นัดเรียบร้อย"]
+      sender: lay
+      banned_clean: true
+      not_notified: [booking]
+  - postback: BOOK_CONFIRM
+    expect:
+      replies: 1
+      text_contains: ["ส่งให้มอสแล้วครับ", "มอสจะยืนยันเวลากลับมา"]
+      text_not_contains: ["ยืนยันแล้ว", "นัดเรียบร้อย"]
+      sender: lay
+      banned_clean: true
+      emoji_max: 0
+      action: booking_confirm
+      notified: [booking]
+  - decision: { decision: propose, windows: ["พุธ 22 ต.ค. บ่าย", "พฤหัส 23 ต.ค. เช้า"] }
+    expect:
+      replies: 1
+      text_contains: ["มอสไม่สะดวก", "เสนอช่วงนี้แทน"]
+      text_not_contains: ["ยืนยันแล้ว", "นัดเรียบร้อย"]
+      quick_replies: ["พุธ 22 ต.ค. บ่าย", "พฤหัส 23 ต.ค. เช้า", "ขอเสนอเวลาอื่น"]    # tappable alternatives, not a dead end
+      sender: lay
+      banned_clean: true
+      emoji_max: 0
+  - postback: BOOK_PICK_1
+    expect:
+      replies: 1
+      text_contains: ["รับทราบครับ เลือก พฤหัส 23 ต.ค. เช้า", "รอมอสยืนยันอีกครั้ง"]
+      text_not_contains: ["ยืนยันแล้ว", "นัดเรียบร้อย"]
+      quick_replies: ["ถามเรื่องอื่นต่อ"]
+      sender: lay
+      banned_clean: true
+      emoji_max: 0
+      action: booking_confirm
+      notified: [booking]
+      session: { mode: lay }

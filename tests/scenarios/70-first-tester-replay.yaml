@@ -1,0 +1,63 @@
+name: 70 · first-tester replay — placeholder until Mos's transcript lands in the vault (3 representative lines from brief §2)
+covers: ["§9.1", "§9.5", "§9.6", "§2 ขอรายละเอียด", "§2 อยากได้คนขาย", "§2 profanity", "§3.10"]
+pending_transcript: true
+# When the transcript file arrives: replace the steps below with EVERY customer line of it, in order, one step each,
+# keeping the per-line expectations (expand / honest no / one human line) and the three suite-wide asserts
+# (banned_clean, emoji_max 0, sender lay). Keep this header so the report marks it as a replay.
+user: { id: U70, displayName: "ผู้ทดสอบคนแรก" }
+steps:
+  - user: "ทำอะไรได้บ้าง"
+    model:
+      messages:
+        - { type: text, text: "หลักๆ ผมช่วยเอา AI ไปรับงานซ้ำในธุรกิจครับ แชทบอทตอบลูกค้า ระบบตามงานภายใน หรือตั้งค่า AI ให้รู้จักงานของคุณ", explain: false, template: null, alt: null, data: null }
+      quick_replies: ["เหมาะกับงานผมไหม", "ราคาเท่าไหร่"]
+      topics: [capability]
+      kb_refs: ["offer.overview"]
+      intent: capability
+    expect: { replies: 1, sender: lay, banned_clean: true, emoji_max: 0, text_not_contains: ["[Agent Lay]", "ยินดีช่วยเสมอ"] }
+  - user: "อธิบายละเอียดกว่านี้ได้ไหม"
+    model:
+      messages:
+        - { type: text, text: "ได้ครับ ยกตัวอย่างแชทบอท ผมเอาคำถามที่ลูกค้าถามซ้ำของร้านคุณมาสอนบอท ติดตั้งใน LINE OA เดิม ทดสอบกับข้อความจริงก่อนเปิดใช้ แล้วดูแลให้ 3 เดือนแรก\nส่วนระบบตามงาน คือรวมข้อมูลที่กระจายอยู่มาไว้ที่เดียว แล้วให้ AI สรุปสถานะให้ทุกวัน", explain: false, template: null, alt: null, data: null }
+      quick_replies: ["เหมาะกับงานผมไหม", "ราคาเท่าไหร่"]
+      topics: [capability]
+      kb_refs: ["offer.A2", "offer.A1", "faq.what-price-includes"]
+      intent: tell_me_more
+    expect:
+      replies_min: 1
+      text_not_contains: ["ยังไม่มีข้อมูล", "ไม่มีข้อมูลในระบบ"]      # a follow-up expands the previous answer
+      text_contains: ["แชทบอท"]
+      sender: lay
+      banned_clean: true
+      emoji_max: 0
+      no_prose_list: true
+  - user: "อยากได้คนขาย"
+    model:
+      messages:
+        - { type: text, text: "จ้างคนขายไม่ใช่งานที่เราทำครับ ที่ช่วยได้คือทำให้คนขายที่มีอยู่ไม่ต้องตอบคำถามซ้ำ จะได้มีเวลาปิดการขายจริง สนใจทางนี้ไหมครับ", explain: false, template: null, alt: null, data: null }
+      quick_replies: ["เหมาะกับงานผมไหม", "ขอดูตัวอย่าง"]
+      topics: [capability]
+      kb_refs: ["policies.what-lay-cannot-decide"]
+      intent: out_of_scope
+    expect:
+      replies: 1
+      text_contains: ["ไม่ใช่งานที่เราทำ"]
+      text_not_contains: ["095", "@", "โทร"]                        # not a contact dump
+      sender: lay
+      banned_clean: true
+      emoji_max: 0
+  - user: "ไอ้สัส ขายตรงชิบหาย"
+    model:
+      messages:
+        - { type: text, text: "โดนจับได้ครับ ผมเป็นผู้ช่วยของมอสก็เลยติดนิสัยชวนคุยเรื่องงาน มีอะไรให้ช่วยจริงๆ บอกได้นะครับ", explain: false, template: null, alt: null, data: null }
+      quick_replies: []
+      topics: [banter]
+      kb_refs: []
+      intent: abuse
+    expect:
+      replies: 1
+      quick_replies: []
+      text_not_contains: ["อ่านรูป", "ไฟล์", "สุภาพ", "ราคา", "นัดคุย"]   # the v1 bug: profanity answered as "can't read images"
+      sender: lay
+      banned_clean: true
+      emoji_max: 0

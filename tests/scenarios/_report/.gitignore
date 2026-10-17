@@ -1,0 +1,4 @@
+# latest.json carries the full store dump of every run; latest.md (the readable transcript) is committed.
+latest.json
+real.json
+real.md

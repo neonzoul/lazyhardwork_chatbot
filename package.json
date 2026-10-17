@@ -8,6 +8,7 @@
     "dev": "nodemon --watch src --watch .env --ext js,json,env src/index.js",
     "test": "node --test \"tests/**/*.test.js\"",
     "scenarios": "node tests/run-scenarios.js",
+    "scenarios:report": "node tests/run-scenarios.js --json tests/scenarios/_report/latest.json && node scripts/scenario-report.js",
     "kb:build": "node scripts/kb-build.js"
   },
   "engines": {

@@ -1,0 +1,51 @@
+name: 04 · ไม่ใช่งานเรา — อยากจ้างคนขาย / เว็บแอปทั่วไป → ตอบตรงว่าไม่ใช่ + บอกว่าทำอะไรได้ → ขอคุยมอส
+covers: ["§9.1", "§9.5", "§9.6", "§2 อยากได้คนขาย", "§3.9", "H1.1"]
+user: { id: U04, displayName: "คุณแนน" }
+steps:
+  - user: "อยากได้คนมาช่วยขายของในไลฟ์ครับ จ้างเป็นรายเดือนได้ไหม"
+    model:
+      messages:
+        - { type: text, text: "ตรงนี้ไม่ใช่งานที่เราทำครับ เราไม่รับจ้างเป็นคนขายหรือแอดมินแทน\nที่ช่วยได้คือทำให้ทีมขายของคุณเบาขึ้น เช่น บอทตอบคำถามซ้ำในแชทระหว่างไลฟ์ หรือสรุปออเดอร์ให้อัตโนมัติ สนใจแบบไหนไหมครับ", explain: false, template: null, alt: null, data: null }
+      quick_replies: ["ทำอะไรได้บ้าง", "ขอดูตัวอย่าง"]
+      topics: []                                             # an out-of-scope answer covers no carried topic
+      kb_refs: ["policies.what-lay-cannot-decide"]
+      intent: out_of_scope
+    expect:
+      replies: 1
+      text_contains: ["ไม่ใช่งานที่เราทำ"]
+      text_not_contains: ["095", "@", "ยินดีช่วยเสมอ"]     # no contact dump, no stock closer
+      quick_replies: ["ทำอะไรได้บ้าง", "ขอดูตัวอย่าง"]
+      sender: lay
+      banned_clean: true
+      emoji_max: 0
+      no_prose_list: true
+      action: null
+      not_notified: [handoff]
+  - user: "งั้นทำเว็บแอประบบบัญชีเต็มรูปแบบให้ได้ไหม"
+    model:
+      messages:
+        - { type: text, text: "ระบบบัญชีเต็มรูปแบบไม่ใช่งานเราครับ มีซอฟต์แวร์สำเร็จรูปที่ทำได้ดีกว่าและถูกกว่า\nที่เราถนัดคือต่อ AI เข้ากับงานที่มีอยู่ เช่น ดึงข้อมูลจากสลิปหรือใบเสร็จไปลงระบบให้เอง ถ้าจุดเจ็บคือตรงนี้ ผมเล่าต่อได้ครับ", explain: false, template: null, alt: null, data: null }
+      quick_replies: ["เหมาะกับงานผมไหม", "ขอดูตัวอย่าง"]
+      topics: []
+      kb_refs: ["policies.what-lay-cannot-decide", "offer.A3"]
+      intent: out_of_scope
+    expect:
+      replies: 1
+      text_contains: ["ไม่ใช่งานเรา"]
+      text_not_contains: ["095", "การันตี"]
+      sender: lay
+      banned_clean: true
+      emoji_max: 0
+      no_prose_list: true
+      not_notified: [handoff]
+  - user: "งั้นขอคุยกับมอสหน่อยครับ"
+    expect:
+      replies: 1
+      text_contains: ["เดี๋ยวมอสเข้ามาคุยเอง", "095 569 1674"]
+      quick_replies: ["เรียก Lay"]
+      sender: lay
+      banned_clean: true
+      emoji_max: 0
+      action: handoff_human
+      notified: [handoff]
+      session: { mode: quiet }

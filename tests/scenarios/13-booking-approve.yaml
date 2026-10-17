@@ -1,0 +1,60 @@
+name: 13 · นัดคุย — มอส /approve → การ์ดเขียว ยืนยันแล้ว ปรากฏครั้งแรกตรงนี้เท่านั้น
+covers: ["§9.5", "§9.8", "H4.1", "H4.2", "flow §6.4"]
+user: { id: U13, displayName: "คุณเมย์" }
+session: { homework: { business: "คลินิกความงาม", problem_verbatim: "คิวจองทางแชทตกหล่น", preferred_contact: "นัดคุย 30 นาที" } }
+steps:
+  - user: "นัดคุยกับมอส"
+    expect:
+      replies: 1
+      text_contains: ["สะดวกคุย"]                      # key gaps already filled → no homework question
+      quick_replies: ["วันนี้", "พรุ่งนี้", "เลือกวันเอง"]
+      sender: lay
+      banned_clean: true
+      session: { questions_asked_max: 0 }
+  - postback: BOOK_DAY_tomorrow
+    expect: { replies: 1, quick_replies: ["เช้า 9-12", "บ่าย 13-17", "เย็น 18-20"], sender: lay }
+  - postback: BOOK_TIME_morning
+    expect:
+      replies: 2
+      card: summary_confirm
+      text_not_contains: ["ยืนยันแล้ว", "นัดเรียบร้อย"]
+      sender: lay
+      banned_clean: true
+      not_notified: [booking]
+  - postback: BOOK_CONFIRM
+    expect:
+      replies: 1
+      text_contains: ["ส่งให้มอสแล้วครับ"]
+      text_not_contains: ["ยืนยันแล้ว", "นัดเรียบร้อย"]
+      sender: lay
+      banned_clean: true
+      action: booking_confirm
+      notified: [booking]
+  - user: "ขอบคุณครับ รอได้"
+    model:
+      messages:
+        - { type: text, text: "ได้ครับ มอสตอบกลับมาทางแชทนี้เลย ระหว่างนี้ถามเรื่องอื่นได้", explain: false, template: null, alt: null, data: null }
+      quick_replies: []
+      topics: []
+      kb_refs: []
+      intent: closing
+    expect: { replies: 1, text_not_contains: ["ยืนยันแล้ว"], sender: lay, banned_clean: true, emoji_max: 0 }
+  - allow: [booking_confirmed]
+  - decision: { decision: approve }
+    expect:
+      replies: 2                                      # the confirmed summary card, then Mos's confirmation line
+      card: summary_confirm
+      text_contains: ["มอสยืนยันช่วงเวลามาแล้ว"]
+      sender: lay
+      banned_clean: true                              # booking_confirmed is allowed from this step on
+      emoji_max: 0
+      session: { mode: lay }
+  - user: "ขอบคุณมากครับ"
+    model:
+      messages:
+        - { type: text, text: "ยินดีครับ เจอกันพรุ่งนี้เช้า ถ้ามีอะไรเปลี่ยนทักมาได้เลย", explain: false, template: null, alt: null, data: null }
+      quick_replies: []
+      topics: []
+      kb_refs: []
+      intent: closing
+    expect: { replies: 1, quick_replies: [], sender: lay, banned_clean: true, emoji_max: 0, not_notified: [handoff] }

@@ -1,0 +1,51 @@
+name: 09 · ถามโครงการรัฐ — กรอบ "อาจใช้สิทธิ์ได้ ต้องตรวจสอบกับหน่วยงานก่อน" ไม่มีวงเงิน ไม่อ้างขึ้นทะเบียน
+covers: ["§9.1", "§9.5", "§5.7", "policies.subsidy-rules", "§3.9"]
+user: { id: U09, displayName: "คุณหนึ่ง" }
+steps:
+  - user: "มีโครงการรัฐช่วยออกค่าใช้จ่ายไหมครับ ได้ยินว่า สสว. มีให้"
+    model:
+      messages:
+        - { type: text, text: "อาจใช้สิทธิ์ได้ครับ โครงการ BDS ของ สสว. อุดหนุนค่าบริการพัฒนาธุรกิจบางส่วนให้ SME ที่ลงทะเบียน แต่เงื่อนไขและวงเงินขึ้นกับขนาดธุรกิจ และต้องใช้ผู้ให้บริการที่ขึ้นทะเบียนกับ สสว. ซึ่งตอนนี้เรายังไม่ได้ขึ้นทะเบียน\nต้องตรวจสอบกับ สสว. ก่อนครับ ที่ bds.sme.go.th", explain: false, template: null, alt: null, data: null }
+      quick_replies: ["ราคาเท่าไหร่", "เริ่มยังไง"]
+      topics: [benefits]
+      kb_refs: ["benefits.osmep-bds-core", "faq.subsidy-available"]
+      intent: benefits
+    expect:
+      replies: 1
+      text_contains: ["อาจใช้สิทธิ์ได้", "ตรวจสอบกับ สสว."]
+      text_not_contains: ["เบิกได้แน่", "ได้เงินคืน", "รัฐออกให้"]
+      sender: lay
+      banned_clean: true                                 # subsidy_amount_promise + registered_provider regexes
+      emoji_max: 0
+      no_prose_list: true
+      action: null
+      not_notified: [handoff]
+      session: { topics_covered_includes: [benefits] }
+  - user: "ลดหย่อนภาษีได้ไหม"
+    model:
+      messages:
+        - { type: text, text: "มีมาตรการให้ SME หักรายจ่ายได้ 2 เท่าสำหรับบริการดิจิทัลที่อยู่ในบัญชีของ depa ครับ แต่ตอนนี้บริการของเรายังไม่ได้อยู่ในบัญชีนั้น\nต้องตรวจสอบกับกรมสรรพากรหรือผู้ทำบัญชีของคุณก่อนครับ", explain: false, template: null, alt: null, data: null }
+      quick_replies: ["ราคาเท่าไหร่", "เริ่มยังไง"]
+      topics: [benefits]
+      kb_refs: ["faq.tax-deduction", "benefits.rd-tax200-digital"]
+      intent: benefits
+    expect: { replies: 1, text_contains: ["ตรวจสอบกับกรมสรรพากร"], text_not_contains: ["ลดหย่อนได้แน่"], sender: lay, banned_clean: true, emoji_max: 0 }
+  - user: "ช่วยยื่นขอให้หน่อยได้ไหมครับ"
+    model:
+      messages:
+        - { type: text, text: "เรื่องยื่นเอกสารผมตอบแทนไม่ได้ครับ ส่งให้มอสคุยเองว่าช่วยเตรียมตรงไหนได้บ้าง", explain: false, template: null, alt: null, data: null }
+      quick_replies: []
+      topics: []
+      kb_refs: ["faq.help-apply-subsidy"]
+      intent: faq
+      action: handoff_scope
+    expect:
+      replies: 1
+      text_contains: ["ตัดสินใจแทนมอสไม่ได้", "ส่งเรื่องให้มอสแล้ว"]
+      quick_replies: ["เรียก Lay"]
+      sender: lay
+      banned_clean: true
+      emoji_max: 0
+      action: handoff_scope
+      notified: [handoff]
+      session: { mode: quiet }

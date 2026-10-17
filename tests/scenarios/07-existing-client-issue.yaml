@@ -1,0 +1,39 @@
+name: 07 · ลูกค้าเก่ามีปัญหา — ส่งมอสทันที แจ้งก่อนค่อยสัญญา แล้ว Lay เงียบให้มอส
+covers: ["§9.4", "§9.8", "§3.9", "§3.8", "H4.5"]
+user: { id: U07, displayName: "คุณอิม" }
+steps:
+  - user: "ผมเป็นลูกค้าเก่าครับ บอทที่ทำให้ตอบลูกค้าผิดตั้งแต่เมื่อวาน ช่วยดูด่วนหน่อย"
+    model:
+      messages:
+        - { type: text, text: "รับทราบครับ เรื่องแก้งานที่ส่งมอบแล้วมอสดูเองเลยดีกว่า ผมส่งให้มอสทันทีครับ", explain: false, template: null, alt: null, data: null }
+      quick_replies: []
+      topics: []
+      kb_refs: ["process.after-handover"]
+      intent: ask_human
+      lead_updates: { problem_verbatim: "บอทที่ทำให้ตอบลูกค้าผิดตั้งแต่เมื่อวาน", urgency: "ด่วน" }
+      action: handoff_human
+    expect:
+      replies: 1                                       # the deterministic handoff line replaces the model's words
+      text_contains: ["ส่งเรื่องให้มอสแล้ว", "เดี๋ยวมอสเข้ามาคุยเอง", "095 569 1674"]
+      text_not_contains: ["[Agent Lay]", "ยินดีช่วยเสมอ"]
+      quick_replies: ["เรียก Lay"]
+      sender: lay
+      banned_clean: true
+      emoji_max: 0
+      action: handoff_human
+      notified: [handoff]
+      session: { mode: quiet, homework_has: [problem_verbatim] }
+  - user: "ยังอยู่ไหมครับ"
+    expect:
+      replies: 1                                       # quiet ack, once
+      text_contains: ["กำลังรอมอสตอบ"]
+      quick_replies: ["เรียก Lay"]
+      sender: lay
+      banned_clean: true
+      emoji_max: 0
+      session: { mode: quiet }
+  - user: "รีบมากครับ"
+    expect:
+      silent: true                                     # second message while waiting: relayed to the thread, no second ack
+      replies: 0
+      session: { mode: quiet }

@@ -1,0 +1,71 @@
+name: 02 · ทำอะไรได้บ้าง → เหมาะกับงานผมไหม (การ์ดอาการ) → ร้านกาแฟตอบแชทไม่ทัน → เริ่มยังไง
+covers: ["§9.1", "§9.2", "§9.3", "§9.5", "§9.6", "§3.4", "H3.2", "H3.3", "H2.2"]
+user: { id: U02, displayName: "พี่กุ้ง" }
+steps:
+  - follow: true
+    expect: { replies: 1, quick_replies: ["ทำอะไรได้บ้าง", "เหมาะกับงานผมไหม", "ขอดูตัวอย่าง"], sender: lay, banned_clean: true, emoji_max: 0 }
+  - user: "ทำอะไรได้บ้าง"
+    model:
+      messages:
+        - { type: text, text: "หลักๆ ผมช่วยเอา AI เข้าไปรับงานซ้ำในธุรกิจครับ ตั้งแต่แชทบอทตอบลูกค้า ระบบตามงานภายใน ไปจนถึงตั้งค่า AI ให้รู้จักงานของคุณ\nเล่าให้ฟังหน่อยครับว่าธุรกิจทำอะไรอยู่", explain: false, template: null, alt: null, data: null }
+      quick_replies: ["เหมาะกับงานผมไหม", "ราคาเท่าไหร่"]
+      topics: [capability]
+      kb_refs: ["offer.overview"]
+      intent: capability
+    expect:
+      replies: 1
+      quick_replies: ["เหมาะกับงานผมไหม", "ราคาเท่าไหร่"]
+      sender: lay
+      banned_clean: true
+      emoji_max: 0
+      no_prose_list: true
+      session: { topics_covered_includes: [capability], questions_asked_max: 1 }
+  - user: "เหมาะกับงานผมไหม"
+    model:
+      messages:
+        - { type: text, text: "ขอดูอาการก่อนครับ เลือกข้อที่ใกล้ที่สุด เดี๋ยวผมเล่าให้ฟังว่าช่วยตรงไหนได้", explain: false, template: null, alt: null, data: null }
+        - { type: card, text: null, explain: false, template: choice, alt: "เหมาะกับงานผมไหม — เลือกอาการที่ตรงกับคุณ",
+            data: { title: "งานของคุณเป็นแบบไหนครับ", subtitle: "เลือกอาการที่ใกล้เคียงที่สุด",
+                    options: [{ label: "ตอบแชทลูกค้าไม่ทัน", postback: FIT_chat_overload, primary: true }, { label: "ข้อมูลกระจาย ต้องตามงานเอง", postback: FIT_scattered_data }, { label: "งานซ้ำ คีย์ซ้ำทุกวัน", postback: FIT_repetitive_work }, { label: "อยากให้ AI รู้จักงานผม", postback: FIT_ai_know_my_work }, { label: "ยังไม่รู้จะเริ่มตรงไหน", postback: FIT_dont_know_where_to_start }] } }
+      quick_replies: []
+      topics: [fit]
+      kb_refs: ["fit.chat-overload"]
+      intent: fit
+    expect: { replies: 2, card: choice, sender: lay, banned_clean: true, emoji_max: 0, no_prose_list: true }
+  - postback: FIT_chat_overload
+    model:
+      messages:
+        - { type: text, text: "ร้านกาแฟที่ตอบแชทไม่ทันส่วนใหญ่เจอเหมือนกันครับ คำถามเดิมซ้ำทั้งวัน เปิดกี่โมง มีที่จอดไหม ส่งเดลิเวอรี่ได้ไหม แล้วคนตอบคือคนที่ยืนชงอยู่หน้าเครื่อง\nให้บอทรับคำถามพวกนี้ไป พอเป็นออเดอร์พิเศษค่อยส่งต่อให้คนครับ", explain: false, template: null, alt: null, data: null }
+      quick_replies: ["ราคาเท่าไหร่", "เริ่มยังไง"]
+      topics: [fit]
+      kb_refs: ["fit.chat-overload", "offer.A2.T1"]
+      intent: fit
+      lead_updates: { business: "ร้านกาแฟ" }
+    expect:
+      replies_min: 2
+      card: offer
+      text_not_contains: ["งานของคุณเป็นแบบไหนครับ", "ยืนยันแล้ว"]
+      quick_replies: ["ราคาเท่าไหร่", "เริ่มยังไง"]
+      sender: lay
+      banned_clean: true
+      emoji_max: 0
+      no_prose_list: true
+      session: { draft_has: [symptom, card, tier], homework_has: [business] }
+  - user: "เริ่มยังไง"
+    model:
+      messages:
+        - { type: text, text: "เริ่มจากคุยกับมอส 30 นาทีก่อนครับ ดูงานจริงแล้วค่อยสรุปขอบเขต", explain: false, template: null, alt: null, data: null }
+      quick_replies: []
+      topics: [howtostart]
+      kb_refs: ["process.steps"]
+      intent: booking
+      action: booking_start
+    expect:
+      replies: 2                                  # the model's line, then the one homework gap (problem) — business is NOT asked again (H3.3)
+      text_contains: ["เล่าสั้นๆ"]
+      text_not_contains: ["ธุรกิจของคุณทำอะไร"]
+      sender: lay
+      banned_clean: true
+      emoji_max: 0
+      not_notified: [booking]
+      session: { mode: lay, questions_asked_max: 2 }
