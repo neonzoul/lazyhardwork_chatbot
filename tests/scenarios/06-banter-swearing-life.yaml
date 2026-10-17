@@ -1,0 +1,61 @@
+name: 06 · แซว สบถ เรื่องชีวิต — หนึ่งบรรทัดแบบคน ไม่ขาย ไม่สอน ไม่มี CTA
+covers: ["§9.1", "§9.5", "§9.6", "§2 banter", "§2 profanity", "§3.2", "§3.10"]
+user: { id: U06, displayName: "เพื่อนมอส" }
+steps:
+  - user: "ทำอะไรได้บ้าง"
+    model:
+      messages:
+        - { type: text, text: "หลักๆ ผมช่วยเอา AI ไปรับงานซ้ำในธุรกิจครับ แชทบอทตอบลูกค้า ระบบตามงาน หรือตั้งค่า AI ให้รู้จักงานของคุณ", explain: false, template: null, alt: null, data: null }
+      quick_replies: ["เหมาะกับงานผมไหม", "ราคาเท่าไหร่"]
+      topics: [capability]
+      kb_refs: ["offer.overview"]
+      intent: capability
+    expect: { replies: 1, sender: lay, banned_clean: true, emoji_max: 0 }
+  - user: "555 ขายตรงมากพี่"
+    model:
+      messages:
+        - { type: text, text: "โดนจับได้ครับ ผมเป็นผู้ช่วยของมอส หน้าที่ก็ต้องชวนคุยเรื่องงานนิดหน่อย", explain: false, template: null, alt: null, data: null }
+      quick_replies: []
+      topics: [banter]
+      kb_refs: []
+      intent: banter
+    expect:
+      replies: 1
+      quick_replies: []                                   # no sales line after a joke
+      text_not_contains: ["นัดคุย", "ราคาเริ่มต้น", "ยินดีช่วยเสมอ", "อ่านรูป"]
+      sender: lay
+      banned_clean: true
+      emoji_max: 0
+      not_notified: [handoff]
+  - user: "เหี้ย บอทตอบไวชิบหาย"
+    model:
+      messages:
+        - { type: text, text: "ไวเพราะไม่ต้องกินข้าวครับ มีอะไรให้ช่วยจริงๆ บอกได้นะ", explain: false, template: null, alt: null, data: null }
+      quick_replies: []
+      topics: [banter]
+      kb_refs: []
+      intent: abuse
+    expect:
+      replies: 1
+      quick_replies: []
+      text_not_contains: ["อ่านรูป", "ไฟล์", "สุภาพ", "กรุณา", "นัดคุย"]    # not the media reply, no lecture, no pitch
+      sender: lay
+      banned_clean: true
+      emoji_max: 0
+      not_notified: [handoff]
+  - user: "วันนี้เมียคลอดครับ ไว้ค่อยคุยนะ"
+    model:
+      messages:
+        - { type: text, text: "ยินดีด้วยครับ เรื่องนี้สำคัญกว่าเยอะ ไว้พร้อมเมื่อไหร่ค่อยทักมาครับ", explain: false, template: null, alt: null, data: null }
+      quick_replies: []
+      topics: [banter]
+      kb_refs: []
+      intent: banter
+    expect:
+      replies: 1
+      quick_replies: []
+      text_not_contains: ["นัดคุย", "ราคา", "แพ็ก", "สนใจ"]
+      sender: lay
+      banned_clean: true
+      emoji_max: 0
+      session: { mode: lay }

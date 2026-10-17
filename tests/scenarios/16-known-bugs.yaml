@@ -1,0 +1,59 @@
+name: 16 · known src bugs pinned — same-turn offer card (BUG-2) · fit label ≠ special price (BUG-1) · re-book by text (BUG-3)
+covers: ["§9.2", "§9.3", "§3.4", "§3.6", "H2.3", "H4.3"]
+# This file is EXPECTED TO FAIL until the head engineer fixes src (QA report 2026-10-17). One block per bug; each
+# states the correct behaviour. Do not relax these expectations — delete the block when the fix lands.
+# Order matters: BUG-1 leaves its unused model block in the fake's queue, so it comes after BUG-2.
+user: { id: U16, displayName: "คุณคิว" }
+session: { homework: { business: "ร้านเสื้อผ้าออนไลน์", problem_verbatim: "ลูกค้าทักเยอะตอบไม่ทัน", preferred_contact: "นัดคุย 30 นาที" } }
+steps:
+  # BUG-2 — src/core/turn.js step 10: endings.decorateResponse runs BEFORE session.mergeLeadUpdates, so a symptom/card the
+  # model identifies from free text (lead_updates.symptom/card) cannot produce the offer card on the same turn (brief §3.6).
+  - user: "ร้านเสื้อผ้าออนไลน์ครับ ลูกค้าทักเยอะตอบไม่ทัน"
+    model:
+      messages:
+        - { type: text, text: "เคสนี้ตรงกับแชทบอทเลยครับ คำถามซ้ำให้บอทตอบเองได้ทั้งวัน พอเกินมือค่อยส่งต่อให้คน", explain: false, template: null, alt: null, data: null }
+      quick_replies: ["ราคาเท่าไหร่", "เริ่มยังไง"]
+      topics: [fit]
+      kb_refs: ["fit.chat-overload"]
+      intent: fit
+      lead_updates: { business: "ร้านเสื้อผ้าออนไลน์", problem_verbatim: "ลูกค้าทักเยอะตอบไม่ทัน", symptom: chat_overload, card: A2 }
+    expect:
+      replies_min: 2
+      card: offer
+      session: { draft_has: [symptom, card] }
+  # BUG-1 — src/flows/handoff.js SPECIAL_PRICE_RE `เหมา(?:จ่าย)?` matches "เหมาะ": the opening's own quick reply
+  # "เหมาะกับงานผมไหม" (typed, or tapped — it is a message action) becomes handoff_scope + quiet mode.
+  - user: "เหมาะกับงานผมไหม"
+    model:
+      messages:
+        - { type: text, text: "จากที่เล่ามา เรื่องตอบแชทไม่ทันคือจุดที่ช่วยได้ตรงที่สุดครับ", explain: false, template: null, alt: null, data: null }
+      quick_replies: ["ราคาเท่าไหร่", "เริ่มยังไง"]
+      topics: [fit]
+      kb_refs: ["fit.chat-overload"]
+      intent: fit
+    expect:
+      replies_min: 1
+      text_contains: ["ตอบแชทไม่ทัน"]
+      action: null
+      not_notified: [handoff]
+      session: { mode: lay }
+  - postback: CALL_LAY                        # recovery so the next bug is observed on its own (harmless once BUG-1 is fixed)
+    expect: { silent: true }
+  # BUG-3 — src/core/turn.js step 6a requires !session.booking_step, so after a declined (or confirmed) booking the typed
+  # "นัดคุยกับมอส" (the loose-ends button text) falls through to isAskHuman → handoff_human instead of a new booking.
+  - postback: BOOK_START
+    expect: { replies_min: 1 }
+  - postback: BOOK_DAY_tomorrow
+    expect: { replies: 1 }
+  - postback: BOOK_TIME_morning
+    expect: { card: summary_confirm }
+  - postback: BOOK_CONFIRM
+    expect: { action: booking_confirm, notified: [booking] }
+  - decision: { decision: decline }
+    expect: { replies: 1, text_contains: ["ขออภัย"] }
+  - user: "นัดคุยกับมอส"
+    expect:
+      replies: 1
+      quick_replies: ["วันนี้", "พรุ่งนี้", "เลือกวันเอง"]
+      action: null
+      session: { mode: lay }

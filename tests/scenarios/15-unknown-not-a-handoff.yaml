@@ -1,0 +1,62 @@
+name: 15 · ไม่รู้ ≠ ส่งต่อ — เสนอปุ่ม ส่งให้มอสตอบ แล้ว "ได้เลย" ไม่กลายเป็น handoff (H1.2) + premise ผิด Sprint
+covers: ["§9.4", "§9.5", "H1.1", "H1.2", "H1.3", "§3.9"]
+user: { id: U15, displayName: "คุณบอส" }
+steps:
+  - user: "รองรับภาษาพม่าไหมครับ"
+    model:
+      messages:
+        - { type: text, text: "เรื่องนี้ผมยังไม่มีข้อมูลครับ ไม่อยากตอบมั่ว", explain: false, template: null, alt: null, data: null }
+      quick_replies: []
+      topics: []
+      kb_refs: []
+      intent: unknown
+      action: handoff_unknown
+    expect:
+      replies: 1
+      text_contains: ["ยังไม่มีข้อมูล"]
+      quick_replies: ["ส่งให้มอสตอบ", "ถามเรื่องอื่น"]       # offered, never auto-forwarded
+      sender: lay
+      banned_clean: true
+      emoji_max: 0
+      action: null
+      notified: [kbGap]
+      not_notified: [handoff]
+      session: { mode: lay }
+  - user: "ได้เลย"
+    model:
+      messages:
+        - { type: text, text: "ได้ครับ ถามต่อได้เลย เรื่องไหนที่ผมมีข้อมูลผมตอบให้ทันที", explain: false, template: null, alt: null, data: null }
+      quick_replies: ["ทำอะไรได้บ้าง", "ราคาเท่าไหร่"]
+      topics: []
+      kb_refs: []
+      intent: faq
+    expect:
+      replies: 1                                              # the July regression: "ได้เลย" is not a forward
+      not_notified: [handoff]
+      sender: lay
+      banned_clean: true
+      session: { mode: lay }
+  - user: "ส่งให้มอสตอบ"
+    expect:
+      replies: 1
+      text_contains: ["ส่งคำถามให้มอสแล้วครับ", "ระหว่างนี้ถามเรื่องอื่นต่อได้เลย"]
+      sender: lay
+      banned_clean: true
+      action: handoff_unknown
+      notified: [handoff]
+      session: { mode: lay }                                  # Lay keeps serving — no waiting state
+  - user: "แล้ว Sprint 3 ยังซื้อได้ใช่ไหม"
+    model:
+      messages:
+        - { type: text, text: "แพ็กชื่อนั้นไม่มีแล้วครับ ตอนนี้ของมอสเป็นแพ็กตามงาน เริ่มที่ AI Business Review กับตั้งค่า AI Workspace ทุกตัวเป็นราคาเริ่มต้น ปรับตามขอบเขตจริงหลังคุย", explain: false, template: null, alt: null, data: null }
+      quick_replies: ["ราคาเท่าไหร่", "ทำอะไรได้บ้าง"]
+      topics: [pricing]
+      kb_refs: ["offer.overview"]
+      intent: pricing
+    expect:
+      replies: 1
+      text_contains: ["ไม่มีแล้ว"]
+      text_not_contains: ["Sprint", "15,000 +", "ใช่ครับ"]      # corrects, never confirms the false premise
+      sender: lay
+      banned_clean: true
+      emoji_max: 0

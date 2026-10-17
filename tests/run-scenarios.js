@@ -16,12 +16,16 @@
 //     - follow: true
 //     - fault: { notifier: handoff }     # next call of notifier.handoff throws (also: notifier: booking|kbGap, model: throw|garbage, line: push|reply)
 //     - clock: { advance_minutes: 31 }
-//     - mos: { threadId: T1, text: "..." }   # a relayed Mos message (relay side) — handled by flows/handoff when built
+//     - mos: { threadId: T1, text: "..." }   # a relayed Mos message (relay side) — pushed as "มอส", mode → mos_active
+//     - decision: { decision: approve|propose|decline, windows: [..] }   # Mos's booking decision (flows/endings.applyMosDecision)
+//     - allow: [booking_confirmed]         # lint ids the following steps may legitimately contain
+//   fault.line: reply | push | [reply, push, push] — each named call of the fake LINE client throws once, in order
 //
 // expect keys: replies (int) · replies_min · text_contains [..] · text_not_contains [..] · quick_replies [..] (exact)
 //   · quick_replies_includes [..] · quick_replies_max (int) · card (template|null) · sender (lay|mos|demo|null)
 //   · banned_clean (bool) · emoji_max (int) · no_prose_list (bool) · action (string|null) · notified [names]
-//   · not_notified [names] · session { mode, topics_covered_includes [..], questions_asked_max, draft_has [..], homework_has [..] }
+//   · not_notified [names] · silent (bool: the step may send nothing)
+//   · session { mode, topics_covered_includes [..], questions_asked_max, draft_has [..], homework_has [..] }
 
 const fs = require('fs');
 const path = require('path');
@@ -36,6 +40,12 @@ let PACK = null;
 try { const { loadPack } = require('../src/brain/kb'); PACK = loadPack(path.join(__dirname, '..', 'knowledge')); } catch { PACK = null; }
 
 const SENDER_NAMES = { lay: 'Lay · ผู้ช่วย AI', mos: 'มอส' };
+// Vocabulary — tests/unit/scenarios.test.js checks every YAML against these so a typo fails `npm test`.
+const EXPECT_KEYS = ['replies', 'replies_min', 'text_contains', 'text_not_contains', 'quick_replies', 'quick_replies_includes', 'quick_replies_max',
+  'card', 'sender', 'banned_clean', 'emoji_max', 'no_prose_list', 'action', 'notified', 'not_notified', 'silent', 'session'];
+const SESSION_EXPECT_KEYS = ['mode', 'topics_covered_includes', 'questions_asked_max', 'draft_has', 'homework_has'];
+const STEP_KEYS = ['user', 'postback', 'media', 'follow', 'mos', 'decision', 'fault', 'clock', 'allow', 'model', 'expect', 'note'];
+const INPUT_STEP_KEYS = ['user', 'postback', 'media', 'follow', 'mos', 'decision'];
 
 function arg(name, def) { const i = process.argv.indexOf(`--${name}`); return i > -1 ? process.argv[i + 1] : def; }
 
@@ -96,8 +106,36 @@ function assertStep(expect, ctx) {
   return fails;
 }
 
+// `line.failNext` — the fake reads a static `fail` map; the runner adds one-shot failures on top without touching the fake.
+// failNext: 'reply' | 'push' | ['reply', 'push', ...] — each entry makes the next call of that method throw once, in order.
+function withFailNext(line) {
+  const wrap = (name) => {
+    const orig = line[name].bind(line);
+    line[name] = async (...args) => {
+      const list = Array.isArray(line.failNext) ? line.failNext : line.failNext ? [line.failNext] : [];
+      const i = list.indexOf(name);
+      if (i > -1) { list.splice(i, 1); line.failNext = list.length ? list : null; throw Object.assign(new Error(`fake line: ${name} failed (fault.line)`), { statusCode: 500 }); }
+      return orig(...args);
+    };
+  };
+  wrap('reply'); wrap('push');
+  line.failNext = null;
+  return line;
+}
+
+// Compact view of what the customer saw this step (for --json / scripts/scenario-report.js).
+function bubblesOf(sends) {
+  return sends.flatMap((s) => s.messages.map((m) => ({
+    via: s.via, type: m.type === 'flex' ? 'card' : m.type, text: m.type === 'text' ? m.text : null,
+    template: m.type === 'flex' ? flexTemplate(m) : null, alt: m.type === 'flex' ? m.altText || null : null,
+    sender: m.sender?.name || null, quick_replies: m.quickReply?.items?.map((i) => i.action.label) || [],
+  })));
+}
+
+function runnerConfig() { try { return require('../src/config'); } catch { return { contact: { phoneDisplay: '095 569 1674 (มอส)', hoursStart: 13, hoursEnd: 22 }, identity: { layName: 'Lay · ผู้ช่วย AI', mosName: 'มอส' }, quiet: { windowMinutes: 30, debounceMs: 6500 }, publicBaseUrl: '' }; } }
+
 async function runScenario(sc, { turn, modelMode }) {
-  const line = createFakeLine({ profiles: sc.user?.displayName ? { [sc.user?.id || 'Utest']: sc.user.displayName } : {} });
+  const line = withFailNext(createFakeLine({ profiles: sc.user?.displayName ? { [sc.user?.id || 'Utest']: sc.user.displayName } : {} }));
   const notifier = createFakeNotifier();
   const model = modelMode === 'real' ? require('../src/brain/respond').createModel() : createFakeModel();
   const clock = createFakeClock(sc.start || undefined);
@@ -108,9 +146,10 @@ async function runScenario(sc, { turn, modelMode }) {
 
   const stepResults = [];
   let allow = new Set();
+  let pendingNotifierFault = null;
   for (const [i, step] of (sc.steps || []).entries()) {
     if (step.fault) {
-      if (step.fault.notifier) notifier.fail[step.fault.notifier] = true;
+      if (step.fault.notifier) { notifier.fail[step.fault.notifier] = true; pendingNotifierFault = step.fault.notifier; }
       if (step.fault.model) model.push(step.fault.model);
       if (step.fault.line) line.failNext = step.fault.line;
       stepResults.push({ i, kind: 'fault', ok: true });
@@ -120,13 +159,32 @@ async function runScenario(sc, { turn, modelMode }) {
     if (step.allow) { allow = new Set(step.allow); continue; }
     if (step.model && modelMode !== 'real') model.push(step.model);
 
+    if (step.decision) {
+      // Mos's booking decision from Discord: not a turn — flows/endings.applyMosDecision pushes to the customer as Lay.
+      const sentBefore = line.sent.length;
+      let fails = [];
+      try {
+        const endings = require('../src/flows/endings');
+        const { createSenders } = require('../src/identity/sender');
+        const config = runnerConfig();
+        const sess = await store.sessions.getOrCreate(userId);
+        const booking = (sess.booking_id && await store.bookings.get(sess.booking_id)) || await store.bookings.pendingFor(userId);
+        if (!booking) throw new Error('decision: no booking for this user');
+        await endings.applyMosDecision({ decision: step.decision.decision, windows: step.decision.windows || [], booking, session: sess, deps, config, senders: createSenders(config) });
+        const session = await store.sessions.get(userId);
+        fails = assertStep(step.expect || {}, { line, notifier, result: { action: null }, session, sentBefore, allow });
+      } catch (e) { fails = [`decision threw: ${e.message}`]; }
+      stepResults.push({ i, kind: 'decision', input: step.decision, ok: fails.length === 0, fails, sent: line.sent.slice(sentBefore), bubbles: bubblesOf(line.sent.slice(sentBefore)) });
+      continue;
+    }
+
     const input = step.user !== undefined ? { kind: 'text', text: String(step.user) }
       : step.postback !== undefined ? { kind: 'postback', data: String(step.postback) }
       : step.media ? { kind: 'media', mediaType: step.media }
       : step.follow ? { kind: 'follow' }
       : step.mos ? { kind: 'mos_relay', threadId: step.mos.threadId, text: step.mos.text }
       : null;
-    if (!input) { stepResults.push({ i, kind: 'unknown', ok: false, fails: ['step has no user/postback/media/follow/fault/clock'] }); continue; }
+    if (!input) { stepResults.push({ i, kind: 'unknown', ok: false, fails: ['step has no user/postback/media/follow/mos/decision/fault/clock'] }); continue; }
     input.userId = userId; input.replyToken = `rt${i}`; input.timestamp = clock.now().getTime(); input.displayName = sc.user?.displayName;
 
     const sentBefore = line.sent.length;
@@ -136,11 +194,12 @@ async function runScenario(sc, { turn, modelMode }) {
     const fails = err ? [`runTurn threw: ${err.message}`] : assertStep(step.expect || {}, { line, notifier, result, session, sentBefore, allow });
     // never-silent: every customer-originated step must produce at least one outgoing message unless the scenario says silent
     if (!err && !step.expect?.silent && line.sent.length === sentBefore && input.kind !== 'mos_relay') fails.push('SILENT: no message sent');
-    stepResults.push({ i, kind: input.kind, input: step.user ?? step.postback ?? step.media ?? 'follow', ok: fails.length === 0, fails, sent: line.sent.slice(sentBefore) });
-    if (step.fault?.notifier) delete notifier.fail[step.fault.notifier];
+    stepResults.push({ i, kind: input.kind, input: step.user ?? step.postback ?? step.media ?? (step.mos ? step.mos.text : 'follow'), ok: fails.length === 0, fails, sent: line.sent.slice(sentBefore), bubbles: bubblesOf(line.sent.slice(sentBefore)), errors: (result?.errors || []).map((e) => e.message) });
+    // a notifier fault lasts for exactly one input step (the header promises "next call"); it used to stick for the whole scenario
+    if (pendingNotifierFault) { delete notifier.fail[pendingNotifierFault]; pendingNotifierFault = null; }
   }
   const ok = stepResults.every((s) => s.ok);
-  return { name: sc.name || sc.file, file: sc.file, ok, steps: stepResults, transcript: line.sent, store: store._dump() };
+  return { name: sc.name || sc.file, file: sc.file, ok, covers: sc.covers || [], pending_transcript: !!sc.pending_transcript, steps: stepResults, transcript: line.sent, store: store._dump() };
 }
 
 async function main() {
@@ -160,9 +219,9 @@ async function main() {
   }
   const passed = results.filter((r) => r.ok).length;
   console.log(`\n${passed}/${results.length} scenarios passed`);
-  if (jsonOut) fs.writeFileSync(jsonOut, JSON.stringify(results, null, 2));
+  if (jsonOut) { fs.mkdirSync(path.dirname(jsonOut), { recursive: true }); fs.writeFileSync(jsonOut, JSON.stringify({ ran_at: new Date().toISOString(), model: modelMode, passed, total: results.length, results }, null, 2)); }
   process.exitCode = passed === results.length ? 0 : 1;
 }
 
 if (require.main === module) main().catch((e) => { console.error(e); process.exit(2); });
-module.exports = { runScenario, assertStep, loadScenarios };
+module.exports = { runScenario, assertStep, loadScenarios, EXPECT_KEYS, SESSION_EXPECT_KEYS, STEP_KEYS, INPUT_STEP_KEYS };

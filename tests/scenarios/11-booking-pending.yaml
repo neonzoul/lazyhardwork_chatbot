@@ -8,7 +8,7 @@ steps:
         - { type: text, text: "ได้เลยครับ ขั้นแรกคือนัดคุยกับมอส 30 นาที เพื่อดูงานจริงก่อน", explain: false, template: null, alt: null, data: null }
       quick_replies: []
       topics: [howtostart]
-      kb_refs: ["process.first-call"]
+      kb_refs: ["process.steps"]
       intent: booking
       lead_updates: { business: "ร้านกาแฟ", problem_verbatim: "ตอบแชทลูกค้าไม่ทัน", where_work_lives: null, team_size: null, maintainer: null, urgency: null, budget_frame: null, preferred_contact: null, came_from: null, symptom: null, card: null, name: null }
       action: booking_start

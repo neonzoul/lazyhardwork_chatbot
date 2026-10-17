@@ -1,0 +1,56 @@
+name: 03 · ขอใบเสนอราคาเลย — ได้ราคาเริ่มต้น + การบ้าน 1 ข้อ ไม่มีเลขตายตัว
+covers: ["§9.1", "§9.3", "§9.5", "§9.6", "H1.4", "§3.5"]
+# Fastwork pattern: "ขอใบเสนอราคา" before any discovery. Lay gives the starting price, asks ONE gap, never a firm number.
+user: { id: U03, displayName: "คุณต้น" }
+steps:
+  - user: "ขอใบเสนอราคาเลยได้ไหมครับ ทำแชทบอท LINE ให้ร้านอาหาร"
+    model:
+      messages:
+        - { type: text, text: "ได้ครับ แชทบอท LINE OA ราคาเริ่มต้น 15,000 บาท ราคาที่เห็นคือราคาเริ่มต้น ปรับตามขอบเขตจริงหลังคุย\nขอถามข้อเดียวก่อนครับ ตอนนี้ลูกค้าทักร้านมาทางไหนเป็นหลักครับ", explain: false, template: null, alt: null, data: null }
+      quick_replies: ["LINE", "Facebook", "โทรมา"]
+      topics: [pricing]
+      kb_refs: ["offer.A2.T1", "faq.firm-quote"]
+      intent: pricing
+      lead_updates: { business: "ร้านอาหาร", card: A2 }
+    expect:
+      replies_min: 1
+      text_contains: ["ราคาเริ่มต้น"]
+      text_not_contains: ["ใบเสนอราคาแนบ", "ยืนยันราคา", "Sprint"]
+      quick_replies: ["LINE", "Facebook", "โทรมา"]
+      quick_replies_max: 4
+      sender: lay
+      banned_clean: true
+      emoji_max: 0
+      no_prose_list: true
+      action: null
+      session: { homework_has: [business], questions_asked_max: 1 }
+  - user: "LINE"
+    model:
+      messages:
+        - { type: text, text: "รับทราบครับ งั้นบอทจะอยู่ใน LINE OA ที่ร้านใช้อยู่เลย ไม่ต้องย้ายลูกค้า", explain: false, template: null, alt: null, data: null }
+      quick_replies: ["ใช้เวลานานไหม", "เริ่มยังไง"]
+      topics: [pricing]
+      kb_refs: ["faq.existing-line-oa"]
+      intent: homework_answer
+      lead_updates: { where_work_lives: "LINE" }
+    expect: { replies_min: 1, sender: lay, banned_clean: true, emoji_max: 0, session: { homework_has: [where_work_lives] } }
+  - user: "ขอเป๊ะๆ เลยได้ไหม บอกเลขมาเลย"
+    model:
+      messages:
+        - { type: text, text: "ราคาที่ผมบอกได้คือราคาเริ่มต้นครับ ราคาจริงมอสขอดูงานจริงก่อน จะได้ประเมินให้ตรง ไม่อยากบอกเลขที่ต้องมาแก้ทีหลัง\nนัดคุยกับมอส 30 นาทีได้เลยครับ มอสจะสรุปขอบเขตพร้อมราคาให้", explain: false, template: null, alt: null, data: null }
+      quick_replies: ["นัดคุยกับมอส", "ใช้เวลานานไหม"]
+      topics: [pricing]
+      kb_refs: ["faq.firm-quote"]
+      intent: pricing
+    expect:
+      replies_min: 1
+      text_contains: ["ราคาเริ่มต้น", "มอส"]
+      text_not_contains: ["บาท"]              # no number invented under pressure
+      quick_replies_includes: ["นัดคุยกับมอส"]
+      sender: lay
+      banned_clean: true
+      emoji_max: 0
+      no_prose_list: true
+      action: null
+      not_notified: [handoff]
+      session: { questions_asked_max: 2 }

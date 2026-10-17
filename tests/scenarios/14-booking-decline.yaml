@@ -1,0 +1,32 @@
+name: 14 · นัดคุย — มอส /decline → ขอโทษตรงๆ ให้เบอร์ ไม่ทิ้งลูกค้า
+covers: ["§9.5", "§9.8", "H4.1", "flow §6.4"]
+user: { id: U14, displayName: "คุณเอก" }
+session: { homework: { business: "ร้านอาหาร", problem_verbatim: "ตอบแชทไม่ทัน", preferred_contact: "นัดคุย 30 นาที" } }
+steps:
+  - user: "นัดคุยกับมอส"
+    expect: { replies: 1, quick_replies: ["วันนี้", "พรุ่งนี้", "เลือกวันเอง"], sender: lay }
+  - postback: BOOK_DAY_other
+    expect: { replies: 1, text_contains: ["พิมพ์วันที่สะดวก"], sender: lay }
+  - user: "จันทร์หน้า"
+    expect: { replies: 1, quick_replies: ["เช้า 9-12", "บ่าย 13-17", "เย็น 18-20"], text_contains: ["จันทร์หน้า"], sender: lay }
+  - postback: BOOK_TIME_afternoon
+    expect: { replies: 2, card: summary_confirm, text_not_contains: ["ยืนยันแล้ว"], sender: lay, banned_clean: true, not_notified: [booking] }
+  - postback: BOOK_CONFIRM
+    expect: { replies: 1, text_contains: ["ส่งให้มอสแล้วครับ"], text_not_contains: ["ยืนยันแล้ว"], action: booking_confirm, notified: [booking], sender: lay, banned_clean: true }
+  - decision: { decision: decline }
+    expect:
+      replies: 1
+      text_contains: ["ขออภัย", "095 569 1674"]
+      text_not_contains: ["ยืนยันแล้ว", "นัดเรียบร้อย"]
+      quick_replies_max: 4
+      sender: lay
+      banned_clean: true
+      emoji_max: 0
+      session: { mode: lay }
+  - postback: BOOK_START                                 # may try again later (offer-card button); the typed variant is BUG-3 in 16
+    expect:
+      replies: 1
+      quick_replies: ["วันนี้", "พรุ่งนี้", "เลือกวันเอง"]
+      text_not_contains: ["รอมอสยืนยัน"]
+      sender: lay
+      banned_clean: true

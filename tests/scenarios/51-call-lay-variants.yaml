@@ -1,0 +1,39 @@
+name: 51 · เรียก Lay ทุกแบบ — พิมพ์ "เลย์" · "กลับไปคุยกับ Lay" · Rich Menu CALL_LAY · สื่อระหว่างรอ
+covers: ["§9.8", "§3.8", "§3.10", "H2.3", "design §6.3"]
+user: { id: U51, displayName: "คุณเก่ง" }
+steps:
+  - user: "ขอคุยกับมอสหน่อย"
+    expect: { replies: 1, action: handoff_human, quick_replies: ["เรียก Lay"], session: { mode: quiet } }
+  - media: image
+    expect:
+      replies: 1                                     # an image while waiting still gets the short media reply, with the way back
+      text_contains: ["ยังอ่านรูปหรือไฟล์ไม่ได้"]
+      quick_replies: ["เรียก Lay"]
+      sender: lay
+      session: { mode: quiet }
+  - user: "เลย์"
+    expect: { replies: 1, text_contains: ["Lay กลับมาดูแลต่อครับ"], quick_replies_max: 4, sender: lay, banned_clean: true, session: { mode: lay } }
+  - user: "อยากคุยกับคนจริงๆ"
+    expect: { replies: 1, action: handoff_human, notified: [handoff], session: { mode: quiet } }
+  - user: "กลับไปคุยกับ Lay"
+    expect: { replies: 1, text_contains: ["Lay กลับมาดูแลต่อครับ"], sender: lay, session: { mode: lay } }
+  - user: "ให้คนมาคุยหน่อย"
+    expect: { replies: 1, action: handoff_human, session: { mode: quiet } }
+  - postback: CALL_LAY                               # the Rich Menu tile
+    expect:
+      replies: 1
+      text_contains: ["Lay กลับมาดูแลต่อครับ"]
+      quick_replies: ["ราคาเท่าไหร่", "เริ่มยังไง"]  # back to the carried questions (nothing covered yet → fallback pair)
+      sender: lay
+      banned_clean: true
+      emoji_max: 0
+      session: { mode: lay }
+  - user: "ราคาเท่าไหร่"
+    model:
+      messages:
+        - { type: text, text: "แล้วแต่งานครับ แพ็กเริ่มต้นมีตั้งแต่ 4,900 บาท ทุกตัวเป็นราคาเริ่มต้น ปรับตามขอบเขตจริงหลังคุย", explain: false, template: null, alt: null, data: null }
+      quick_replies: ["ใช้เวลานานไหม", "เริ่มยังไง"]
+      topics: [pricing]
+      kb_refs: ["faq.price-range"]
+      intent: pricing
+    expect: { replies: 1, text_contains: ["ราคาเริ่มต้น"], sender: lay, session: { mode: lay } }

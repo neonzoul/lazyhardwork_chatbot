@@ -1,0 +1,57 @@
+name: 50 · quiet window — handoff → ack ครั้งเดียว → เงียบ → 31 นาที → Lay กลับมาเอง
+covers: ["§9.8", "§3.8", "design §6.3", "addendum A1"]
+user: { id: U50, displayName: "คุณแพร" }
+steps:
+  - user: "ขอคุยกับมอสหน่อยครับ"
+    expect:
+      replies: 1
+      text_contains: ["เดี๋ยวมอสเข้ามาคุยเอง"]
+      quick_replies: ["เรียก Lay"]
+      sender: lay
+      action: handoff_human
+      notified: [handoff]
+      session: { mode: quiet }
+  - user: "ยังอยู่ไหมครับ"
+    expect:
+      replies: 1                                     # ack once
+      text_contains: ["กำลังรอมอสตอบ", "เรียก Lay"]
+      quick_replies: ["เรียก Lay"]
+      sender: lay
+      banned_clean: true
+      session: { mode: quiet }
+  - user: "ราคาเท่าไหร่"
+    expect:
+      silent: true                                   # waiting: no second ack, the line is relayed to Mos's thread
+      replies: 0
+      notified: [relayToMos]
+      session: { mode: quiet }
+  - clock: { advance_minutes: 31 }
+  - user: "ราคาเท่าไหร่"
+    model:
+      messages:
+        - { type: text, text: "แล้วแต่งานครับ แพ็กเริ่มต้นมีตั้งแต่ 4,900 บาท ทุกตัวเป็นราคาเริ่มต้น ปรับตามขอบเขตจริงหลังคุย", explain: false, template: null, alt: null, data: null }
+      quick_replies: ["ใช้เวลานานไหม", "เริ่มยังไง"]
+      topics: [pricing]
+      kb_refs: ["faq.price-range"]
+      intent: pricing
+    expect:
+      replies: 1                                     # the window lapsed: Lay answers again, no ack text
+      text_contains: ["ราคาเริ่มต้น"]
+      text_not_contains: ["กำลังรอมอสตอบ"]
+      sender: lay
+      banned_clean: true
+      session: { mode: lay }
+  - mos: { threadId: T1, text: "ขอโทษที่ช้าครับ มอสเอง" }
+    expect: { replies: 1, sender: mos, session: { mode: mos_active } }
+  - user: "ไม่เป็นไรครับ"
+    expect: { silent: true, replies: 0, session: { mode: mos_active } }     # Mos is talking: Lay does not talk over him
+  - clock: { advance_minutes: 31 }
+  - user: "ใช้เวลานานไหม"
+    model:
+      messages:
+        - { type: text, text: "แพ็กเริ่มต้นส่วนใหญ่ 1 ถึง 2 สัปดาห์ครับ นับจากวันที่ได้ข้อมูลครบ", explain: false, template: null, alt: null, data: null }
+      quick_replies: ["เริ่มยังไง"]
+      topics: [timeline]
+      kb_refs: ["process.timelines"]
+      intent: timeline
+    expect: { replies: 1, text_contains: ["สัปดาห์"], sender: lay, session: { mode: lay } }

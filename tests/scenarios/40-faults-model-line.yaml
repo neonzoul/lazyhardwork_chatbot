@@ -1,0 +1,59 @@
+name: 40 · faults — model throw · model garbage · LINE reply fails · LINE reply+push+push fail → honest reply every time
+covers: ["§9.4", "§3.10", "flow §7"]
+user: { id: U40, displayName: "คุณฝน" }
+steps:
+  - fault: { model: throw }
+  - user: "ทำอะไรได้บ้าง"
+    expect:
+      replies: 1
+      text_contains: ["ระบบขัดข้องชั่วคราว", "095 569 1674"]
+      quick_replies: ["เรียก Lay"]
+      sender: lay
+      banned_clean: true
+      emoji_max: 0
+      action: null
+      session: { mode: lay }
+  - fault: { model: garbage }
+  - user: "ราคาเท่าไหร่"
+    expect:
+      replies: 1
+      text_contains: ["ระบบขัดข้องชั่วคราว", "095 569 1674"]
+      quick_replies: ["เรียก Lay"]
+      sender: lay
+      banned_clean: true
+      session: { mode: lay }
+  - user: "ราคาเท่าไหร่"                                  # the model recovers on the next turn: no sticky failure state
+    model:
+      messages:
+        - { type: text, text: "แล้วแต่งานครับ แพ็กเริ่มต้นมีตั้งแต่ 4,900 บาท ทุกตัวเป็นราคาเริ่มต้น ปรับตามขอบเขตจริงหลังคุย", explain: false, template: null, alt: null, data: null }
+      quick_replies: ["ใช้เวลานานไหม", "เริ่มยังไง"]
+      topics: [pricing]
+      kb_refs: ["faq.price-range"]
+      intent: pricing
+    expect: { replies: 1, text_contains: ["ราคาเริ่มต้น"], text_not_contains: ["ขัดข้อง"], sender: lay, banned_clean: true }
+  - fault: { line: reply }                                # reply API 500 → falls back to push, the customer still gets the words
+  - user: "ใช้เวลานานไหม"
+    model:
+      messages:
+        - { type: text, text: "แพ็กเริ่มต้นส่วนใหญ่ 1 ถึง 2 สัปดาห์ครับ นับจากวันที่ได้ข้อมูลครบ", explain: false, template: null, alt: null, data: null }
+      quick_replies: ["เริ่มยังไง"]
+      topics: [timeline]
+      kb_refs: ["process.timelines"]
+      intent: timeline
+    expect: { replies: 1, text_contains: ["สัปดาห์"], sender: lay, banned_clean: true }
+  - fault: { line: [reply, push, push] }                  # reply, push and the push retry all fail → undelivered → the fallback push lands
+  - user: "เริ่มยังไง"
+    model:
+      messages:
+        - { type: text, text: "เริ่มจากคุยกับมอส 30 นาทีก่อนครับ", explain: false, template: null, alt: null, data: null }
+      quick_replies: ["นัดคุยกับมอส"]
+      topics: [howtostart]
+      kb_refs: ["process.steps"]
+      intent: howtostart
+    expect:
+      replies: 1
+      text_contains: ["ระบบขัดข้องชั่วคราว", "095 569 1674"]
+      quick_replies: ["เรียก Lay"]
+      sender: lay
+      banned_clean: true
+      session: { mode: lay }
