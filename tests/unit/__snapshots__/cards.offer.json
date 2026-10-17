@@ -1,0 +1,217 @@
+{
+  "type": "flex",
+  "altText": "ตั้งค่า AI Workspace — Starter ราคาเริ่มต้น 4,999 บาท",
+  "contents": {
+    "type": "bubble",
+    "size": "kilo",
+    "styles": {
+      "body": {
+        "backgroundColor": "#FAFAF8"
+      },
+      "footer": {
+        "backgroundColor": "#FAFAF8",
+        "separator": false
+      }
+    },
+    "body": {
+      "type": "box",
+      "layout": "vertical",
+      "spacing": "md",
+      "paddingAll": "20px",
+      "contents": [
+        {
+          "type": "box",
+          "layout": "vertical",
+          "spacing": "xs",
+          "contents": [
+            {
+              "type": "text",
+              "text": "ตั้งค่า AI Workspace — Starter",
+              "wrap": true,
+              "color": "#1B1B1B",
+              "size": "lg",
+              "weight": "bold"
+            },
+            {
+              "type": "text",
+              "text": "Starter — เริ่มต้นใช้งาน",
+              "wrap": true,
+              "color": "#6B6B6B",
+              "size": "sm"
+            }
+          ]
+        },
+        {
+          "type": "separator",
+          "color": "#E6E4DF"
+        },
+        {
+          "type": "box",
+          "layout": "vertical",
+          "spacing": "sm",
+          "contents": [
+            {
+              "type": "box",
+              "layout": "horizontal",
+              "spacing": "sm",
+              "contents": [
+                {
+                  "type": "text",
+                  "text": "•",
+                  "wrap": true,
+                  "color": "#6B6B6B",
+                  "size": "sm",
+                  "flex": 0
+                },
+                {
+                  "type": "text",
+                  "text": "จัดโฟลเดอร์ไม่เกิน 70 ไฟล์",
+                  "wrap": true,
+                  "color": "#1B1B1B",
+                  "size": "sm",
+                  "flex": 1
+                }
+              ]
+            },
+            {
+              "type": "box",
+              "layout": "horizontal",
+              "spacing": "sm",
+              "contents": [
+                {
+                  "type": "text",
+                  "text": "•",
+                  "wrap": true,
+                  "color": "#6B6B6B",
+                  "size": "sm",
+                  "flex": 0
+                },
+                {
+                  "type": "text",
+                  "text": "ไฟล์กฎ 1 ไฟล์",
+                  "wrap": true,
+                  "color": "#1B1B1B",
+                  "size": "sm",
+                  "flex": 1
+                }
+              ]
+            },
+            {
+              "type": "box",
+              "layout": "horizontal",
+              "spacing": "sm",
+              "contents": [
+                {
+                  "type": "text",
+                  "text": "•",
+                  "wrap": true,
+                  "color": "#6B6B6B",
+                  "size": "sm",
+                  "flex": 0
+                },
+                {
+                  "type": "text",
+                  "text": "คำสั่งพร้อมใช้ 3 ตัว",
+                  "wrap": true,
+                  "color": "#1B1B1B",
+                  "size": "sm",
+                  "flex": 1
+                }
+              ]
+            },
+            {
+              "type": "box",
+              "layout": "horizontal",
+              "spacing": "sm",
+              "contents": [
+                {
+                  "type": "text",
+                  "text": "•",
+                  "wrap": true,
+                  "color": "#6B6B6B",
+                  "size": "sm",
+                  "flex": 0
+                },
+                {
+                  "type": "text",
+                  "text": "ติดตั้ง 90 นาที + ถามต่อ 7 วัน",
+                  "wrap": true,
+                  "color": "#1B1B1B",
+                  "size": "sm",
+                  "flex": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "separator",
+          "color": "#E6E4DF"
+        },
+        {
+          "type": "box",
+          "layout": "vertical",
+          "spacing": "xs",
+          "contents": [
+            {
+              "type": "text",
+              "text": "ราคาเริ่มต้น 4,999 บาท",
+              "wrap": true,
+              "color": "#1B1B1B",
+              "size": "md",
+              "weight": "bold"
+            },
+            {
+              "type": "text",
+              "text": "ปรับตามขอบเขตจริงหลังคุย",
+              "wrap": true,
+              "color": "#6B6B6B",
+              "size": "xs"
+            }
+          ]
+        }
+      ]
+    },
+    "footer": {
+      "type": "box",
+      "layout": "vertical",
+      "spacing": "sm",
+      "paddingAll": "16px",
+      "paddingTop": "0px",
+      "contents": [
+        {
+          "type": "button",
+          "style": "primary",
+          "color": "#0E6E5C",
+          "height": "sm",
+          "action": {
+            "type": "uri",
+            "label": "ดูการ์ดบน Fastwork",
+            "uri": "https://fastwork.co/user/mos_lazyhardwork/A2"
+          }
+        },
+        {
+          "type": "box",
+          "layout": "vertical",
+          "borderWidth": "1px",
+          "borderColor": "#E6E4DF",
+          "cornerRadius": "8px",
+          "contents": [
+            {
+              "type": "button",
+              "style": "link",
+              "color": "#1B1B1B",
+              "height": "sm",
+              "action": {
+                "type": "postback",
+                "label": "นัดคุยกับมอส",
+                "data": "BOOK_START",
+                "displayText": "นัดคุยกับมอส"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,151 @@
+{
+  "type": "flex",
+  "altText": "ตัวอย่างงานที่ทำไป — ร้านกาแฟ 2 สาขา / คลินิกความงาม",
+  "contents": {
+    "type": "carousel",
+    "contents": [
+      {
+        "type": "bubble",
+        "size": "mega",
+        "styles": {
+          "body": {
+            "backgroundColor": "#FAFAF8"
+          },
+          "footer": {
+            "backgroundColor": "#FAFAF8",
+            "separator": false
+          }
+        },
+        "hero": {
+          "type": "image",
+          "url": "https://cdn.example.com/lay/example-cafe.png",
+          "size": "full",
+          "aspectRatio": "16:9",
+          "aspectMode": "cover"
+        },
+        "body": {
+          "type": "box",
+          "layout": "vertical",
+          "spacing": "md",
+          "paddingAll": "20px",
+          "contents": [
+            {
+              "type": "box",
+              "layout": "vertical",
+              "spacing": "xs",
+              "contents": [
+                {
+                  "type": "text",
+                  "text": "ร้านกาแฟ 2 สาขา",
+                  "wrap": true,
+                  "color": "#1B1B1B",
+                  "size": "lg",
+                  "weight": "bold"
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "text": "บอทตอบคำถามเมนูและเวลาเปิด ลดแชทค้าง 60%",
+              "wrap": true,
+              "color": "#1B1B1B",
+              "size": "sm"
+            }
+          ]
+        },
+        "footer": {
+          "type": "box",
+          "layout": "vertical",
+          "spacing": "sm",
+          "paddingAll": "16px",
+          "paddingTop": "0px",
+          "contents": [
+            {
+              "type": "button",
+              "style": "primary",
+              "color": "#0E6E5C",
+              "height": "sm",
+              "action": {
+                "type": "postback",
+                "label": "ดูเคสนี้",
+                "data": "CASE_cafe",
+                "displayText": "ดูเคสนี้"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "type": "bubble",
+        "size": "mega",
+        "styles": {
+          "body": {
+            "backgroundColor": "#FAFAF8"
+          },
+          "footer": {
+            "backgroundColor": "#FAFAF8",
+            "separator": false
+          }
+        },
+        "hero": {
+          "type": "image",
+          "url": "https://cdn.example.com/lay/example-clinic.png",
+          "size": "full",
+          "aspectRatio": "16:9",
+          "aspectMode": "cover"
+        },
+        "body": {
+          "type": "box",
+          "layout": "vertical",
+          "spacing": "md",
+          "paddingAll": "20px",
+          "contents": [
+            {
+              "type": "box",
+              "layout": "vertical",
+              "spacing": "xs",
+              "contents": [
+                {
+                  "type": "text",
+                  "text": "คลินิกความงาม",
+                  "wrap": true,
+                  "color": "#1B1B1B",
+                  "size": "lg",
+                  "weight": "bold"
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "text": "จองคิวผ่าน LINE แล้วลงปฏิทินให้อัตโนมัติ",
+              "wrap": true,
+              "color": "#1B1B1B",
+              "size": "sm"
+            }
+          ]
+        },
+        "footer": {
+          "type": "box",
+          "layout": "vertical",
+          "spacing": "sm",
+          "paddingAll": "16px",
+          "paddingTop": "0px",
+          "contents": [
+            {
+              "type": "button",
+              "style": "primary",
+              "color": "#0E6E5C",
+              "height": "sm",
+              "action": {
+                "type": "postback",
+                "label": "ดูเคสนี้",
+                "data": "CASE_clinic",
+                "displayText": "ดูเคสนี้"
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
