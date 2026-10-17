@@ -75,3 +75,30 @@
     คุณสนใจแพ็กเกจไหนครับ? หรืออาจจะมีคำถามเพิ่มเติมเกี่ยวกับบริการใช่ไหมครับ?
 
     ```
+
+## v2 (2026-10-17)
+
+Should / Later items collected from the module docs (`doc/flows.md`, `doc/demo.md`, `doc/richmenu.md`,
+`doc/discord.md`, `doc/leads.md`, `doc/store.md`) and `decisions.md` D-19. None blocks the Tuesday cut-over.
+
+- [ ] **3-min idle loose-ends** — today the loose-ends check fires only on a closing signal (turn step 7); the
+      brief's time-based trigger needs a timer or a cron over `sessions.last_customer_at`.
+- [ ] **Per-user Rich Menu swap in demo** — `richmenu.linkDemo/unlinkDemo` exist and never throw, but `turn.js`
+      does not call them on `demo_enter` / `demo_exit`; the demo works with the `กลับไปคุยกับ Lay` quick reply alone.
+- [ ] **Guild slash commands** — `/approve /propose /decline /lay` as real Discord slash commands
+      (`DISCORD_REGISTER_COMMANDS=1`, `commands.slashDefinitions`); plain `/` lines in the thread already work.
+- [ ] **Returning-visitor memory** — a customer who comes back after days should not be re-opened and re-asked;
+      today the opening is per session flag and homework persists, but there is no "welcome back" path.
+- [ ] **Monthly kb-gap report** — `kb_gaps` rows are stored and posted one by one; no digest to the vault yet.
+- [ ] **Engine migration** — SQLite behind `createStore` is the single-instance design; Postgres (or the shared
+      store for client installs) touches `src/store/` only (`doc/store.md`).
+- [ ] **Placeholder example images** — `public/assets/examples-*.png` are generated colour blocks; replace with
+      real screens, same file names, 16:9 (`doc/demo.md` table). Demo shop icons likewise.
+- [ ] **Fastwork handle conflict** — profile says `moslazyhardwork`, ledger/cards say `mos_lazyhardwork`; the pack
+      emits no handle until Mos settles it (D-19). `turn.cardContext` still carries a hard-coded fallback URL.
+- [ ] **Summary-card pill in demo** — `status_label` override exists ("รอร้านยืนยัน"); a proper `pending_shop`
+      status would make the template self-describing.
+- [ ] **Injection scenario suite** and the 10 Mos scenarios from the Fastwork history (T13) — only four scenarios
+      exist today; `sanitizeInput` has no dedicated test.
+- [ ] **Open experience questions for Mos** — `doc/flows.md` §6 (offer card then ask for window? booking vs live
+      handoff on นัดคุยกับมอส? who speaks the approve line?) — provisional answers are coded, not confirmed.

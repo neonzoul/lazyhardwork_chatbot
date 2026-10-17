@@ -1,163 +1,88 @@
-# Agent Lay — LazyHardWork LINE OA Chatbot
+# Lay v2 — LazyHardWork LINE OA assistant
 
-**Current version: v1.1** — Production-ready. All 9 acceptance criteria passed + v1.1 refinements (hallucination guard, prompt injection protection, handoff integrity, lead detection improvements).
+**Status: v2 in build; cut-over planned Tue 2026-10-20.** `main` is still v1 and live. Agents start at `AGENTS.md`.
 
-LINE OA chatbot for LazyHardWork's own channel. Answers leads from a knowledge base, captures contact on buying signal, and hands off to Mos via Discord.
+## What Lay does
 
-## Features
+Lay is the assistant on LazyHardWork's own LINE OA. It greets, answers the six questions a lead asks (what it does,
+fit, price, timeline, examples, how to start) from a knowledge pack generated out of the vault, finds the fit by
+symptom, collects a short "homework" set without interrogating, and ends in one of two ways: an offer card with the
+Fastwork price (short path) or a booking request that Mos confirms (long path). It hands over to Mos when asked, when
+a discount is requested, or when it does not know — and it never pretends to know. It can also show a live demo of
+what a shop bot feels like. Replies are Thai, short, buttons instead of lists, one card at most.
 
-- **KB-only answers** — LLM answers strictly from `knowledge/kb.md`, never hallucinating
-- **Typing debounce** — 6.5 s burst accumulator so multi-message bursts arrive as one block
-- **Lead capture** — detects buying signals, extracts structured lead fields, posts to Discord `#leads`
-- **Human handoff** — `คุยกับคนจริง` → `WAITING_HUMAN` → Discord `#crm` notify → bot goes silent
-- **Rich Menu** — 5 buttons: บริการ / ผลงาน / ราคา / คุยกับคนจริง / ติดต่อ
-- **Out-of-hours notice** — bot stays active in KB scope and informs the user
-- **Admin dashboard** — web UI to monitor sessions, change bot status per user, auto-refreshes every 30s
-- **Thai admin guide** — `/admin/docs` explains the system in plain Thai for non-technical admins
+## The three identities
 
-## Stack
+| Sender shown in LINE | When |
+|---|---|
+| `Lay · ผู้ช่วย AI` | everything Lay says |
+| `มอส` | lines Mos types in the Discord thread, relayed by the bot |
+| `ริมคลอง · ผู้ช่วย AI` / `ใสใส · ผู้ช่วย AI` | the two sample shops inside demo mode (labelled ตัวอย่าง in the text) |
 
-Node.js 18+ · Express · `@line/bot-sdk` v9 · OpenAI `gpt-4o-mini` · axios (Discord webhooks)
+LINE appends "from <OA name>" to custom senders; icons are served by the app under `/assets`.
 
-## Quick Start
+## How Mos replies from Discord
+
+A handoff or booking opens a thread in `#leads` (title `L-… · <card> · <symptom>`). In that thread:
+
+- **plain text** → pushed to the customer as **มอส**; Lay goes quiet (`mos_active`) until `/lay` or 30 min idle.
+- `/approve` → booking confirmed, the customer's summary card turns green "ยืนยันแล้ว" (the only way it does).
+- `/propose พรุ่งนี้ 14:00 หรือ 16:00` → customer gets the windows as buttons; picking one comes back as pending.
+- `/decline` → polite decline with the phone line.
+- `/lay` → Lay takes over again ("Lay กลับมาดูแลต่อครับ…").
+
+No customer personal data is posted in Discord — the lead id is the key; names, phones, LINE ids are scrubbed.
+
+## `เรียก Lay`
+
+After a handoff Lay acknowledges once and stays silent while Mos handles it. The customer can type **เรียก Lay**
+(or tap the Rich Menu tile / quick reply) at any time to get Lay back — from quiet, from Mos mode, or out of a demo.
+
+## Demo mode
+
+ขอดูตัวอย่าง opens a carousel; "ลองเล่นร้านตัวอย่าง" lets the customer chat with a sample café or clinic that answers as
+itself, takes a pretend order, shows a summary card and a simulated "ส่งให้เจ้าของร้าน (ตัวอย่าง) แล้ว". Nothing in demo
+touches leads or notifications. Exit with กลับไปคุยกับ Lay; Lay recaps and asks which of the five symptoms fits.
+
+## Updating knowledge
+
+Offer, prices, FAQ, fit map, process, policies and demo shop facts come from the vault, never from this repo:
+
+1. Edit the source in the vault (`Clients/000_lazyhardwork/PJ_lineOA_chatbot_v2/…`, the GTM ledger for prices).
+2. `npm run kb:build -- --project-dir <that folder>` — fails if a card price disagrees with the ledger.
+3. Commit `knowledge/` (generated files) → push the deployed branch → Railway redeploys.
+
+## Environment variables (names only — values live in `.env` / Railway)
+
+| Variable | Meaning |
+|---|---|
+| `LINE_CHANNEL_SECRET`, `LINE_CHANNEL_ACCESS_TOKEN` | the channel the app serves (test channel until cut-over) |
+| `LINE_PROD_CHANNEL_SECRET`, `LINE_PROD_CHANNEL_ACCESS_TOKEN` | production channel (scripts with `--channel prod`) |
+| `LINE_TEST_CHANNEL_ID`, `LINE_TEST_BOT_BASIC_ID`, `MOS_LINE_USER_ID` | test OA ids, Mos's LINE user id |
+| `OPENAI_API_KEY` | model key (model name is in `src/agents.config.js`) |
+| `DISCORD_BOT_TOKEN`, `DISCORD_GUILD_ID`, `DISCORD_LEADS_CHANNEL_ID`, `DISCORD_CRM_CHANNEL_ID` | relay bot |
+| `DISCORD_LEADS_WEBHOOK`, `DISCORD_CRM_WEBHOOK` | fallback when the bot cannot open a thread |
+| `PUBLIC_BASE_URL`, `LAY_ICON_URL`, `MOS_ICON_URL` | public https base; icon URLs (derived from the base if unset) |
+| `DB_PATH` | SQLite file (`/data/lay.sqlite` on Railway's volume) |
+| `ADMIN_TOKEN` | bearer token for `GET/POST /admin/*` |
+| `CONTACT_PHONE`, `CONTACT_PHONE_DISPLAY`, `FASTWORK_URL` | contact line and profile link |
+| `BUSINESS_HOURS_START`, `BUSINESS_HOURS_END` | Bangkok hours shown as open/closed (13–22) |
+| `QUIET_WINDOW_MINUTES`, `DEBOUNCE_MS`, `KNOWLEDGE_DIR`, `DISCORD_REGISTER_COMMANDS`, `PORT` | optional tuning |
+
+## Run locally
 
 ```bash
-cp .env.example .env      # fill in credentials
-npm install
-npm run dev               # nodemon auto-reload
+cp .env.example .env && npm install
+npm test && npm run scenarios
+npm run dev                       # then: npx ngrok http 3000 → node scripts/set-webhook.js https://<ngrok>/webhook
 ```
 
-Expose locally with ngrok:
+## Deployment
 
-```bash
-npx ngrok http 3000
-# paste the HTTPS URL → LINE Developers console → Messaging API → Webhook URL
-# append /webhook  e.g. https://xxxx.ngrok-free.app/webhook
-```
+`doc/deploy.md` — the Railway runbook (service `lay-v2`, volume at `/data`, variables, webhook, Rich Menu, smoke
+checks, the Tuesday cut-over and rollback). Nothing is created on Railway yet.
 
-Smoke test: `GET /health` → `{"status":"ok"}`
+## Where things are
 
-## Environment Variables
-
-| Variable | Description |
-|---|---|
-| `LINE_CHANNEL_SECRET` | LINE channel secret |
-| `LINE_CHANNEL_ACCESS_TOKEN` | LINE channel access token |
-| `OPENAI_API_KEY` | OpenAI API key (model set in `src/agents.config.js`) |
-| `DISCORD_LEADS_WEBHOOK` | Discord webhook URL for `#leads` |
-| `DISCORD_CRM_WEBHOOK` | Discord webhook URL for `#crm` |
-| `CONTACT_PHONE` | Business phone injected into system prompt |
-| `CONTACT_EMAIL` | Business email injected into system prompt |
-| `FASTWORK_URL` | Fastwork profile URL |
-| `BUSINESS_HOURS_START` | Hour bot is "in hours" (24h, Bangkok) — default `13` |
-| `BUSINESS_HOURS_END` | Hour bot goes "out of hours" — default `22` |
-| `ADMIN_SECRET` | Secret token for admin endpoints |
-
-## Project Structure
-
-```
-knowledge/kb.md          ← bot's brain — edit to change what Agent Lay knows
-src/
-  index.js               Express server + admin endpoints
-  bot.js                 State machine, debounce, Rich Menu postback, handoff
-  llm.js                 OpenAI call, system prompt builder, lead extraction
-  state.js               In-memory session store per userId
-  discord.js             #leads and #crm Discord webhook posts
-  kb.js                  Loads knowledge/kb.md at startup
-  config.js              All config from process.env
-  agents.config.js       Model selection (version-controlled, not in .env)
-doc/spec/                Requirement + engineering specs
-scripts/
-  setup-rich-menu.js     One-time LINE Rich Menu setup
-```
-
-## Updating the Knowledge Base
-
-Edit `knowledge/kb.md` and restart the server. No code changes needed.
-
-## Rich Menu Setup
-
-1. Create a 2500×843 px image with 5 equal columns and save as `scripts/rich-menu.png`
-2. Run `node scripts/setup-rich-menu.js`
-
-## Admin Endpoints
-
-All admin endpoints require `?secret=<ADMIN_SECRET>`.
-
-| Endpoint | Description |
-|---|---|
-| `GET /admin` | HTML dashboard — session table with live status dropdowns |
-| `GET /admin/docs` | Thai admin guide for non-technical admins |
-| `GET /admin/set-status` | Set a user's bot status (`userId` + `status` params) |
-| `GET /admin/resume` | Legacy shortcut — sets userId to `BOT_ACTIVE` |
-| `GET /admin/status` | JSON status check for a single userId |
-
-**Change a user's status (e.g. resume bot after handoff):**
-```
-GET /admin/set-status?secret=xxx&userId=U<lineUserId>&status=BOT_ACTIVE
-```
-Valid values: `BOT_ACTIVE`, `WAITING_HUMAN`, `HUMAN_ACTIVE`. Returns `{ userId, displayName, prev, now }`.
-
-The `userId` appears in every Discord `#crm` notification. The dashboard also lists all active sessions with a dropdown to change status without touching the URL.
-
-## Bot State Machine
-
-```
-BOT_ACTIVE  ──(handoff trigger)──►  WAITING_HUMAN  ──(Mos sets manually)──►  HUMAN_ACTIVE
-                                                                                    │
-                                    BOT_ACTIVE  ◄────────(admin /resume)───────────┘
-```
-
-Handoff triggers: `คุยกับคนจริง` · `ขอคุยกับ Mos` · `อยากนัดคุย` · `ขอคุยกับคน` · Rich Menu button · complaint detected in reply
-
-## Deployment (Railway)
-
-### 1. Create project
-
-Go to [railway.app](https://railway.app) → **New Project** → **Deploy from GitHub repo** → select this repo.
-
-Railway auto-detects Node.js and runs `npm start`. No Dockerfile needed.
-
-### 2. Set environment variables
-
-Railway → your service → **Variables** → add each key:
-
-| Variable | Description |
-|---|---|
-| `LINE_CHANNEL_SECRET` | LINE Developers → Messaging API → Channel secret |
-| `LINE_CHANNEL_ACCESS_TOKEN` | LINE Developers → Messaging API → Channel access token (long-lived) |
-| `OPENAI_API_KEY` | OpenAI API key |
-| `DISCORD_LEADS_WEBHOOK` | Discord webhook URL for `#leads` |
-| `DISCORD_CRM_WEBHOOK` | Discord webhook URL for `#crm` |
-| `CONTACT_PHONE` | Business phone number shown to customers |
-| `CONTACT_EMAIL` | Business email shown to customers |
-| `FASTWORK_URL` | Fastwork profile URL |
-| `BUSINESS_HOURS_START` | Hour business opens (24h, Bangkok TZ) — default `13` |
-| `BUSINESS_HOURS_END` | Hour business closes — default `22` |
-| `ADMIN_SECRET` | Any random string for admin endpoints |
-
-`PORT` is injected automatically by Railway — do not add it.
-
-### 3. Get public URL
-
-Railway → your service → **Settings** → **Networking** → **Generate Domain**
-
-This gives you `https://your-app.up.railway.app`.
-
-### 4. Set LINE webhook
-
-1. [LINE Developers Console](https://developers.line.biz) → your channel → **Messaging API**
-2. Webhook URL → `https://your-app.up.railway.app/webhook`
-3. **Use webhook** ON · **Auto-reply messages** OFF · **Greeting messages** OFF
-4. Click **Verify** → should return 200 OK
-
-### 5. Smoke test
-
-```
-GET https://your-app.up.railway.app/health
-→ { "status": "ok" }
-```
-
-### Redeploys
-
-Railway auto-deploys on every push to the connected branch. Environment variable changes take effect on the next deploy (trigger manually from the Railway dashboard if needed).
+`AGENTS.md` (agents) · `doc/feature-map.md` (every feature → module → test) · `doc/*.md` per module ·
+vault `design-lay-v2.md` / `decisions.md` / `build-log.md` (the record).

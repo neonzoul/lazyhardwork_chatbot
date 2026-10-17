@@ -1,67 +1,62 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for Claude Code in this repository. **`AGENTS.md` is the entry point** (what the repo is, cold-start order,
+layout, hard rules, commands, branch plan). This file adds the request flow, the injection rule, how to run one
+scenario, and gotchas. Conventions: `doc/v2-conventions.md`. Platform limits: `doc/line-platform-notes.md`.
 
-## Start here
+## Request flow (one turn)
 
-`AGENTS.md` is the authoritative entry point: persona, hard rules, file map, spec locations, and the
-9 acceptance criteria. Read it first. Specs live in `doc/spec/` (requirement + engineering). This
-file covers commands, the runtime flow, and gotchas not visible from a single-file read.
+```
+POST /webhook  (src/app.js: line.middleware verifies the signature, 200 at once)
+  → createEventHandler (src/core/turn.js): normalise (src/line/events.js) · drop group/room · dedupe webhookEventId
+  → text: showLoading + debounce 6.5 s per user (src/core/debounce.js) · postback/follow/media: run now
+  → runTurn(input, deps) — one try/catch, never silent:
+      1 quiet-window expiry   2 unfollow / mos_relay / mos_release / follow→opening / media reply
+      3 sanitise + persist    4 เรียก Lay from any mode (demo → exit line)
+      5 mode gates: mos_active silent (mirror to thread) · quiet one ack · demo → flows/demo.runDemoTurn
+      6a booking entry / typed booking answers   6 human / unknown-forward / discount → flows/handoff
+      7 loose ends on a closing signal           8 FIT_* BOOK_* DEMO_* MENU_* postbacks set state + intent
+      9 model (brain/prompt → brain/respond, structured JSON; policy fix/regenerate/fallback)
+     10 state from the response (topics, lead_updates, offer decorate)   11 actions: handoff_*, booking_*, demo_*
+     12 render (cards/render + line/messages) + quick replies → send (reply token < 20 s else push, with sender)
+```
 
-## Commands
+Then `persist` (messages, session) and `upsertLead` when lead fields changed. Details per area: `doc/*.md`.
+
+## Dependency injection — the rule
+
+Every external thing reaches a module through `deps` (`src/core/deps.js`): `line`, `notifier`, `store`, `model`,
+`clock`, `log`, plus `pack`, `config`, `senders`, optional `flows`/`cards` overrides. Only `src/line`,
+`src/brain/respond.js`, `src/discord`, `src/store` may `require` an SDK. `src/app.js` builds the real deps;
+`tests/fakes/*` build the fake ones (the fake store is the contract for the real one). Flow modules are required
+lazily inside `turn.js`, so a missing module degrades, never crashes. Config from `process.env` only via `src/config.js`.
+
+## Run one scenario
 
 ```bash
-npm install        # installs all deps including openai SDK
-npm start          # node src/index.js
-npm run dev        # nodemon (auto-reload)
-node scripts/setup-rich-menu.js   # one-time LINE Rich Menu setup (needs scripts/rich-menu.png)
+node tests/run-scenarios.js --only booking          # substring of the file name or `name:`
+node tests/run-scenarios.js --only demo --json out.json
+node tests/run-scenarios.js --only smoke --model real   # OpenAI; needs OPENAI_API_KEY with credit
+node --test tests/unit/turn.test.js                 # one unit file
 ```
 
-No test suite, linter, or build step. Verification is manual against `doc/spec/lhw-bot-requirement-spec.md §11`. Quick smoke test: `GET /health` → `{status:"ok"}`.
+Step and `expect` vocabulary is in the header of `tests/run-scenarios.js`. The runner loads the real `knowledge/`
+pack when present, so an offer card with a price needs a built pack.
 
-Local dev tunnel: `npx ngrok http 3000` → paste HTTPS URL into LINE Developers console webhook field.
+## Gotchas
 
-## Architecture
-
-Single Express process, one inbound surface (`POST /webhook` from LINE), in-memory state. Request flow:
-
-```
-LINE webhook → index.js (signature-verified by line.middleware)
-  → bot.handleEvent
-       ├─ postback  → processPostback (Rich Menu: MENU_SERVICES/PORTFOLIO/PRICING/CONTACT/HANDOFF)
-       ├─ follow    → send greeting message
-       └─ message   → accumulate into pendingMessages, reset 6.5s debounce timer
-                       showLoadingAnimation (typing indicator — best-effort)
-  → (after 6.5s quiet) bot.processMessage
-       ├─ HUMAN_ACTIVE  → silent
-       ├─ WAITING_HUMAN → "still waiting" reply
-       └─ BOT_ACTIVE    → handoff check → LLM call → push reply
-                          if buying signal in message → extractLead + discord.postLead (#leads)
-                          if KB gap in reply → discord.postCrmFeedback (#crm)
-  → lineClient.pushMessage
-```
-
-Module roles (each `src/*.js` is single-purpose; see AGENTS.md file map):
-- **state.js** — `Map<userId, session>`; status FSM `BOT_ACTIVE → WAITING_HUMAN → HUMAN_ACTIVE`,
-  history capped at 10, lossless `pendingMessages` burst accumulator. In-memory — restarts wipe sessions.
-- **llm.js** — builds system prompt fresh each call (KB + contact config + business-hours notice),
-  full KB injected (no retrieval). Exports `chat()`, `hasBuyingSignal()`, `extractLead()`.
-- **agents.config.js** — model selection per agent role (`agentLay` uses `gpt-4o-mini`). Models are
-  version-controlled here; secrets go in `.env` only.
-
-## Key conventions
-
-- **Config split:** `agents.config.js` = model choices (committed); `config.js` = secrets from `process.env`.
-- **KB is content, not code:** edit `knowledge/kb.md` to change what the bot knows.
-- **`[Agent Lay]`** must end every bot reply — the LLM is instructed to do this, and the hard-coded
-  strings in `bot.js` (handoff / waiting / Rich Menu replies) all include it manually.
-- **LLM provider:** OpenAI (`gpt-4o-mini`) via `openai` npm package. Key is `OPENAI_API_KEY` in `.env`.
-
-## Notes
-
-- **Replies use `pushMessage`** (not reply token) — consumes push quota but allows async delivery.
-- **Rich Menu image required:** `scripts/setup-rich-menu.js` sets up the 5-button menu structure but
-  needs `scripts/rich-menu.png` (2500×843 px). Create in Canva and place it before running the script.
-- **Typing indicator** calls `showLoadingAnimation` — best-effort, errors are silently swallowed.
-- **Lead extraction** fires a second LLM call asynchronously when a buying signal is detected, then
-  posts structured lead data to Discord `#leads`.
+- `node:sqlite` prints an `ExperimentalWarning` on Node 22/24 — harmless; `--no-warnings` if it clutters logs.
+- `node --test` glob: keep the quotes — `node --test "tests/**/*.test.js"` (PowerShell expands unquoted globs
+  wrongly; `npm test` already quotes it).
+- LINE labels: quick-reply / action labels ≤ 20 code points, `chatBarText` ≤ 14, `sender.name` ≤ 20 (demo shop short
+  names ≤ 7 so ` · ผู้ช่วย AI` fits). Policy drops over-long labels rather than truncating.
+- Reply token: single use, valid ~1 min; the pipeline uses it only within 20 s of the event, then pushes.
+- Rich Menu images are rendered from HTML with headless Chrome/Edge (`scripts/richmenu/build.js`); the build fails if
+  the fonts did not load. A menu image cannot be replaced — `setup-rich-menu.js --recreate`.
+- Channels: `LINE_CHANNEL_*` = the **test** channel for local work and staging; `LINE_PROD_*` = production, used
+  only by `setup-rich-menu.js --channel prod --yes-prod` until cut-over. Never run the default against the live OA.
+- `knowledge/` is generated — `npm run kb:build -- --project-dir …`; `tests/unit/kb.test.js` checks the hashes.
+- Prices and Fastwork URLs reach cards only through `cardContext` (`pack.ladders`, `pack.fastworkUrls`); anything
+  the model puts in `data.price_from` is ignored.
+- Thai strings: in the `strings` object of the flow; every string must pass `core/lint.lintText` (unit tests check).
+- Commits: small, say what and why, end with a blank line then `Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>`. Never push `main` before cut-over.
