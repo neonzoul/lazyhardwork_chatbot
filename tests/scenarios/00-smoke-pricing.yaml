@@ -1,0 +1,40 @@
+name: smoke · ราคา แล้วเสนอคำถามถัดไป
+covers: ["§9.2 buttons not prose", "§9.5 banned content", "§9.6 emoji", "§9.8 identity"]
+user: { id: Utest-smoke, displayName: "พี่เอ" }
+steps:
+  - follow: true
+    expect:
+      replies: 1
+      text_contains: ["Lay", "3 เรื่อง"]
+      quick_replies: ["ทำอะไรได้บ้าง", "เหมาะกับงานผมไหม", "ขอดูตัวอย่าง"]
+      sender: lay
+      banned_clean: true
+      emoji_max: 0
+  - user: "ราคาเท่าไหร่"
+    model:
+      messages:
+        - { type: text, text: "แล้วแต่งานครับ แพ็กเริ่มต้นมีตั้งแต่ 4,900 บาท ทุกตัวเป็นราคาเริ่มต้น ปรับตามขอบเขตจริงหลังคุย", explain: false, template: null, alt: null, data: null }
+      quick_replies: ["ใช้เวลานานไหม", "เริ่มยังไง"]
+      topics: [pricing]
+      kb_refs: ["faq.price-range"]
+      intent: pricing
+      action: null
+    expect:
+      replies_min: 1
+      text_contains: ["ราคาเริ่มต้น"]
+      quick_replies: ["ใช้เวลานานไหม", "เริ่มยังไง"]
+      quick_replies_max: 4
+      sender: lay
+      banned_clean: true
+      emoji_max: 0
+      no_prose_list: true
+      action: null
+      session: { topics_covered_includes: [pricing], mode: lay }
+  - fault: { model: throw }
+  - user: "อธิบายเพิ่มหน่อย"
+    expect:
+      replies_min: 1
+      text_contains: ["095 569 1674"]
+      quick_replies_includes: ["เรียก Lay"]
+      sender: lay
+      banned_clean: true
