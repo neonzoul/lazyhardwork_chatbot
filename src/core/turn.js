@@ -20,6 +20,7 @@ const handoff = require('../flows/handoff');
 const { selectSections } = require('../brain/select');
 const { validateResponse, emptyResponse } = require('../brain/schema');
 const lint = require('./lint');
+const intake = require('../leads/intake');
 
 const REPLY_TOKEN_MAX_AGE_MS = 20 * 1000;
 const sanitizeInput = (text) => String(text || '')
@@ -128,7 +129,7 @@ async function runTurn(input, deps, opts = {}) {
         // 6a. booking entry (the loose-ends / offer buttons) and typed answers inside a booking
         const endingsMod = deps.flows?.endings || lazy('../flows/endings');
         if (endingsMod && BOOK_ENTRY_RE.test(text) && !s.booking_step) {
-            return await endingsMod.onModelAction({ action: 'booking_start', response: null, input, session: s, deps, config, send, persist, done, senders, doHandoff });
+            return await endingsMod.onModelAction({ action: 'booking_start', response: null, input, session: s, deps, config, send, persist, done, senders, doHandoff, upsertLead });
         }
         if (input.kind === 'text' && s.booking_step && endingsMod?.onBookingText && !handoff.isAskHuman(text)) {
             const r = await endingsMod.onBookingText({ text, input, session: s, deps, config, send, persist, done, sender: senders.lay });
@@ -164,7 +165,7 @@ async function runTurn(input, deps, opts = {}) {
             const endings = flows.endings || lazy('../flows/endings');
             const demo = flows.demo || lazy('../flows/demo');
             if (data.startsWith('FIT_') && fit?.onSymptomPostback) { ({ intentHint, userText } = fit.onSymptomPostback(data, s)); }
-            else if (data.startsWith('BOOK_') && endings?.onBookingPostback) { return await endings.onBookingPostback({ data, input, session: s, deps, config, send, persist, done, sender: senders.lay, doHandoff }); }
+            else if (data.startsWith('BOOK_') && endings?.onBookingPostback) { return await endings.onBookingPostback({ data, input, session: s, deps, config, send, persist, done, sender: senders.lay, doHandoff, upsertLead }); }
             else if (data.startsWith('DEMO_') && demo?.onDemoPostback) { return await demo.onDemoPostback({ data, input, session: s, deps, config, send, persist, done, senders }); }
             else if (data.startsWith('MENU_')) { const t = MENU_TO_TEXT[data]; if (t) { userText = t; intentHint = topics.topicFromText(t) || 'unknown'; } }
             else { userText = data; }
@@ -198,7 +199,7 @@ async function runTurn(input, deps, opts = {}) {
             const endings = flows.endings || lazy('../flows/endings');
             const demo = flows.demo || lazy('../flows/demo');
             const handler = response.action.startsWith('booking') ? endings?.onModelAction : demo?.onModelAction;
-            if (handler) return await handler({ action: response.action, response, input, session: s, deps, config, send, persist, done, senders, doHandoff });
+            if (handler) return await handler({ action: response.action, response, input, session: s, deps, config, send, persist, done, senders, doHandoff, upsertLead });
             action = response.action; // module not merged yet: keep the words, record the intent
         }
 
@@ -341,21 +342,13 @@ async function runTurn(input, deps, opts = {}) {
 
     async function upsertLead(sess, extra = {}) {
         const existing = await deps.store.leads.byUser(sess.user_id);
-        const row = {
-            ...(existing || {}),
-            user_id: sess.user_id,
-            status: existing?.status || 'new',
-            card_id: sess.draft?.card || existing?.card_id || null,
-            symptom: sess.draft?.symptom || existing?.symptom || null,
-            homework: sess.homework || {},
-            customer_words_th: sess.homework?.problem_verbatim || existing?.customer_words_th || null,
-            source: 'line_oa',
-            display_name: sess.display_name,
-            updated_at: now.toISOString(),
-            created_at: existing?.created_at || now.toISOString(),
-        };
+        const row = intake.buildLeadRow({ session: sess, existing, now, status: extra.status || null });
         const saved = await deps.store.leads.upsert(row);
-        if (!existing) deps.notifier.lead({ lead: saved, session: sess, reason: extra.reason || 'first_field' }).catch(() => {});
+        const statusChanged = existing && existing.status !== saved.status;
+        if (!existing || statusChanged) {
+            const reason = extra.reason || (statusChanged ? 'status' : 'first_field');
+            deps.notifier.lead({ lead: intake.redactForDiscord(saved), summary: intake.leadSummaryTh(saved, { reason }), leadId: saved.id, userId: sess.user_id, reason }).catch(() => {});
+        }
         return saved;
     }
 }
