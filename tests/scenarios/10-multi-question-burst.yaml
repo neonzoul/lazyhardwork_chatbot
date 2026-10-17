@@ -23,17 +23,10 @@ steps:
       no_prose_list: true
       action: null
       session: { topics_covered_includes: [pricing, timeline, fit], homework_has: [business], questions_asked_max: 0 }
-  - user: "ขอดูตัวอย่าง"
-    model:
-      messages:
-        - { type: text, text: "ตัวอย่างที่ใกล้ตัวที่สุดคือบอทตัวนี้ที่คุณคุยอยู่ครับ กับระบบงานของ LazyHardWork เองที่ผมใช้ทุกวัน รีวิวดูได้ที่โปรไฟล์ Fastwork", explain: false, template: null, alt: null, data: null }
-      quick_replies: []
-      topics: [proof]
-      kb_refs: ["faq.portfolio", "about.proof"]
-      intent: proof
+  - user: "ขอดูตัวอย่าง"          # code-owned: the examples carousel, no model call
     expect:
-      replies: 1
-      quick_replies: ["ทำอะไรได้บ้าง"]               # the only uncovered topic left (howtostart is never auto-offered)
+      replies: 2
+      card: examples
       text_not_contains: ["181", "36 ราย"]
       sender: lay
       banned_clean: true

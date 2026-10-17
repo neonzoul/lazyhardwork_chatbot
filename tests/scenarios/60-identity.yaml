@@ -20,9 +20,8 @@ steps:
   - user: "ใช้เวลานานไหม"
     model: "ประมาณ 1 ถึง 2 สัปดาห์หลังได้ข้อมูลครบครับ"
     expect: { replies: 1, sender: lay, text_not_contains: ["[Agent Lay]"], banned_clean: true }
-  - user: "ขอดูตัวอย่าง"
-    model: "ตัวอย่างที่ใกล้ตัวที่สุดคือบอทตัวนี้ครับ กับระบบงานของ LazyHardWork เองที่ผมใช้ทุกวัน"
-    expect: { replies: 1, sender: lay, text_not_contains: ["[Agent Lay]", "181"], banned_clean: true }
+  - user: "ขอดูตัวอย่าง"                                      # code-owned examples carousel
+    expect: { replies: 2, card: examples, sender: lay, text_not_contains: ["[Agent Lay]", "181"], banned_clean: true }
   - user: "นี่คนหรือบอท"                                      # turn 8 (H1.5): still a straight answer
     model: "ผมเป็น Lay ผู้ช่วย AI ของมอสครับ ถ้าอยากคุยกับมอสเอง บอกได้เลย เดี๋ยวผมเรียกให้"
     expect: { replies: 1, sender: lay, text_contains: ["Lay", "ผู้ช่วย AI"], text_not_contains: ["[Agent Lay]"], banned_clean: true }

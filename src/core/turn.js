@@ -132,7 +132,7 @@ async function runTurn(input, deps, opts = {}) {
 
         // 6a. booking entry (the loose-ends / offer buttons) and typed answers inside a booking
         const endingsMod = deps.flows?.endings || lazy('../flows/endings');
-        if (endingsMod && BOOK_ENTRY_RE.test(text) && !s.booking_step) {
+        if (endingsMod && BOOK_ENTRY_RE.test(text) && (!s.booking_step || ['confirmed', 'declined', 'notify_failed'].includes(s.booking_step))) {
             return await endingsMod.onModelAction({ action: 'booking_start', response: null, input, session: s, deps, config, send, persist, done, senders, doHandoff, upsertLead });
         }
         if (input.kind === 'text' && s.booking_step && endingsMod?.onBookingText && !handoff.isAskHuman(text)) {
@@ -186,8 +186,10 @@ async function runTurn(input, deps, opts = {}) {
 
         // 10. state from the response
         session.unionTopics(s, response.topics);
-        try { endingsMod?.decorateResponse?.({ response, session: s, deps }); } catch (e) { deps.log.warn('endings.decorate_failed', { error: e?.message }); }
         const changed = session.mergeLeadUpdates(s, response.lead_updates);
+        if (s.draft?.symptom && !s.draft.card) { const fitMod = flows.fit || lazy('../flows/fit'); const c = fitMod?.cardForSymptom?.(s.draft.symptom); if (c) s.draft.card = c; }
+        if (s.draft?.card && !s.draft.tier) s.draft.tier = 'T1';
+        try { endingsMod?.decorateResponse?.({ response, session: s, deps }); } catch (e) { deps.log.warn('endings.decorate_failed', { error: e?.message }); }
         s.last_kb_refs = response.kb_refs || [];
         s.last_intent = response.intent;
         if (response.intent === 'unknown' || response.intent === 'faq' && response.action === 'handoff_unknown') s.last_unknown_question = userText;

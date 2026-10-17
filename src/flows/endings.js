@@ -104,7 +104,7 @@ function decorateResponse({ response, session, deps }) {
     if (chooseEnding(session) !== 'short' || !session.draft?.card) return false;
     const ready = homework.readyForEnding(session) || ['fit', 'howtostart', 'pricing'].includes(response.intent);
     if (!ready) return false;
-    if ((response.messages || []).some((m) => m.type === 'card')) return false;
+    if ((response.messages || []).some((m) => m.type === 'card')) { if ((response.messages || []).some((m) => m.type === 'card' && m.template === 'offer')) session.offer_shown = true; return false; }
     const card = offerCard(session, { deps });
     if (!card) return false;
     response.messages = [...(response.messages || []).slice(0, 2), { type: 'card', text: null, explain: false, template: card.template, alt: card.alt, data: card.data }];

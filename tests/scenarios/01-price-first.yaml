@@ -48,7 +48,8 @@ steps:
       intent: fit
       lead_updates: { business: "ร้านขายเสื้อผ้าออนไลน์", problem_verbatim: "ลูกค้าทักมาเยอะตอบไม่ทัน", symptom: chat_overload, card: A2 }
     expect:
-      replies_min: 1                   # same-turn offer card is BUG-2 (pinned in 16); here the draft/homework must land
+      replies_min: 2                   # BUG-2 fixed: the offer card lands the same turn the symptom is known
+      card: offer
       text_contains: ["แชทบอท"]
       text_not_contains: ["ยืนยันแล้ว", "ลดคน"]
       sender: lay
@@ -65,8 +66,8 @@ steps:
       kb_refs: ["offer.A2.T1"]
       intent: pricing
     expect:
-      replies_min: 2
-      card: offer                      # short path: the need fits the A2 door package → offer card, price from the pack
+      replies: 1
+      card: null                       # the offer card was shown once already (previous turn); never twice per session
       text_contains: ["ราคาเริ่มต้น"]
       text_not_contains: ["ยืนยันแล้ว"]
       sender: lay
