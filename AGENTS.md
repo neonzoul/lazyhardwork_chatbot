@@ -24,6 +24,8 @@ to implement. The vault is the source of truth for these docs; this repo holds w
 | **Engineering spec** (HOW — architecture, data models, build order) | `doc/spec/engineering-spec.md` |
 | **Knowledge base** (Agent Lay's brain — what the bot loads) | `knowledge/kb.md` |
 | **KB loader** (reads `knowledge/kb.md`) | `src/kb.js` |
+| **LINE platform notes** (limits, `sender`, Flex, quick reply, Rich Menu, webhook — re-read before any change that touches LINE) | `doc/line-platform-notes.md` |
+| **Lay v2 design + decisions** (vault record; code lives here, the record lives there) | `LazyHardWork/Clients/000_lazyhardwork/PJ_lineOA_chatbot_v2/design-lay-v2.md`, `decisions.md`, `build-log.md` |
 
 > Vault source of truth (for maintainers syncing back): `LazyHardWork/Clients/000_lazyhardwork/`
 
