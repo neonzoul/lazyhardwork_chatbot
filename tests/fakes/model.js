@@ -19,7 +19,6 @@ function createFakeModel({ queue = [], fallback = null } = {}) {
       if (next === 'throw') throw new Error('fake model: provider error');
       if (next === 'garbage') return { not: 'a', valid: 'response' };
       if (typeof next === 'string') return text(next);
-      if (next.messages) return next;
       return emptyResponse(next);
     },
     push(...items) { queue.push(...items); },

@@ -90,6 +90,7 @@ async function runTurn(input, deps, opts = {}) {
         const text = input.kind === 'text' ? sanitizeInput(input.text) : '';
         const data = input.kind === 'postback' ? String(input.data || '') : '';
         s.last_customer_at = now.toISOString();
+        if (text) s.last_customer_text = text;
         await deps.store.messages.append({ user_id: s.user_id, role: 'customer', kind: input.kind, text: text || data, created_at: now.toISOString(), payload: input.kind === 'postback' ? { data } : null });
 
         // 4. เรียก Lay — from any mode
@@ -122,6 +123,16 @@ async function runTurn(input, deps, opts = {}) {
             const demo = deps.flows?.demo || lazy('../flows/demo');
             if (demo && demo.runDemoTurn) return await demo.runDemoTurn({ input, text, data, session: s, deps, config, send, persist, done, sender });
             // demo module not merged yet: fall through as Lay
+        }
+
+        // 6a. booking entry (the loose-ends / offer buttons) and typed answers inside a booking
+        const endingsMod = deps.flows?.endings || lazy('../flows/endings');
+        if (endingsMod && BOOK_ENTRY_RE.test(text) && !s.booking_step) {
+            return await endingsMod.onModelAction({ action: 'booking_start', response: null, input, session: s, deps, config, send, persist, done, senders, doHandoff });
+        }
+        if (input.kind === 'text' && s.booking_step && endingsMod?.onBookingText && !handoff.isAskHuman(text)) {
+            const r = await endingsMod.onBookingText({ text, input, session: s, deps, config, send, persist, done, sender: senders.lay });
+            if (r) return r;
         }
 
         // 6. explicit human request (any state) and discount asks
@@ -165,6 +176,7 @@ async function runTurn(input, deps, opts = {}) {
 
         // 10. state from the response
         session.unionTopics(s, response.topics);
+        try { endingsMod?.decorateResponse?.({ response, session: s, deps }); } catch (e) { deps.log.warn('endings.decorate_failed', { error: e?.message }); }
         const changed = session.mergeLeadUpdates(s, response.lead_updates);
         s.last_kb_refs = response.kb_refs || [];
         s.last_intent = response.intent;
@@ -256,11 +268,11 @@ async function runTurn(input, deps, opts = {}) {
         try {
             response = await attempt();
             if (policy?.applyPolicy) {
-                let p = policy.applyPolicy(response, { session: sess, pack, allow: new Set() });
+                let p = policy.applyPolicy(response, { session: sess, pack, allow: new Set(), userText });
                 if (p.severity === 'regenerate') {
                     d.log.warn('policy.regenerate', { violations: p.violations.map((v) => v.rule || v).join(',') });
                     response = await attempt(`คำตอบก่อนหน้าละเมิดกฎ: ${p.violations.map((v) => v.rule || v).join(', ')} — ตอบใหม่โดยไม่ละเมิด`);
-                    p = policy.applyPolicy(response, { session: sess, pack, allow: new Set() });
+                    p = policy.applyPolicy(response, { session: sess, pack, allow: new Set(), userText });
                     if (p.severity === 'regenerate' || p.severity === 'fallback') throw Object.assign(new Error(`policy: ${p.violations.map((v) => v.rule || v).join(', ')}`), { kind: 'policy' });
                 } else if (p.severity === 'fallback') {
                     throw Object.assign(new Error(`policy: ${p.violations.map((v) => v.rule || v).join(', ')}`), { kind: 'policy' });
@@ -350,6 +362,7 @@ async function runTurn(input, deps, opts = {}) {
 
 // ---------------------------------------------------------------------------------------------------------------
 const MENU_TO_TEXT = { MENU_CAPABILITY: 'ทำอะไรได้บ้าง', MENU_FIT: 'เหมาะกับงานผมไหม', MENU_PRICING: 'ราคาเท่าไหร่', MENU_EXAMPLES: 'ขอดูตัวอย่าง', MENU_START: 'เริ่มยังไง', MENU_SERVICES: 'ทำอะไรได้บ้าง', MENU_PORTFOLIO: 'ขอดูตัวอย่าง' };
+const BOOK_ENTRY_RE = /^\s*(?:นัดคุยกับมอส(?:ก่อน)?|นัดคุย|ขอนัดคุย|จองคิวคุย|นัดเวลาคุย)\s*$/u;
 const GREETING_RE = /^\s*(?:สวัสดี(?:ครับ|ค่ะ|คับ)?|หวัดดี(?:ครับ|ค่ะ)?|hi|hello|ดีครับ|ดีค่ะ|ทักครับ|ทัก)\s*[!.]*\s*$/iu;
 const TELL_ME_MORE_RE = /อธิบาย(?:เพิ่ม|ละเอียด|ต่อ)|ละเอียดกว่านี้|ขอรายละเอียด|เพิ่มเติมหน่อย|ยังไง(?:บ้าง)?ครับ?$|แล้ว(?:ไง|ยังไง)ต่อ|มีอะไรอีก|ดีเทล|detail/iu;
 const QUESTION_RE = /(?:ไหม|มั้ย|หรือเปล่า|หรือยัง|อะไร(?:บ้าง)?|ยังไง|กี่\S*|ที่ไหน|เมื่อไหร่|ช่วงไหน|แบบไหน)\s*(?:ครับ|คะ)?\s*[?？]?\s*$/u;
@@ -360,6 +373,7 @@ function countQuestions(response) { return (response.messages || []).filter((m) 
 function topicCovered(label, s) { const t = topics.LABEL_TO_TOPIC[label]; return t ? (s.topics_covered || []).includes(t) : false; }
 function markTemplate(m, template) { Object.defineProperty(m, '_template', { value: template, enumerable: false }); if (m.contents) Object.defineProperty(m.contents, '_template', { value: template, enumerable: false }); }
 function cardContext(pack, config) {
+    if (pack?.cardContext) return pack.cardContext;
     const ladder = pack?.ladders || {};
     return {
         assets: pack?.assets || {},
@@ -395,4 +409,4 @@ function createEventHandler(deps, opts = {}) {
 }
 
 const INPUT_KINDS = ['text', 'postback', 'media', 'follow', 'unfollow', 'mos_relay', 'mos_release'];
-module.exports = { runTurn, createEventHandler, isGreeting, isTellMeMore, countQuestions, sanitizeInput, MENU_TO_TEXT, INPUT_KINDS };
+module.exports = { cardContext, runTurn, createEventHandler, isGreeting, isTellMeMore, countQuestions, sanitizeInput, MENU_TO_TEXT, INPUT_KINDS };

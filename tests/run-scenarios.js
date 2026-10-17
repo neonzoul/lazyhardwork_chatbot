@@ -32,6 +32,8 @@ const { createFakeModel } = require('./fakes/model');
 const { createFakeClock } = require('./fakes/clock');
 const { createFakeStore } = require('./fakes/store');
 const lint = require('../src/core/lint');
+let PACK = null;
+try { const { loadPack } = require('../src/brain/kb'); PACK = loadPack(path.join(__dirname, '..', 'knowledge')); } catch { PACK = null; }
 
 const SENDER_NAMES = { lay: 'Lay · ผู้ช่วย AI', mos: 'มอส' };
 
@@ -100,7 +102,7 @@ async function runScenario(sc, { turn, modelMode }) {
   const model = modelMode === 'real' ? require('../src/brain/respond').createModel() : createFakeModel();
   const clock = createFakeClock(sc.start || undefined);
   const store = createFakeStore();
-  const deps = { line, notifier, model, clock, store, log: { info() {}, warn() {}, error() {} } };
+  const deps = { line, notifier, model, clock, store, pack: sc.pack || PACK, log: { info() {}, warn() {}, error() {} } };
   const userId = sc.user?.id || 'Utest';
   if (sc.session) { const s = await store.sessions.getOrCreate(userId); Object.assign(s, sc.session); await store.sessions.save(s); }
 

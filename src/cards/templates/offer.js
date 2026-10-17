@@ -64,7 +64,7 @@ function fallback(data, ctx) {
     quick.push({ label: P.shortLabel(data.secondary_cta.label), ...actionOf(data.secondary_cta) });
   }
   return {
-    text: [data.title, ...(data.bullets || []).map((b) => `- ${b}`), priceLine, data.note].filter(Boolean).join('\n'),
+    text: [data.title, (data.bullets || []).join(' · '), priceLine, data.note].filter(Boolean).join('\n'),
     quick_replies: quick.slice(0, 4),
   };
 }

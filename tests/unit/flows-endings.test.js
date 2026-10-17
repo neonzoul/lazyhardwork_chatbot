@@ -160,7 +160,7 @@ test('pipeline: short path — the offer card renders as flex with ราคา�
 
 async function bookToSummary(w, { modelQueue } = {}) {
   if (modelQueue) w.model.push(...modelQueue); else w.model.push(bookingStart());
-  const r1 = await runTurn(w.input({ text: 'เริ่มยังไง' }), w.deps);
+  const r1 = await runTurn(w.input({ text: 'ร้านกาแฟครับ ตอบแชทลูกค้าไม่ทัน เริ่มยังไง' }), w.deps);
   assert.equal(r1.errors.length, 0);
   assert.equal(r1.session.booking_step, 'window_day');
   assert.equal(r1.session.draft.name, 'พี่เอ'); // name skipped: displayName known
@@ -267,7 +267,7 @@ test('pipeline: a model booking_confirm is ignored (logged), the state machine k
   const w2 = world();
   await bookToSummary(w2);
   w2.line.reset();
-  w2.model.push(text('ยืนยันแล้วครับ', { intent: 'booking', action: 'booking_confirm' }));
+  w2.model.push(text('รับทราบครับ', { intent: 'booking', action: 'booking_confirm' }));
   const r2 = await runTurn(w2.input({ text: 'ยืนยัน' }), w2.deps);
   assert.equal(w2.store.bookings.all().length, 0); assert.equal(r2.session.booking_step, 'summary');
   assert.ok(w2.line.cards().length === 1); // the summary is shown again instead

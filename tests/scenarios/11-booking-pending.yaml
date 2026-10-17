@@ -2,7 +2,7 @@ name: booking · long path to pending — notify before promise, no ยืนย
 covers: ["§3.6 long path", "flow §6.2 state machine", "flow §6.4 human gate", "§9 H4 booking integrity", "§3.10 never silent"]
 user: { id: Utest-booking, displayName: "พี่เอ" }
 steps:
-  - user: "เริ่มยังไง"
+  - user: "ร้านกาแฟครับ ตอบแชทลูกค้าไม่ทัน เริ่มยังไง"
     model:
       messages:
         - { type: text, text: "ได้เลยครับ ขั้นแรกคือนัดคุยกับมอส 30 นาที เพื่อดูงานจริงก่อน", explain: false, template: null, alt: null, data: null }

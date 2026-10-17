@@ -62,7 +62,9 @@ function loadPack(dir = path.join(__dirname, '..', '..', 'knowledge')) {
   const promotions = fs.existsSync(promoPath) ? (yaml.load(fs.readFileSync(promoPath, 'utf8')) || {}).promotions || [] : [];
   const manifestPath = path.join(dir, 'kb-manifest.json');
   const manifest = fs.existsSync(manifestPath) ? JSON.parse(fs.readFileSync(manifestPath, 'utf8')) : null;
-  return { dir, files, sections, promotions, manifest };
+  const laddersPath = path.join(dir, 'ladders.json');
+  const laddersJson = fs.existsSync(laddersPath) ? JSON.parse(fs.readFileSync(laddersPath, 'utf8')) : { ladders: {}, fastworkUrls: {} };
+  return { dir, files, sections, promotions, manifest, ladders: laddersJson.ladders || {}, careMonthly: laddersJson.care_monthly || {}, tierNamesTh: laddersJson.tier_names_th || {}, fastworkUrls: laddersJson.fastworkUrls || {} };
 }
 
 function toDay(d) {

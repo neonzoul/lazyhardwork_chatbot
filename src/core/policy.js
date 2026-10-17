@@ -29,7 +29,7 @@ const EMOJI_ALL_RE = /\p{Extended_Pictographic}|[\u{1F1E6}-\u{1F1FF}]|[0-9#*]️
 
 const strings = {
   fallback: (phone) => (phone
-    ? `ตอนนี้ระบบขัดข้องชั่วคราวครับ ถ้ารีบ โทร ${phone} (มอส) ได้เลย`
+    ? `ตอนนี้ระบบขัดข้องชั่วคราวครับ ถ้ารีบ โทร ${phone}${/มอส/.test(phone) ? '' : ' (มอส)'} ได้เลย`
     : 'ตอนนี้ระบบขัดข้องชั่วคราวครับ เดี๋ยวมอสเข้ามาดูให้นะครับ'),
   fallbackQuickReply: 'เรียก Lay',
 };

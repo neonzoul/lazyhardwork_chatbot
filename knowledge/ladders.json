@@ -1,0 +1,72 @@
+{
+  "ladders": {
+    "A1": {
+      "name": "Agentic Workflow / Internal AI System",
+      "tiers": {
+        "T1": 4900,
+        "T2": 49000,
+        "T3": 109000,
+        "T4": 390000
+      }
+    },
+    "A2": {
+      "name": "AI Chatbot (LINE OA / Facebook / web)",
+      "tiers": {
+        "T1": 15000,
+        "T2": 29000,
+        "T3": 45000,
+        "T4": 150000
+      },
+      "add_channel": 6000
+    },
+    "A3": {
+      "name": "AI Automation",
+      "tiers": {
+        "T1": 12000,
+        "T2": 29000,
+        "T3": 49000,
+        "T4": 150000
+      }
+    },
+    "A4": {
+      "name": "AI Workspace Setup",
+      "tiers": {
+        "T1": 4999,
+        "T2": 9900,
+        "T3": 19000,
+        "T4": 59000
+      }
+    },
+    "C1": {
+      "name": "AI Business Review",
+      "tiers": {
+        "T1": 4900
+      }
+    }
+  },
+  "care_monthly": {
+    "standard": 4500,
+    "free_months_after_delivery": 3,
+    "chatbot_by_messages": [
+      [
+        1000,
+        2500
+      ],
+      [
+        3000,
+        3500
+      ],
+      [
+        8000,
+        4500
+      ]
+    ]
+  },
+  "tier_names_th": {
+    "T1": "ลองก่อน",
+    "T2": "วางระบบ",
+    "T3": "ให้ระบบรันเอง",
+    "T4": "ทีม AI ประจำธุรกิจ"
+  },
+  "fastworkUrls": {}
+}
