@@ -1,5 +1,8 @@
 // In-memory store with the repository shape src/store will implement (T1). Enough for scenarios and flows.
+const { summarise, sinceIso } = require('../../src/store/repo/llmCalls');
+
 function createFakeStore() {
+  const llmCalls = [];
   const sessions = new Map();
   const messages = [];
   const leads = new Map();
@@ -42,7 +45,14 @@ function createFakeStore() {
     },
     kbGaps: { append: async (g) => { kbGaps.push({ id: nextId('g'), ...g }); }, all: () => kbGaps },
     events: { append: async (e) => { events.push({ id: nextId('e'), ...e }); }, all: () => events },
-    _dump: () => ({ sessions: [...sessions.values()], messages, leads: [...leads.values()], bookings: [...bookings.values()], kbGaps, events }),
+    llmCalls: {
+      append: async (r) => { const row = { id: nextId('c'), attempts: 1, ...r }; llmCalls.push(row); return row; },
+      since: async (iso, { task, limit = 200 } = {}) => llmCalls.filter((r) => (!iso || r.ts >= iso) && (!task || r.task === task)).slice(-limit).reverse(),
+      recent: async (n = 100) => llmCalls.slice(-n).reverse(),
+      summary: async ({ days = 7, now } = {}) => summarise(llmCalls.filter((r) => r.ts >= sinceIso({ days, now }))),
+      all: () => llmCalls,
+    },
+    _dump: () => ({ sessions: [...sessions.values()], messages, leads: [...leads.values()], bookings: [...bookings.values()], kbGaps, events, llmCalls }),
   };
 }
 

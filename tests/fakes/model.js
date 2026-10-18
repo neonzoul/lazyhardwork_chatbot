@@ -1,6 +1,7 @@
 // Scripted model. Each call pops the next response from the queue (or uses `fallback`).
 // Queue items may be: a full response object, a partial merged over emptyResponse(), the string 'throw'
-// (model error), or the string 'garbage' (unparseable output) — for fault injection.
+// (model error), the string 'garbage' (unparseable output) or the string 'exhausted' (throws `kind: 'exhausted'`,
+// every OpenRouter key out of credit) — for fault injection.
 const { emptyResponse } = require('../../src/brain/schema');
 
 function text(t, extra = {}) {
@@ -17,6 +18,7 @@ function createFakeModel({ queue = [], fallback = null } = {}) {
       const next = queue.length ? queue.shift() : fallback;
       if (next === null || next === undefined) throw new Error('fake model: no scripted response left');
       if (next === 'throw') throw new Error('fake model: provider error');
+      if (next === 'exhausted') throw Object.assign(new Error('fake model: key limit exhausted'), { kind: 'exhausted', status: 402 });
       if (next === 'garbage') return { not: 'a', valid: 'response' };
       if (typeof next === 'string') return text(next);
       return emptyResponse(next);

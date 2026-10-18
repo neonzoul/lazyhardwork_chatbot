@@ -16,7 +16,11 @@ module.exports = {
         mosUserId: env.MOS_LINE_USER_ID,
     },
     llm: {
-        apiKey: env.OPENAI_API_KEY,
+        apiKey: env.OPENAI_API_KEY,                                          // legacy (OpenAI direct) — unused by v2 since 2026-10-18
+        // OpenRouter keys in rotation order (doc/llm.md §5). Spare keys are optional.
+        openrouterKeys: [env.OPENROUTER_API_KEY, env.OPENROUTER_API_KEY_2, env.OPENROUTER_API_KEY_3].filter((k) => k && k.trim()),
+        // LLM_MODEL_<TASK> per-task overrides (src/brain/router.js), e.g. LLM_MODEL_LAY_REPLY=openai/gpt-4.1-mini
+        modelOverrides: Object.fromEntries(Object.entries(env).filter(([k]) => k.startsWith('LLM_MODEL_'))),
     },
     discord: {
         leadsWebhook: env.DISCORD_LEADS_WEBHOOK,

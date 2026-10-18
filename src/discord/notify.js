@@ -31,16 +31,17 @@ function createRestTransport({ botToken, fetchImpl = globalThis.fetch, timeoutMs
             await r.post(`/channels/${thread.id}/messages`, { body: { content, allowed_mentions: { parse: [] } } });
             return { threadId: thread.id };
         },
-        async postMessage({ channelId, content }) {
-            await need().post(`/channels/${channelId}/messages`, { body: { content, allowed_mentions: { parse: [] } } });
+        // allowedMentions defaults to none; discord/alerts passes { parse: ['everyone'] } for @here on critical alerts.
+        async postMessage({ channelId, content, allowedMentions }) {
+            await need().post(`/channels/${channelId}/messages`, { body: { content, allowed_mentions: allowedMentions || { parse: [] } } });
         },
-        async postWebhook({ url, content }) {
+        async postWebhook({ url, content, allowedMentions }) {
             if (!url) throw new Error('discord webhook not configured');
             if (typeof fetchImpl !== 'function') throw new Error('fetch unavailable');
             const res = await fetchImpl(url, {
                 method: 'POST',
                 headers: { 'content-type': 'application/json' },
-                body: JSON.stringify({ content, allowed_mentions: { parse: [] } }),
+                body: JSON.stringify({ content, allowed_mentions: allowedMentions || { parse: [] } }),
                 signal: AbortSignal.timeout(timeoutMs),
             });
             if (!res.ok) throw new Error(`webhook ${res.status}`);

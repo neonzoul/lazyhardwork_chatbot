@@ -267,9 +267,12 @@ async function runTurn(input, deps, opts = {}) {
             : `คุณคือ Lay ผู้ช่วย AI ของมอส (LazyHardWork) ตอบสั้น สุภาพ ครับ ตอบเป็น JSON ตาม schema`;
         const messages = prompt?.buildMessages ? prompt.buildMessages({ systemPrompt: system, history, userText }) : [{ role: 'system', content: system }, ...history.map((h) => ({ role: h.role === 'customer' ? 'user' : 'assistant', content: h.text })), { role: 'user', content: userText }];
         const { responseSchema } = require('../brain/schema');
+        const degraded = d.degraded || lazy('./degraded');
 
         const attempt = async (extraNote) => {
-            const req = { system, messages: extraNote ? [...messages, { role: 'system', content: extraNote }] : messages, schema: responseSchema };
+            // no hammering: while every key is exhausted the provider is not called at all (keys are re-checked at their reset time)
+            if (d.keyring?.status?.().exhausted) throw Object.assign(new Error('llm keys exhausted (call skipped)'), { kind: 'exhausted', skipped: true });
+            const req = { system, messages: extraNote ? [...messages, { role: 'system', content: extraNote }] : messages, schema: responseSchema, meta: { user_id: sess.user_id, agent: 'lay' } };
             const raw = await d.model.respond(req);
             const v = validateResponse(raw);
             if (!v.ok) throw Object.assign(new Error(`model output invalid: ${v.errors.join('; ')}`), { kind: 'invalid_output' });
@@ -296,11 +299,35 @@ async function runTurn(input, deps, opts = {}) {
             }
             return response;
         } catch (err) {
+            if (err.kind === 'exhausted' && degraded?.degradedReply) return await degradedTurn(err);
             errs.push(err);
             d.log.error('model.fallback', { userId: sess.user_id, kind: err.kind || 'error', error: err.message });
             await d.store.events.append({ kind: 'model_fallback', user_id: sess.user_id, payload: { error: err.message }, created_at: at.toISOString() });
             if (policy?.fallbackReply) return policy.fallbackReply({ reason: err.kind || 'error', config: cfg });
             return emptyResponse({ messages: [{ type: 'text', text: fallbackText(cfg), explain: false, template: null, alt: null, data: null }], quick_replies: [quiet.CALL_LAY_LABEL], intent: 'unknown' });
+        }
+
+        // Every OpenRouter key is out (doc/llm.md §5): (a) tell Mos in #crm (throttled inside alerts), (b) forward the
+        // customer's question — notify before promise, (c) a schema-valid degraded reply. Lay stays in mode `lay`.
+        // "เหมาะกับงานผมไหม" needs no model: the five-symptom choice card is rendered by code instead.
+        async function degradedTurn(err) {
+            errs.push(err);
+            d.log.error('llm_exhausted_turn', { userId: sess.user_id, skipped: !!err.skipped, intent: intentHint, error: err.message });
+            await d.store.events.append({ kind: 'llm_exhausted_turn', user_id: sess.user_id, payload: { error: err.message, skipped: !!err.skipped, intent: intentHint }, created_at: at.toISOString() });
+            try { await d.alerts?.critical?.({ kind: 'llm_exhausted', detail: { task: 'lay.reply', skipped: !!err.skipped, error: String(err.message).slice(0, 200) } }); }
+            catch (e) { d.log.warn('alerts.critical_failed', { error: e?.message }); }
+            if (intentHint === 'fit' && !sess.draft?.symptom && degraded.degradedFitChoiceReply) return degraded.degradedFitChoiceReply({ config: cfg });
+            try {
+                const lead = await upsertLead(sess, { reason: 'llm_exhausted' });
+                const res = await d.notifier.handoff({ kind: 'handoff_unknown', session: sess, lead, question: userText, draft: sess.draft });
+                if (res?.threadId) sess.discord_thread_id = res.threadId;
+            } catch (e) {
+                d.log.error('llm_exhausted_notify_failed', { userId: sess.user_id, error: e?.message });
+                await d.store.events.append({ kind: 'handoff_notify_failed', user_id: sess.user_id, payload: { kind: 'llm_exhausted', error: e?.message }, created_at: at.toISOString() });
+                return degraded.degradedNotifyFailedReply({ config: cfg });
+            }
+            sess.last_unknown_question = userText;
+            return degraded.degradedReply({ config: cfg });
         }
     }
 
