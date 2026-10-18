@@ -221,11 +221,15 @@ function renderShopMessages(response, { sess, deps, config }) {
         if (m.type === 'text') { if (m.text && m.text.trim()) out.push(msg.text(lint.stripMarkdown(m.text))); continue; }
         if (m.type !== 'card') continue;
         if (m.template === 'summary_confirm') {
-            const fields = Array.isArray(m.data && m.data.fields) ? m.data.fields.filter((f) => f && f.k && f.v).slice(0, 6) : [];
+            const fields = (Array.isArray(m.data && m.data.fields) ? m.data.fields : [])
+                .filter((f) => f && f.k && f.v && !/^(?:กรุณา|โปรด|ระบุ|-|—|\?)/u.test(String(f.v).trim()))
+                .slice(0, 6);
+            const nameKey = (SHOP_DEFS[sess.demo_shop].fields || []).find((k) => /^ชื่อ/u.test(k));
+            if (nameKey && sess.display_name && fields.length && !fields.some((f) => f.k === nameKey)) fields.splice(Math.max(0, fields.length - 1), 0, { k: nameKey, v: sess.display_name });
             const title = (m.data && m.data.title) || `สรุป${SHOP_DEFS[sess.demo_shop].order_noun} (ร้านตัวอย่าง)`;
             state.order = { title, fields };
             state.step = 'confirm';
-            const data = { title, fields, status: 'pending', confirm_postback: POSTBACKS.confirm, edit_postback: POSTBACKS.edit };
+            const data = { title, fields: fields.slice(0, 6), status: 'pending', status_label: 'รอเจ้าของร้านยืนยัน', confirm_postback: POSTBACKS.confirm, edit_postback: POSTBACKS.edit };
             const card = cards ? examples.flexMessage(cards, 'summary_confirm', data, ctx, `${title} รอยืนยัน`) : null;
             if (card && card.message) { out.push(markTemplate(card.message, 'summary_confirm')); if (card.quickReplies) response._fallbackQuick = card.quickReplies; continue; }
             out.push(msg.text([title, ...fields.map((f) => `${f.k}: ${f.v}`)].join('\n')));

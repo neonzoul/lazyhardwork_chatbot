@@ -337,3 +337,19 @@ test('strings pass lint: no banned phrases, no emoji, no prose lists, labels ≤
   assert.deepEqual(demo.withBack(['a', 'b', 'c', 'd', 'e']), ['a', 'b', 'c', 'กลับไปคุยกับ Lay']);
   assert.deepEqual(demo.withBack(['กลับไปคุยกับ Lay', 'a']), ['a', 'กลับไปคุยกับ Lay']);
 });
+
+test('phone run 18 Oct: demo summary says the shop confirms (not Mos), drops placeholder values, fills the name; เรียก Lay from a demo gives the exit line', async () => {
+  const w = world();
+  await runTurn(w.input({ kind: 'postback', data: 'DEMO_ENTER_cafe' }), w.deps);
+  w.line.reset();
+  w.model.push(card('summary_confirm', { title: 'สรุปออเดอร์ (ร้านตัวอย่าง)', fields: [{ k: 'รายการ', v: 'ลาเต้เย็น' }, { k: 'ชื่อผู้รับ', v: 'กรุณาแจ้งชื่อผู้รับ' }, { k: 'ยอดรวม', v: '70 บาท' }] }, 'สรุปออเดอร์'));
+  await runTurn(w.input({ text: 'รับที่ร้าน' }), w.deps);
+  const json = JSON.stringify(w.line.cards()[0]);
+  assert.match(json, /รอเจ้าของร้านยืนยัน/);
+  assert.doesNotMatch(json, /รอมอสยืนยัน/);
+  assert.doesNotMatch(json, /กรุณาแจ้ง/);
+  w.line.reset();
+  const r = await runTurn(w.input({ text: 'กลับไปคุยกับ Lay' }), w.deps);
+  assert.equal(r.session.mode, 'lay');
+  assert.doesNotMatch(w.line.texts().join('\n'), /คุยกับ Lay อยู่แล้ว/);
+});

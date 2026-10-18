@@ -56,7 +56,8 @@ test('handoffOpening: lead id, kind, customer words, homework (filled only), dra
     assert.ok(!/came_from|facebook/.test(o), 'came_from is not part of the summary');
     assert.match(o, /ร่างที่คุยกันอยู่: การ์ด line-oa-assistant/);
     assert.ok(o.endsWith(fmt.HOW_TO_REPLY));
-    assert.match(o, /\/approve · \/propose <ช่วงเวลา> · \/decline · \/lay/);
+    assert.match(o, /`\/approve` · `\/propose [^`]+` · `\/decline`/);
+    assert.match(o, /`\/lay`/);
     assertClean(o, 'opening');
 });
 

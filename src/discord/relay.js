@@ -78,6 +78,11 @@ function createRelay({ botToken, guildId, leadsChannelId, store, onMosMessage, o
                 return say(channel, (res && res.text) || (res?.ok ? '✅' : '❌'));
             }
             if (!who.userId) return say(channel, strings.noCustomer);
+            // A command typed mid-sentence, or the help text pasted back, must never reach the customer.
+            if (/(^|\s)\/(approve|propose|decline|lay)/i.test(content) || /วิธีตอบ|ส่งถึงลูกค้าในนาม/u.test(content)) {
+                logger.warn('discord.relay_blocked_command_like', { threadId });
+                return say(channel, '❌ ไม่ได้ส่งถึงลูกค้า: ข้อความนี้มีคำสั่งอยู่กลางประโยค คำสั่งต้องขึ้นต้นบรรทัดด้วย / เช่น `/lay` ถ้าจะคุยกับลูกค้า พิมพ์ข้อความธรรมดาได้เลย');
+            }
             if (!onMosMessage) return;
             try {
                 await onMosMessage({ threadId, userId: who.userId, lead_id: who.lead_id, text: content });

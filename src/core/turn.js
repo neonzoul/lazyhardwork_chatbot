@@ -96,12 +96,13 @@ async function runTurn(input, deps, opts = {}) {
 
         // 4. เรียก Lay — from any mode
         if (quiet.isCallLay(input)) {
-            const was = quiet.callLay(s, now);
-            if (was === 'demo') {
+            // Inside a demo the demo module exits itself (it needs mode === 'demo' to write the exit line + symptom card).
+            if (s.mode === 'demo') {
                 const demo = deps.flows?.demo || lazy('../flows/demo');
-                if (demo?.exitDemo) demo.exitDemo(s, now); else { s.demo_shop = null; s.demo_state = null; }
                 if (demo?.onModelAction) { const r = await demo.onModelAction({ action: 'demo_exit', response: null, input, session: s, deps, config, send, persist, done, senders, doHandoff }); if (r && typeof r === 'object') r.action = 'demo_exit'; return r; }
+                if (demo?.exitDemo) demo.exitDemo(s, now); else { s.demo_shop = null; s.demo_state = null; }
             }
+            const was = quiet.callLay(s, now);
             const qr = topics.nextQuickReplies(null, s.topics_covered);
             const sent = await send(input, [msg.text(quiet.strings.back)], qr, senders.lay);
             await persist(input, s, sent, { role: 'lay' });

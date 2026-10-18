@@ -23,7 +23,12 @@ const HOMEWORK_LABELS = [
     ['preferred_contact', 'ช่องทางที่สะดวก'],
 ];
 
-const HOW_TO_REPLY = 'วิธีตอบ: พิมพ์ในเธรดนี้ = ส่งถึงลูกค้าในนาม มอส · /approve · /propose <ช่วงเวลา> · /decline · /lay';
+const HOW_TO_REPLY = [
+    'วิธีตอบ',
+    '• พิมพ์ข้อความธรรมดาในเธรดนี้ → ลูกค้าได้รับในนาม "มอส"',
+    '• คำสั่งต้องขึ้นต้นบรรทัดด้วย / เช่น `/lay` (ให้ Lay กลับมาดูแล)',
+    '• งานนัดคุย: `/approve` · `/propose พรุ่งนี้ บ่าย 13-17` · `/decline`',
+].join('\n');
 
 // Contact-looking content is scrubbed even when it arrives inside free text (the customer may have typed a phone number).
 const PHONE_RE = /(?:\+?66|0)[\s-]?\d(?:[\s-]?\d){7,9}/g;
