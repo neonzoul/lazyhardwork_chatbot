@@ -43,11 +43,12 @@ The model proposes words; code decides prices, URLs, actions, state and buttons.
 body `usage: { include: true }` (OpenRouter then returns `usage.cost` in USD and `cached_tokens`), `max_tokens` from the
 task, `maxRetries: 0` (we do our own recovery).
 
-- **Structured output.** `response_format: { type: 'json_schema', json_schema }`. OpenAI strict mode requires
-  `additionalProperties: false` on every object; `lay_turn`'s card `data` is a free-form object, so the provider sends
-  the schema with `strict: false` (JSON mode guided by the schema) and logs `llm.schema_not_strict` once. Validity is
-  held by `validateResponse` + one repair call, exactly as before. Live 2026-10-18: 14/14 valid with one repair.
-  Follow-up for the schema owner: type the card `data` per template to get strict mode back.
+- **Structured output.** `response_format: { type: 'json_schema', json_schema }` with `strict: true`. OpenAI strict
+  mode requires `additionalProperties: false` on every object, so since 2026-10-18 the card `data` field is a **JSON
+  string** in the schema (`src/brain/schema.js`); `respond.js` parses it back to an object before `validateResponse`.
+  If a schema is ever strict-incompatible again, the provider falls back to `strict: false` and logs
+  `llm.schema_not_strict` once. Validity is held by `validateResponse` + one repair call. Live 2026-10-18 (pre-fix):
+  14/14 valid with one repair.
 - **Repair.** Invalid output → one `lay.repair` call on the same model and key (600 tokens) quoting the errors; still
   invalid → `ModelOutputError('invalid')`.
 - **Key rotation.** HTTP 402, or a 429/403 whose body talks about credits / key limits → the key is marked exhausted
