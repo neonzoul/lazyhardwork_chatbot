@@ -32,7 +32,7 @@ function build(data, ctx) {
   const priceText = formatPrice(price.price_from);
 
   const body = [
-    P.header(title, price.label_th),
+    P.header(title),   // the price appears once, in the price row (phone check 2026-10-18)
     P.separator(),
     { type: 'box', layout: 'vertical', spacing: 'sm', contents: bullets.map((b) => P.bulletRow(b)) },
     P.separator(),

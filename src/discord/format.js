@@ -105,8 +105,9 @@ function kbGapLine({ question } = {}) {
     return `❔ KB gap: “${clip(scrub(question), 200)}”`;
 }
 
-function leadLine({ lead } = {}) {
-    const bits = [`🟢 ลีดใหม่ **${leadId(lead)}**`];
+function leadLine({ lead, reason } = {}) {
+    const isNew = !reason || reason === 'first_field';
+    const bits = [isNew ? `🟢 ลีดใหม่ **${leadId(lead)}**` : `🔵 อัปเดตลีด **${leadId(lead)}**${lead && lead.status ? ` → ${clip(scrub(lead.status), 24)}` : ''}`];
     if (lead && lead.card_id) bits.push(`การ์ด ${clip(scrub(lead.card_id), 24)}`);
     if (lead && lead.symptom) bits.push(`อาการ ${clip(scrub(lead.symptom), 40)}`);
     if (lead && lead.homework && lead.homework.business) bits.push(`ธุรกิจ ${clip(scrub(lead.homework.business), 40)}`);

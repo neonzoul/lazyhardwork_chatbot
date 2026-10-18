@@ -121,7 +121,7 @@ function createNotifier({ botToken, guildId, leadsChannelId, crmChannelId, leads
             });
         },
         async kbGap({ question }) { await postLine(fmt.kbGapLine({ question }), 'discord.kbgap_failed'); },
-        async lead({ lead }) { await postLine(fmt.leadLine({ lead }), 'discord.lead_failed'); },
+        async lead({ lead, reason }) { await postLine(fmt.leadLine({ lead, reason }), 'discord.lead_failed'); },
         async relayToMos({ threadId, text }) {
             if (!threadId || !botReady()) return;
             try { await t.postMessage({ channelId: threadId, content: fmt.mirrorLine({ text }) }); }
