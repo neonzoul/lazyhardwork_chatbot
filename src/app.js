@@ -7,6 +7,8 @@ const config = require('./config');
 const { createLineClient } = require('./line/client');
 const { createStore } = require('./store');
 const { createModel } = require('./brain/respond');
+const { createKeyring } = require('./brain/keys');
+const { createBudget, createTracker, keyStatusLine } = require('./brain/budget');
 const { loadPack } = require('./brain/kb');
 const { createDeps, consoleLog } = require('./core/deps');
 const { createEventHandler, runTurn } = require('./core/turn');
@@ -24,7 +26,21 @@ function createApp({ overrides = {} } = {}) {
     const examplesFlow = optional('./flows/examples');
     if (examplesFlow?.examplesAssets) pack.assets = { ...(pack.assets || {}), ...examplesFlow.examplesAssets(config) };
     const lineClient = overrides.line || createLineClient({ channelAccessToken: config.line.channelAccessToken, log });
-    const model = overrides.model || createModel();
+    // LLM platform (doc/llm.md): keyring → budget → alerts → tracker → model. `alerts` is read lazily by the hooks.
+    let alerts = overrides.alerts || null;
+    const keyring = overrides.keyring || createKeyring({
+        keys: config.llm.openrouterKeys, log,
+        onRecovered: (st) => alerts?.recovered?.({ kind: 'llm_exhausted', detail: { usable: st.usable, total: st.total } }).catch?.(() => {}),
+    });
+    const budget = overrides.budget || createBudget({ keyring, log, onWarn: (w) => alerts?.warn?.(w) });
+    if (!alerts) {
+        const alertsMod = optional('./discord/alerts');
+        if (alertsMod?.createAlerts) {
+            alerts = alertsMod.createAlerts({ botToken: config.discord.botToken, crmChannelId: config.discord.crmChannelId, leadsChannelId: config.discord.leadsChannelId, crmWebhook: config.discord.crmWebhook, log, statusLine: () => keyStatusLine(keyring, budget) });
+        }
+    }
+    const tracker = overrides.tracker || createTracker({ store, budget, log });
+    const model = overrides.model || createModel({ task: 'lay.reply', keyring, tracker, log });
 
     // Notifier: Discord module when merged, else the legacy webhook poster adapted to the interface.
     let notifier = overrides.notifier;
@@ -45,7 +61,7 @@ function createApp({ overrides = {} } = {}) {
         }
     }
 
-    const deps = createDeps({ line: lineClient, notifier, store, model, log, pack, config, senders: createSenders(config) });
+    const deps = createDeps({ line: lineClient, notifier, store, model, log, pack, config, senders: createSenders(config), keyring, budget, alerts });
     const handleEvent = createEventHandler(deps);
 
     const app = express();
@@ -60,7 +76,7 @@ function createApp({ overrides = {} } = {}) {
         }
     });
 
-    app.use(createAdminRouter({ store, token: config.adminToken, log }));
+    app.use(createAdminRouter({ store, token: config.adminToken, log, llm: { keyring, budget, statusLine: () => keyStatusLine(keyring, budget) } }));
 
     // Signature failures and other middleware errors: a quiet 401/500 JSON, never Express's HTML stack.
     // eslint-disable-next-line no-unused-vars
@@ -84,15 +100,23 @@ function createApp({ overrides = {} } = {}) {
     }
 
     let server = null;
+    let budgetTimer = null;
     return {
         app, deps, pack,
         async start(port = config.port) {
             server = await new Promise((resolve) => { const s = app.listen(port, () => resolve(s)); });
-            log.info('app.started', { port, knowledge: pack.manifest?.built_at, relay: !!relay });
+            log.info('app.started', { port, knowledge: pack.manifest?.built_at, relay: !!relay, llm_keys: keyring.size });
             if (relay) relay.start().catch((e) => log.error('relay.start_failed', { error: e?.message }));
+            // key limits from /auth/key (gives the budget its limit for the 80 % warning); refreshed every 10 min, throttled inside
+            if (keyring.size && !overrides.budget) {
+                budget.refresh().catch(() => {});
+                budgetTimer = setInterval(() => budget.refresh().catch(() => {}), 10 * 60 * 1000);
+                budgetTimer.unref?.();
+            }
             return server;
         },
         async stop() {
+            if (budgetTimer) { clearInterval(budgetTimer); budgetTimer = null; }
             if (relay) await relay.stop().catch(() => {});
             if (server) await new Promise((r) => server.close(r));
             await store.close?.();

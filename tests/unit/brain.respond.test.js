@@ -37,9 +37,11 @@ test('valid output → parsed response with non-enumerable _meta; request carrie
   assert.ok(typeof r._meta.latencyMs === 'number');
   const { body, opts } = client.calls[0];
   assert.equal(body.model, 'test-model');
-  assert.equal(body.max_completion_tokens, 777);
+  assert.equal(body.max_tokens, 777);
+  assert.deepEqual(body.usage, { include: true }, 'OpenRouter returns usage.cost only when asked');
   assert.equal(body.temperature, 0.2);
-  assert.deepEqual(body.response_format, { type: 'json_schema', json_schema: responseSchema });
+  // lay_turn carries a free-form card `data` object, which OpenAI strict mode rejects → sent as strict: false (doc/llm.md §2)
+  assert.deepEqual(body.response_format, { type: 'json_schema', json_schema: { ...responseSchema, strict: false } });
   assert.equal(body.messages[0].role, 'system');
   assert.equal(body.messages[0].content, 'SYS');
   assert.equal(body.messages[1].role, 'user');
@@ -71,7 +73,7 @@ test('invalid then repaired → ok, repair call quotes the errors and the bad ou
   assert.equal(repair.at(-1).role, 'user');
   assert.ok(repair.at(-1).content.includes('intent: unknown fly'));
   assert.ok(repair.at(-1).content.includes('quick_replies: array ≤ 4'));
-  assert.equal(warns[0][0], 'model_output_invalid');
+  assert.ok(warns.some(([e]) => e === 'model_output_invalid'));
 });
 
 test('unparseable JSON counts as invalid and is repaired', async () => {
@@ -116,8 +118,12 @@ test('provider errors → ModelError kind provider; timeouts → kind timeout', 
     assert.equal(e.cause, boom);
     return true;
   });
+  // a timeout earns one try on the fallback model (doc/llm.md §2); when that times out too the kind is still timeout
   const slow = Object.assign(new Error('Request timed out.'), { name: 'APIConnectionTimeoutError' });
-  await assert.rejects(createModel({ client: fakeClient([slow]) }).respond(req()), (e) => e.kind === 'timeout');
+  const slowClient = fakeClient([slow, slow]);
+  await assert.rejects(createModel({ client: slowClient }).respond(req()), (e) => e.kind === 'timeout');
+  assert.equal(slowClient.calls.length, 2);
+  assert.notEqual(slowClient.calls[1].body.model, slowClient.calls[0].body.model);
   // an error during the repair call surfaces as a provider error too (never silent)
   const client = fakeClient([completion('{}'), boom]);
   await assert.rejects(createModel({ client }).respond(req()), (e) => e.kind === 'provider');

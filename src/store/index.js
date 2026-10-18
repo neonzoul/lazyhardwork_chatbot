@@ -10,6 +10,7 @@ const { createKbGapsRepo } = require('./repo/kbGaps');
 const { createRelayThreadsRepo } = require('./repo/relayThreads');
 const { createOutboxRepo } = require('./repo/outbox');
 const { createEventsRepo } = require('./repo/events');
+const { createLlmCallsRepo } = require('./repo/llmCalls');
 
 function createStore({ path, clock, log, busyTimeoutMs } = {}) {
   const db = openDb(path, { busyTimeoutMs });
@@ -25,6 +26,7 @@ function createStore({ path, clock, log, busyTimeoutMs } = {}) {
     relayThreads: createRelayThreadsRepo(db, opts),
     outbox: createOutboxRepo(db, opts),
     events: createEventsRepo(db, opts),
+    llmCalls: createLlmCallsRepo(db, opts),
     /** Flush WAL to the main file (backup step). No-op for :memory:. */
     checkpoint: async () => { if (!closed) try { checkpoint(db); } catch { /* memory db */ } },
     close: async () => { if (!closed) { closed = true; db.close(); } },

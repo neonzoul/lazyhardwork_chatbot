@@ -18,7 +18,7 @@ const DIR = path.join(__dirname, '..', 'scenarios');
 const LABEL_MAX = 20;
 const DECISIONS = ['approve', 'propose', 'decline'];
 const FAULT_KEYS = ['notifier', 'model', 'line'];
-const FAULT_VALUES = { notifier: ['handoff', 'booking', 'kbGap', 'lead', 'relayToMos'], model: ['throw', 'garbage'], line: ['reply', 'push'] };
+const FAULT_VALUES = { notifier: ['handoff', 'booking', 'kbGap', 'lead', 'relayToMos'], model: ['throw', 'garbage', 'exhausted'], line: ['reply', 'push'] };
 
 let pack = null;
 try { pack = require('../../src/brain/kb').loadPack(path.join(__dirname, '..', '..', 'knowledge')); } catch { pack = null; }

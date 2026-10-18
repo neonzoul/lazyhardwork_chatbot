@@ -14,7 +14,8 @@
 //     - postback: FIT_chat_overload
 //     - media: image
 //     - follow: true
-//     - fault: { notifier: handoff }     # next call of notifier.handoff throws (also: notifier: booking|kbGap, model: throw|garbage, line: push|reply)
+//     - fault: { notifier: handoff }     # next call of notifier.handoff throws (also: notifier: booking|kbGap, model: throw|garbage|exhausted, line: push|reply)
+//                                        # model: exhausted = every OpenRouter key out of credit for the next model call (doc/llm.md §5)
 //     - clock: { advance_minutes: 31 }
 //     - mos: { threadId: T1, text: "..." }   # a relayed Mos message (relay side) — pushed as "มอส", mode → mos_active
 //     - decision: { decision: approve|propose|decline, windows: [..] }   # Mos's booking decision (flows/endings.applyMosDecision)
@@ -25,6 +26,7 @@
 //   · quick_replies_includes [..] · quick_replies_max (int) · card (template|null) · sender (lay|mos|demo|null)
 //   · banned_clean (bool) · emoji_max (int) · no_prose_list (bool) · action (string|null) · notified [names]
 //   · not_notified [names] · silent (bool: the step may send nothing)
+//   · alerts { critical: n, recovered: n, warn: n } (cumulative Discord operator alerts posted so far — real discord/alerts with a recording transport)
 //   · session { mode, topics_covered_includes [..], questions_asked_max, draft_has [..], homework_has [..] }
 
 const fs = require('fs');
@@ -35,6 +37,7 @@ const { createFakeNotifier } = require('./fakes/notifier');
 const { createFakeModel } = require('./fakes/model');
 const { createFakeClock } = require('./fakes/clock');
 const { createFakeStore } = require('./fakes/store');
+const { createAlerts } = require('../src/discord/alerts');
 const lint = require('../src/core/lint');
 let PACK = null;
 try { const { loadPack } = require('../src/brain/kb'); PACK = loadPack(path.join(__dirname, '..', 'knowledge')); } catch { PACK = null; }
@@ -42,7 +45,7 @@ try { const { loadPack } = require('../src/brain/kb'); PACK = loadPack(path.join
 const SENDER_NAMES = { lay: 'Lay · ผู้ช่วย AI', mos: 'มอส' };
 // Vocabulary — tests/unit/scenarios.test.js checks every YAML against these so a typo fails `npm test`.
 const EXPECT_KEYS = ['replies', 'replies_min', 'text_contains', 'text_not_contains', 'quick_replies', 'quick_replies_includes', 'quick_replies_max',
-  'card', 'sender', 'banned_clean', 'emoji_max', 'no_prose_list', 'action', 'notified', 'not_notified', 'silent', 'session'];
+  'card', 'sender', 'banned_clean', 'emoji_max', 'no_prose_list', 'action', 'notified', 'not_notified', 'silent', 'session', 'alerts'];
 const SESSION_EXPECT_KEYS = ['mode', 'topics_covered_includes', 'questions_asked_max', 'draft_has', 'homework_has'];
 const STEP_KEYS = ['user', 'postback', 'media', 'follow', 'mos', 'decision', 'fault', 'clock', 'allow', 'model', 'expect', 'note'];
 const INPUT_STEP_KEYS = ['user', 'postback', 'media', 'follow', 'mos', 'decision'];
@@ -94,6 +97,7 @@ function assertStep(expect, ctx) {
   if ('action' in expect) check((result?.action ?? null) === expect.action, `action ${result?.action ?? null} ≠ ${expect.action}`);
   for (const n of expect.notified || []) check(notifier.named(n).length > 0, `notifier.${n} not called`);
   for (const n of expect.not_notified || []) check(notifier.named(n).length === 0, `notifier.${n} was called`);
+  if (expect.alerts) for (const [name, n] of Object.entries(expect.alerts)) check((ctx.alerts?.named(name) || []).length === n, `alerts.${name} posted ${(ctx.alerts?.named(name) || []).length} ≠ ${n}`);
   if (expect.session) {
     const s = session || {};
     const e = expect.session;
@@ -132,6 +136,22 @@ function bubblesOf(sends) {
   })));
 }
 
+// Operator alerts: the real src/discord/alerts (so the 15-min throttle is exercised) over a recording transport.
+function createAlertsRecorder(clock) {
+  const posts = [];
+  const transport = {
+    botConfigured: true,
+    async postMessage({ channelId, content, allowedMentions }) { posts.push({ channelId, content, allowedMentions }); },
+    async postWebhook() { throw new Error('no webhook in scenarios'); },
+    async createThread() { throw new Error('no threads in scenarios'); },
+  };
+  const alerts = createAlerts({ transport, crmChannelId: 'crm', clock, statusLine: () => 'keys: scenario' });
+  const RE = { critical: /CRITICAL/, recovered: /recovered/, warn: /warning/ };
+  alerts.posts = posts;
+  alerts.named = (name) => posts.filter((p) => RE[name] && RE[name].test(p.content));
+  return alerts;
+}
+
 function runnerConfig() { try { return require('../src/config'); } catch { return { contact: { phoneDisplay: '095 569 1674 (มอส)', hoursStart: 13, hoursEnd: 22 }, identity: { layName: 'Lay · ผู้ช่วย AI', mosName: 'มอส' }, quiet: { windowMinutes: 30, debounceMs: 6500 }, publicBaseUrl: '' }; } }
 
 async function runScenario(sc, { turn, modelMode }) {
@@ -140,7 +160,8 @@ async function runScenario(sc, { turn, modelMode }) {
   const model = modelMode === 'real' ? require('../src/brain/respond').createModel() : createFakeModel();
   const clock = createFakeClock(sc.start || undefined);
   const store = createFakeStore();
-  const deps = { line, notifier, model, clock, store, pack: sc.pack || PACK, log: { info() {}, warn() {}, error() {} } };
+  const alerts = createAlertsRecorder(clock);
+  const deps = { line, notifier, model, clock, store, alerts, pack: sc.pack || PACK, log: { info() {}, warn() {}, error() {} } };
   const userId = sc.user?.id || 'Utest';
   if (sc.session) { const s = await store.sessions.getOrCreate(userId); Object.assign(s, sc.session); await store.sessions.save(s); }
 
@@ -172,7 +193,7 @@ async function runScenario(sc, { turn, modelMode }) {
         if (!booking) throw new Error('decision: no booking for this user');
         await endings.applyMosDecision({ decision: step.decision.decision, windows: step.decision.windows || [], booking, session: sess, deps, config, senders: createSenders(config) });
         const session = await store.sessions.get(userId);
-        fails = assertStep(step.expect || {}, { line, notifier, result: { action: null }, session, sentBefore, allow });
+        fails = assertStep(step.expect || {}, { line, notifier, alerts, result: { action: null }, session, sentBefore, allow });
       } catch (e) { fails = [`decision threw: ${e.message}`]; }
       stepResults.push({ i, kind: 'decision', input: step.decision, ok: fails.length === 0, fails, sent: line.sent.slice(sentBefore), bubbles: bubblesOf(line.sent.slice(sentBefore)) });
       continue;
@@ -191,7 +212,7 @@ async function runScenario(sc, { turn, modelMode }) {
     let result = null; let err = null;
     try { result = await turn.runTurn(input, deps); } catch (e) { err = e; }
     const session = await store.sessions.get(userId);
-    const fails = err ? [`runTurn threw: ${err.message}`] : assertStep(step.expect || {}, { line, notifier, result, session, sentBefore, allow });
+    const fails = err ? [`runTurn threw: ${err.message}`] : assertStep(step.expect || {}, { line, notifier, alerts, result, session, sentBefore, allow });
     // never-silent: every customer-originated step must produce at least one outgoing message unless the scenario says silent
     if (!err && !step.expect?.silent && line.sent.length === sentBefore && input.kind !== 'mos_relay') fails.push('SILENT: no message sent');
     stepResults.push({ i, kind: input.kind, input: step.user ?? step.postback ?? step.media ?? (step.mos ? step.mos.text : 'follow'), ok: fails.length === 0, fails, sent: line.sent.slice(sentBefore), bubbles: bubblesOf(line.sent.slice(sentBefore)), errors: (result?.errors || []).map((e) => e.message) });

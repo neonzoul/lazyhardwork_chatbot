@@ -1,0 +1,55 @@
+name: 42 · LLM keys exhausted — degraded reply with the phone, question forwarded, one critical alert per 15 min, fit card still works, Lay stays
+covers: ["§9.4", "§3.10", "doc/llm.md §5"]
+user: { id: U42, displayName: "คุณต้น" }
+steps:
+  - fault: { model: exhausted }
+  - user: "ราคาเท่าไหร่"
+    expect:
+      replies: 1
+      text_contains: ["ระบบตอบอัตโนมัติขัดข้องชั่วคราว", "ส่งคำถามของคุณให้มอสแล้ว", "095 569 1674"]
+      text_not_contains: ["[Agent Lay]"]
+      quick_replies_includes: ["เรียก Lay"]
+      quick_replies_max: 4
+      sender: lay
+      banned_clean: true
+      emoji_max: 0
+      action: null
+      notified: [handoff]                                 # the question went to Mos before the promise was made
+      alerts: { critical: 1 }                             # "@here 🔴 LAY v2 CRITICAL — llm_exhausted" in #crm
+      session: { mode: lay }
+  - fault: { model: exhausted }
+  - postback: MENU_FIT                                    # Rich Menu "เหมาะกับงานผมไหม": the choice card needs no model
+    expect:
+      card: choice
+      sender: lay
+      banned_clean: true
+      emoji_max: 0
+      alerts: { critical: 1 }                             # still inside the 15-min window → no second alert
+      session: { mode: lay }
+  - fault: { model: exhausted }
+  - postback: FIT_chat_overload                           # the symptom is stored by code; the words are forwarded to Mos
+    expect:
+      replies: 1
+      text_contains: ["ส่งคำถามของคุณให้มอสแล้ว", "095 569 1674"]
+      quick_replies_includes: ["เรียก Lay"]
+      sender: lay
+      banned_clean: true
+      alerts: { critical: 1 }
+      session: { mode: lay, draft_has: [symptom, card] }
+  - clock: { advance_minutes: 16 }
+  - fault: { model: exhausted }
+  - user: "เริ่มยังไง"
+    expect:
+      replies: 1
+      text_contains: ["ส่งคำถามของคุณให้มอสแล้ว"]
+      alerts: { critical: 2 }                             # the throttle window passed → Mos is told again
+      session: { mode: lay }
+  - user: "เริ่มยังไง"                                    # keys back → a normal turn, no sticky degraded state
+    model:
+      messages:
+        - { type: text, text: "เริ่มจากคุยกับมอส 30 นาทีก่อนครับ เล่าว่างานติดตรงไหน แล้วมอสจะบอกว่าเริ่มจากตัวไหนคุ้มสุด", explain: false, template: null, alt: null, data: null }
+      quick_replies: ["นัดคุยกับมอส"]
+      topics: [howtostart]
+      kb_refs: ["process.steps"]
+      intent: howtostart
+    expect: { replies: 2, card: offer, text_contains: ["คุยกับมอส"], text_not_contains: ["ขัดข้อง"], sender: lay, banned_clean: true, alerts: { critical: 2 } }   # offer card: the symptom chosen while degraded was kept
