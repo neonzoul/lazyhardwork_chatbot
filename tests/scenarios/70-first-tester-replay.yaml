@@ -1,63 +1,54 @@
-name: 70 · first-tester replay — placeholder until Mos's transcript lands in the vault (3 representative lines from brief §2)
-covers: ["§9.1", "§9.5", "§9.6", "§2 ขอรายละเอียด", "§2 อยากได้คนขาย", "§2 profanity", "§3.10"]
-pending_transcript: true
-# When the transcript file arrives: replace the steps below with EVERY customer line of it, in order, one step each,
-# keeping the per-line expectations (expand / honest no / one human line) and the three suite-wide asserts
-# (banned_clean, emoji_max 0, sender lay). Keep this header so the report marks it as a replay.
+name: 70 · first-tester replay — every customer line of the v1 tester chat (vault first-tester-transcript-2026-10.txt)
+covers: ["§9.1", "§9.2", "§9.5", "§9.6", "§9.8", "§2 every row", "§3.2", "§3.10", "H1.1", "H1.5"]
+# Source: Clients/000_lazyhardwork/PJ_lineOA_chatbot_v1/first-tester-transcript-2026-10.txt (v1 bot, Oct 2026).
+# One step per burst the v1 bot answered (lines sent together are joined). Mos's own side comments in that chat
+# ("คุณ Mos", "อันนี้ต้องแก้ด่วน", "จะค่อยๆอัพเดท…", "ขอบคุณสำหรับฟีดแบ็ค…") are not customer lines and are left out.
+# The v1 Rich Menu taps (ดูผลงาน, บริการของเรา, ราคา, ข้อมูลติดต่อ) are replayed as typed text.
+# Scripted replies below keep `npm run scenarios` deterministic; the real replay is `--model real --only "70 ·"`.
+# Expectations are written so any good answer passes: the §2 lessons, never the exact words. Every step also rejects
+# the system-error line, "!" and the stock closer — the three things the first real-model replay (18 Oct) showed.
 user: { id: U70, displayName: "ผู้ทดสอบคนแรก" }
 steps:
-  - user: "ทำอะไรได้บ้าง"
-    model:
-      messages:
-        - { type: text, text: "หลักๆ ผมช่วยเอา AI ไปรับงานซ้ำในธุรกิจครับ แชทบอทตอบลูกค้า ระบบตามงานภายใน หรือตั้งค่า AI ให้รู้จักงานของคุณ", explain: false, template: null, alt: null, data: null }
-      quick_replies: ["เหมาะกับงานผมไหม", "ราคาเท่าไหร่"]
-      topics: [capability]
-      kb_refs: ["offer.overview"]
-      intent: capability
-    expect: { replies: 1, sender: lay, banned_clean: true, emoji_max: 0, text_not_contains: ["[Agent Lay]", "ยินดีช่วยเสมอ"] }
-  - user: "อธิบายละเอียดกว่านี้ได้ไหม"
-    model:
-      messages:
-        - { type: text, text: "ได้ครับ ยกตัวอย่างแชทบอท ผมเอาคำถามที่ลูกค้าถามซ้ำของร้านคุณมาสอนบอท ติดตั้งใน LINE OA เดิม ทดสอบกับข้อความจริงก่อนเปิดใช้ แล้วดูแลให้ 3 เดือนแรก\nส่วนระบบตามงาน คือรวมข้อมูลที่กระจายอยู่มาไว้ที่เดียว แล้วให้ AI สรุปสถานะให้ทุกวัน", explain: false, template: null, alt: null, data: null }
-      quick_replies: ["เหมาะกับงานผมไหม", "ราคาเท่าไหร่"]
-      topics: [capability]
-      kb_refs: ["offer.A2", "offer.A1", "faq.what-price-includes"]
-      intent: tell_me_more
-    expect:
-      replies_min: 1
-      text_not_contains: ["ยังไม่มีข้อมูล", "ไม่มีข้อมูลในระบบ"]      # a follow-up expands the previous answer
-      text_contains: ["แชทบอท"]
-      sender: lay
-      banned_clean: true
-      emoji_max: 0
-      no_prose_list: true
-  - user: "อยากได้คนขาย"
-    model:
-      messages:
-        - { type: text, text: "จ้างคนขายไม่ใช่งานที่เราทำครับ ที่ช่วยได้คือทำให้คนขายที่มีอยู่ไม่ต้องตอบคำถามซ้ำ จะได้มีเวลาปิดการขายจริง สนใจทางนี้ไหมครับ", explain: false, template: null, alt: null, data: null }
-      quick_replies: ["เหมาะกับงานผมไหม", "ขอดูตัวอย่าง"]
-      topics: [capability]
-      kb_refs: ["policies.what-lay-cannot-decide"]
-      intent: out_of_scope
-    expect:
-      replies: 1
-      text_contains: ["ไม่ใช่งานที่เราทำ"]
-      text_not_contains: ["095", "@", "โทร"]                        # not a contact dump
-      sender: lay
-      banned_clean: true
-      emoji_max: 0
-  - user: "ไอ้สัส ขายตรงชิบหาย"
-    model:
-      messages:
-        - { type: text, text: "โดนจับได้ครับ ผมเป็นผู้ช่วยของมอสก็เลยติดนิสัยชวนคุยเรื่องงาน มีอะไรให้ช่วยจริงๆ บอกได้นะครับ", explain: false, template: null, alt: null, data: null }
-      quick_replies: []
-      topics: [banter]
-      kb_refs: []
-      intent: abuse
-    expect:
-      replies: 1
-      quick_replies: []
-      text_not_contains: ["อ่านรูป", "ไฟล์", "สุภาพ", "ราคา", "นัดคุย"]   # the v1 bug: profanity answered as "can't read images"
-      sender: lay
-      banned_clean: true
-      emoji_max: 0
+  - follow: true
+    expect: { replies: 1, sender: lay, emoji_max: 0, text_contains: ["Lay"], text_not_contains: ["[Agent Lay]"] }
+  - user: "ดูผลงาน"                                   # code-owned examples carousel; v1 showed "181 งาน · 36 ราย"
+    expect: { replies_min: 1, sender: lay, banned_clean: true, emoji_max: 0, text_not_contains: ["ขัดข้อง", "!", "บอกได้เลยนะครับ", "181", "36 ราย", "[Agent Lay]"] }
+  - user: "บริการของเรา"
+    model: { messages: [{ type: text, text: "หลักๆ มีสี่แบบครับ แชทบอทตอบลูกค้า ระบบงานภายใน ออโตเมชันเชื่อมเครื่องมือที่ใช้อยู่ และตั้งค่า AI ให้รู้จักงานของคุณ", explain: false, template: null, alt: null, data: null }], quick_replies: ["เหมาะกับงานผมไหม", "ราคาเท่าไหร่"], topics: [capability], kb_refs: ["offer.overview"], intent: capability }
+    expect: { replies_min: 1, sender: lay, banned_clean: true, emoji_max: 0, no_prose_list: true, text_not_contains: ["Sprint", "ยินดีช่วยเสมอ"] }
+  - user: "ราคา"
+    model: { messages: [{ type: text, text: "แล้วแต่งานครับ แพ็กเล็กสุดราคาเริ่มต้น 4,900 บาท แชทบอท LINE OA เริ่มที่ 15,000 บาท ปรับตามขอบเขตจริงหลังคุย", explain: false, template: null, alt: null, data: null }], quick_replies: ["ใช้เวลานานไหม", "เริ่มยังไง"], topics: [pricing], kb_refs: ["faq.price-range"], intent: pricing }
+    expect: { replies_min: 1, sender: lay, banned_clean: true, emoji_max: 0, text_contains: ["ราคาเริ่มต้น"], text_not_contains: ["Sprint", "2,500/เดือน"] }
+  - user: "ข้อมูลติดต่อ"                               # v1 dumped phone + email; v2: no email ever
+    model: { messages: [{ type: text, text: "คุยในแชทนี้ได้เลยครับ ถ้าอยากคุยกับมอสเอง กดคุยกับมอสได้ หรือถ้าสะดวกคุยเลย โทรหามอสที่ 095 569 1674 ได้ครับ", explain: false, template: null, alt: null, data: null }], quick_replies: ["คุยกับมอส"], topics: [howtostart], kb_refs: ["about.contact-policy"], intent: faq }
+    expect: { replies_min: 1, sender: lay, banned_clean: true, emoji_max: 0, text_not_contains: ["ขัดข้อง", "!", "บอกได้เลยนะครับ", "@", "hotmail"] }
+  - user: "อธิบายบายละเอียดกว่านี้ได้ไหม"              # v1: "ยังไม่มีข้อมูลในระบบ" — a follow-up must expand
+    model: { messages: [{ type: text, text: "ได้ครับ เช่นแชทบอท ผมเอาคำถามที่ลูกค้าถามซ้ำของร้านมาสอนบอท ติดตั้งใน LINE OA เดิม ทดสอบกับข้อความจริงก่อนเปิดใช้ แล้วดูแลให้ 3 เดือนแรก", explain: false, template: null, alt: null, data: null }], quick_replies: ["เหมาะกับงานผมไหม"], topics: [capability], kb_refs: ["offer.A2.T1"], intent: tell_me_more }
+    expect: { replies_min: 1, sender: lay, banned_clean: true, emoji_max: 0, text_not_contains: ["ขัดข้อง", "!", "บอกได้เลยนะครับ", "ยังไม่มีข้อมูล", "ไม่มีข้อมูลในระบบ"] }
+  - user: "อิอิ อยากได้อะไรครับ\nอยาดได้คนขาย"          # v1: phone dump; v2: honest "not what we do" + what we can
+    model: { messages: [{ type: text, text: "หาคนขายไม่ใช่งานที่เราทำครับ ที่ช่วยได้คือให้บอทรับคำถามซ้ำแทน คนขายที่มีอยู่จะได้มีเวลาปิดการขาย", explain: false, template: null, alt: null, data: null }], quick_replies: ["เหมาะกับงานผมไหม"], topics: [capability], kb_refs: ["offer.A2"], intent: out_of_scope }
+    expect: { replies_min: 1, sender: lay, banned_clean: true, emoji_max: 0, text_not_contains: ["ขัดข้อง", "!", "บอกได้เลยนะครับ", "095", "@", "ประสานงาน"], action: null, session: { mode: lay } }
+  - user: "เอ้าไอนี่\n555555555555"                    # banter: one short human line, no sales line
+    model: { messages: [{ type: text, text: "555 ครับ", explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: [banter], kb_refs: [], intent: banter }
+    expect: { replies: 1, sender: lay, banned_clean: true, emoji_max: 0, text_not_contains: ["ขัดข้อง", "!", "บอกได้เลยนะครับ", "บริการ", "ราคา", "ยินดีช่วยเสมอ", "สนใจ"] }
+  - user: "พากูขายตัวซะละ ต้องปรับทัศนคติ\nขายตรงมาก"    # never defensive, never a sales line after a joke
+    model: { messages: [{ type: text, text: "รับทราบครับ ผมจะขายน้อยลง ถามอะไรก็ได้เลย", explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: [banter], kb_refs: [], intent: banter }
+    expect: { replies: 1, sender: lay, banned_clean: true, emoji_max: 0, text_not_contains: ["ขัดข้อง", "!", "บอกได้เลยนะครับ", "ขอบคุณสำหรับความคิดเห็น", "บริการของเรา", "ยินดีช่วยเสมอ"] }
+  - user: "มันไม่เห็นข้อความมอน มันเห็นแต่ข้อความ อป.\nชอบๆ"
+    model: { messages: [{ type: text, text: "ขอบคุณครับ", explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: [banter], kb_refs: [], intent: banter }
+    expect: { replies: 1, sender: lay, banned_clean: true, emoji_max: 0, text_not_contains: ["ขัดข้อง", "!", "บอกได้เลยนะครับ", "ยินดีช่วยเสมอ"] }
+  - user: "แต่มันไม่มีดีเทลงานเลยหรอแบบแจกแจง"           # v1: "ยังไม่มีข้อมูล"; the KB now carries deliverables
+    model: { messages: [{ type: text, text: "มีครับ แชทบอทแพ็กเริ่มต้นได้บอท 1 ช่องทาง คลังความรู้ของร้าน ส่งต่อแอดมินเมื่อตอบไม่ได้ ทดสอบด้วยเคสจริงและเคสหลอก สอนใช้ 30 นาที และดูแล 3 เดือนแรกครับ", explain: false, template: null, alt: null, data: null }], quick_replies: ["ใช้เวลานานไหม"], topics: [capability], kb_refs: ["offer.A2.T1"], intent: tell_me_more }
+    expect: { replies_min: 1, sender: lay, banned_clean: true, emoji_max: 0, text_not_contains: ["ขัดข้อง", "!", "บอกได้เลยนะครับ", "ยังไม่มีข้อมูล", "ไม่มีข้อมูลในระบบ"] }
+  - user: "แล้วจะให้มัยเรียกว่าอะไร"                   # honest AI identity, no [Agent Lay]
+    model: { messages: [{ type: text, text: "เรียกผมว่า Lay ได้เลยครับ ผมเป็นผู้ช่วย AI ของมอส", explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: [policy], kb_refs: ["policies.ai-disclosure"], intent: ai_disclosure }
+    expect: { replies: 1, sender: lay, banned_clean: true, emoji_max: 0, text_contains: ["Lay"], text_not_contains: ["[Agent Lay]", "Agent Lay"] }
+  - user: "ไอเหี้ยมอส"                                # v1: answered as "can't read images"
+    model: { messages: [{ type: text, text: "ใจเย็นๆ ครับ ถ้ามีอะไรให้ช่วยบอกได้เลย", explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: [banter], kb_refs: [], intent: abuse }
+    expect: { replies: 1, sender: lay, banned_clean: true, emoji_max: 0, text_not_contains: ["ขัดข้อง", "!", "บอกได้เลยนะครับ", "อ่านรูป", "ไฟล์", "สุภาพ"], session: { mode: lay } }
+  - user: "เหมาะ555555"                               # QA BUG-1 regression: "เหมาะ" must not become a price handoff
+    model: { messages: [{ type: text, text: "555 ครับ", explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: [banter], kb_refs: [], intent: banter }
+    expect: { replies: 1, sender: lay, banned_clean: true, emoji_max: 0, text_not_contains: ["ขัดข้อง", "!", "บอกได้เลยนะครับ"], action: null, not_notified: [handoff], session: { mode: lay } }
+  - user: "เหมือนข้อมูลมันยังน้อยๆนะถ้าอยากรู้ดีเทลก็ต้องไปถามจากมอสอยู่ดี"
+    model: { messages: [{ type: text, text: "จริงครับ บางเรื่องต้องให้มอสดูงานจริงก่อน แต่ถ้าถามเรื่องแพ็ก ราคา ระยะเวลา หรือสิ่งที่ได้ ผมตอบได้เลยครับ", explain: false, template: null, alt: null, data: null }], quick_replies: ["ราคาเท่าไหร่", "ใช้เวลานานไหม"], topics: [capability], kb_refs: ["faq.what-lay-cannot"], intent: faq }
+    expect: { replies_min: 1, sender: lay, banned_clean: true, emoji_max: 0, text_not_contains: ["ขัดข้อง", "!", "บอกได้เลยนะครับ", "ยังไม่มีข้อมูลในระบบ", "095 569 1674"] }

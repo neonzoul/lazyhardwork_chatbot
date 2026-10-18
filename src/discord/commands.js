@@ -25,6 +25,31 @@ function parseCommand(content) {
     return { command, args, known: COMMANDS.includes(command) };
 }
 
+// Instructions Mos gives in plain words (Mos, 18 Oct): "@agent.layline Resume", "@bot ให้ Lay ตอบต่อ", or without a
+// mention "Agent lay ไปตอบต่อเลย". Anything that @-mentions the bot is an instruction and NEVER reaches the customer.
+// Returns { command, args, known: true, via } | { help: true } (mentioned, not understood) | null (a normal message).
+const RESUME_RE = /^(?:resume|continue|back|lay|เลย์|ให้\s*(?:agent\s*)?(?:lay|เลย์)?|กลับ|ตอบต่อ|ดูแลต่อ|ไปตอบต่อ|ต่อเลย|รับต่อ|คืน)/iu;
+const HANDBACK_RE = /^(?:agent\s*)?(?:lay|เลย์)\s*(?:ไป)?\s*(?:ตอบ|ดูแล|คุย|รับ)\s*ต่อ|^(?:ให้|ส่งให้|คืนให้)\s*(?:agent\s*)?(?:lay|เลย์)\s*(?:ไป)?\s*(?:ตอบ|ดูแล|คุย|รับ)?\s*ต่อ|^resume(?:\s+(?:lay|reply))?$/iu;
+function parseBotInstruction(content, botId) {
+    const raw = String(content || '').trim();
+    const mentioned = !!botId && new RegExp(`<@!?${botId}>`).test(raw);
+    if (mentioned) {
+        const rest = raw.replace(new RegExp(`<@!?${botId}>`, 'g'), '').trim().replace(/^[\s,:·-]+/u, '');
+        if (!rest || RESUME_RE.test(rest)) return { command: 'lay', args: '', known: true, via: 'mention' };
+        if (/^(?:approve|ยืนยัน|อนุมัติ)/iu.test(rest)) return { command: 'approve', args: '', known: true, via: 'mention' };
+        const p = rest.match(/^(?:propose|เสนอ(?:เวลา)?)\s*([\s\S]*)$/iu);
+        if (p) return { command: 'propose', args: p[1].trim(), known: true, via: 'mention' };
+        if (/^(?:decline|ปฏิเสธ|ไม่รับ)/iu.test(rest)) return { command: 'decline', args: '', known: true, via: 'mention' };
+        return { help: true };
+    }
+    if (HANDBACK_RE.test(raw)) return { command: 'lay', args: '', known: true, via: 'phrase' };
+    return null;
+}
+
+const LAY_BUTTON_ID = 'lay:release';
+const layButtonRow = () => [{ type: 1, components: [{ type: 2, style: 1, label: 'ให้ Lay ดูแลต่อ', custom_id: LAY_BUTTON_ID }] }];
+strings.mentionHelp = '❓ ไม่ได้ส่งถึงลูกค้า · สั่งบอทได้: `@บอท resume` (ให้ Lay ดูแลต่อ) · `@บอท approve` · `@บอท propose พรุ่งนี้ บ่าย` · `@บอท decline` · หรือกดปุ่ม "ให้ Lay ดูแลต่อ"';
+
 function lazy(path) {
     try { return require(path); }
     catch (e) { if (e.code === 'MODULE_NOT_FOUND' && e.message.includes(path.split('/').pop())) return null; throw e; }
@@ -89,4 +114,4 @@ const slashDefinitions = [
     { name: 'lay', description: 'ส่งต่อให้ Lay ดูแลต่อ' },
 ];
 
-module.exports = { COMMANDS, parseCommand, handleCommand, releaseToLay, slashDefinitions, strings };
+module.exports = { parseBotInstruction, layButtonRow, LAY_BUTTON_ID, COMMANDS, parseCommand, handleCommand, releaseToLay, slashDefinitions, strings };

@@ -287,8 +287,17 @@ async function runTurn(input, deps, opts = {}) {
                 let p = policy.applyPolicy(response, { session: sess, pack, allow: new Set(), userText });
                 if (p.severity === 'regenerate') {
                     d.log.warn('policy.regenerate', { violations: p.violations.map((v) => v.rule || v).join(',') });
-                    response = await attempt(`คำตอบก่อนหน้าละเมิดกฎ: ${p.violations.map((v) => v.rule || v).join(', ')} — ตอบใหม่โดยไม่ละเมิด`);
+                    response = await attempt(`คำตอบก่อนหน้าละเมิดกฎ: ${p.violations.map((v) => v.rule || v).join(', ')} — ตอบใหม่โดยไม่ละเมิด ถ้ายาวหรือเป็นรายการ ให้แบ่งเป็น 2 ข้อความสั้น หรือใช้การ์ด steps/info แทนรายการ`);
                     p = policy.applyPolicy(response, { session: sess, pack, allow: new Set(), userText });
+                    if ((p.severity === 'regenerate' || p.severity === 'fallback') && policy.salvage && policy.isStyleOnly(p.violations)) {
+                        // style-only twice: repair by code (split, unlist) instead of claiming a system error (honesty)
+                        const salvaged = policy.applyPolicy(policy.salvage(p.response || response), { session: sess, pack, allow: new Set(), userText });
+                        if (salvaged.severity !== 'fallback' && !salvaged.violations.some((v) => String(v.rule).startsWith('banned:'))) {
+                            d.log.warn('policy.salvaged', { violations: p.violations.map((v) => v.rule || v).join(',') });
+                            await d.store.events.append({ kind: 'policy_salvaged', user_id: sess.user_id, payload: { violations: p.violations.map((v) => v.rule) }, created_at: at.toISOString() });
+                            p = { ...salvaged, severity: 'fix' };
+                        }
+                    }
                     if (p.severity === 'regenerate' || p.severity === 'fallback') throw Object.assign(new Error(`policy: ${p.violations.map((v) => v.rule || v).join(', ')}`), { kind: 'policy' });
                 } else if (p.severity === 'fallback') {
                     throw Object.assign(new Error(`policy: ${p.violations.map((v) => v.rule || v).join(', ')}`), { kind: 'policy' });

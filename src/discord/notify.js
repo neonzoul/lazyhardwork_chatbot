@@ -8,6 +8,7 @@
 // @discordjs/rest (bundled with discord.js) for the bot and global fetch for the webhook; 8 s per call.
 
 const fmt = require('./format');
+const { layButtonRow } = require('./commands');
 
 const CALL_TIMEOUT_MS = 8000;
 const AUTO_ARCHIVE_MINUTES = 1440; // 1 day
@@ -28,12 +29,12 @@ function createRestTransport({ botToken, fetchImpl = globalThis.fetch, timeoutMs
                 body: { name, type: PUBLIC_THREAD, auto_archive_duration: AUTO_ARCHIVE_MINUTES },
                 reason: 'Lay v2 handoff',
             });
-            await r.post(`/channels/${thread.id}/messages`, { body: { content, allowed_mentions: { parse: [] } } });
+            await r.post(`/channels/${thread.id}/messages`, { body: { content, allowed_mentions: { parse: [] }, components: layButtonRow() } });
             return { threadId: thread.id };
         },
         // allowedMentions defaults to none; discord/alerts passes { parse: ['everyone'] } for @here on critical alerts.
-        async postMessage({ channelId, content, allowedMentions }) {
-            await need().post(`/channels/${channelId}/messages`, { body: { content, allowed_mentions: allowedMentions || { parse: [] } } });
+        async postMessage({ channelId, content, allowedMentions, components }) {
+            await need().post(`/channels/${channelId}/messages`, { body: { content, allowed_mentions: allowedMentions || { parse: [] }, ...(components ? { components } : {}) } });
         },
         async postWebhook({ url, content, allowedMentions }) {
             if (!url) throw new Error('discord webhook not configured');
@@ -124,7 +125,7 @@ function createNotifier({ botToken, guildId, leadsChannelId, crmChannelId, leads
         async lead({ lead, reason }) { await postLine(fmt.leadLine({ lead, reason }), 'discord.lead_failed'); },
         async relayToMos({ threadId, text }) {
             if (!threadId || !botReady()) return;
-            try { await t.postMessage({ channelId: threadId, content: fmt.mirrorLine({ text }) }); }
+            try { await t.postMessage({ channelId: threadId, content: fmt.mirrorLine({ text }), components: layButtonRow() }); }
             catch (err) { logger.warn('discord.mirror_failed', { threadId, error: err?.message }); }
         },
         _transport: t,

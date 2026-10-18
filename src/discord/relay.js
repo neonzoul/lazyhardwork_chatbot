@@ -8,7 +8,7 @@
 //
 // `client` is injectable (an EventEmitter with user/login/destroy) so tests run without the gateway.
 
-const { parseCommand, slashDefinitions, strings } = require('./commands');
+const { parseCommand, parseBotInstruction, LAY_BUTTON_ID, slashDefinitions, strings } = require('./commands');
 
 const LEAD_ID_RE = /^(L-[\w-]+)/;
 
@@ -68,13 +68,15 @@ function createRelay({ botToken, guildId, leadsChannelId, store, onMosMessage, o
             if (!content) return;
             const who = await lookup(threadId, channel);
             if (!who) return; // not one of ours
-            const parsed = parseCommand(content);
+            const instr = parseBotInstruction(content, c?.user?.id);
+            if (instr && instr.help) return say(channel, strings.mentionHelp);
+            const parsed = instr || parseCommand(content);
             if (parsed) {
                 if (!parsed.known) return say(channel, strings.unknown(parsed.command));
                 const res = onCommand
                     ? await onCommand({ threadId, userId: who.userId, lead_id: who.lead_id, command: parsed.command, args: parsed.args })
                     : { ok: false, text: strings.notReady(`/${parsed.command}`) };
-                logger.info('discord.command', { threadId, command: parsed.command, ok: !!res?.ok });
+                logger.info('discord.command', { threadId, command: parsed.command, via: parsed.via || 'slash-text', ok: !!res?.ok });
                 return say(channel, (res && res.text) || (res?.ok ? '✅' : '❌'));
             }
             if (!who.userId) return say(channel, strings.noCustomer);
@@ -99,6 +101,15 @@ function createRelay({ botToken, guildId, leadsChannelId, store, onMosMessage, o
 
     async function onInteraction(interaction) {
         try {
+            if (interaction?.isButton?.() && interaction.customId === LAY_BUTTON_ID) {
+                const ch = interaction.channel;
+                const who = inLeadsThread(ch) ? await lookup(String(ch.id), ch) : null;
+                const res = onCommand && who && who.userId
+                    ? await onCommand({ threadId: String(ch.id), userId: who.userId, lead_id: who.lead_id, command: 'lay', args: '' })
+                    : { ok: false, text: strings.noCustomer };
+                logger.info('discord.command', { threadId: ch?.id, command: 'lay', via: 'button', ok: !!res?.ok });
+                return interaction.reply({ content: (res && res.text) || '❌' });
+            }
             if (!interaction?.isChatInputCommand?.()) return;
             const channel = interaction.channel;
             if (!inLeadsThread(channel)) return interaction.reply({ content: 'ใช้คำสั่งนี้ในเธรดลูกค้าใน #leads เท่านั้น', ephemeral: true });

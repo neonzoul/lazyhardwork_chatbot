@@ -72,7 +72,7 @@ test('banned content, emoji policy, prose list and too-long are regenerate-level
   assert.equal(sev('มี 3 แพ็กครับ\n1. ลองก่อน\n2. วางระบบ\n3. รันเอง'), 'regenerate');
   assert.equal(sev('ก'.repeat(320)), 'regenerate');
   const rules = applyPolicy(resp(['[Agent Lay] ยินดีช่วยเสมอครับ 😊']), {}).violations.map((v) => v.rule).sort();
-  assert.deepEqual(rules, ['banned:agent_tag', 'banned:stock_closer', 'emoji']);
+  assert.deepEqual(rules, ['banned:agent_tag']); // the stock closer and its emoji are now repaired by code (18 Oct), not regenerated
   // an explain bubble may carry structural emoji
   assert.equal(applyPolicy(resp([txt('ขั้นตอน 1️⃣ คุย 2️⃣ สร้าง 3️⃣ ส่งมอบ', { explain: true })]), {}).severity, 'fix');
 });
@@ -143,4 +143,28 @@ test('fallbackReply is schema-valid, honest, uses the phone from config and neve
   assert.ok(!/\d{3} \d{3} \d{4}/.test(noPhone.messages[0].text));
   assert.ok(noPhone.messages[0].text.startsWith('ตอนนี้ระบบขัดข้องชั่วคราวครับ'));
   assert.equal(applyPolicy(r, {}).severity, 'fix');
+});
+
+test('first-tester replay (18 Oct): stock closers, "!" and a repeated price phrase are repaired by code (no regenerate)', () => {
+  const { applyPolicy } = require('../../src/core/policy');
+  const one = (t) => applyPolicy({ messages: [{ type: 'text', text: t, explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: [], kb_refs: ['faq.price-range'], intent: 'banter', lead_updates: {}, action: null }, {});
+  assert.equal(one('5555 ขอบคุณครับพี่! ถ้ามีอะไรอยากคุยหรือถามเพิ่มเติม บอกได้เลยนะครับ').response.messages[0].text, '5555 ขอบคุณครับพี่');
+  assert.equal(one('5555 โดนจับได้อีกแล้วครับ! ถามมาเถอะ พี่อยากรู้เรื่องอะไรเพิ่มเติมได้เลยครับ').response.messages[0].text, '5555 โดนจับได้อีกแล้วครับ');
+  const price = one('ราคาเริ่มต้น 4,900 บาท ทุกตัวเป็นราคาเริ่มต้น ปรับตามขอบเขตจริงหลังคุยครับ');
+  assert.equal((price.response.messages[0].text.match(/ราคาเริ่มต้น/g) || []).length, 1);
+  assert.equal(price.severity, 'fix');
+  assert.equal(one('ถ้ามีอะไรบอกได้เลยนะครับ').response.messages[0].text, 'ถ้ามีอะไรบอกได้เลยนะครับ', 'a bubble is never emptied');
+});
+
+test('style-only violations are salvaged by code: long list → short bubbles without markers; banned content is not', () => {
+  const { salvage, isStyleOnly, applyPolicy } = require('../../src/core/policy');
+  const long = 'สิ่งที่ได้มีดังนี้ครับ\n1. บอท 1 ช่องทาง\n2. คลังความรู้ครบทั้งร้าน\n3. ส่งต่อแอดมินเมื่อตอบไม่ได้\n4. ทดสอบด้วยเคสจริงและเคสหลอก\n5. สอนใช้ 30 นาทีพร้อมคู่มือ และดูแลให้ 3 เดือนแรก ' + 'ระบบจะถูกปรับให้ตรงกับคำถามที่ลูกค้าของร้านถามบ่อยที่สุด '.repeat(3);
+  const r = { messages: [{ type: 'text', text: long, explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: ['capability'], kb_refs: [], intent: 'tell_me_more', lead_updates: {}, action: null };
+  const first = applyPolicy(r, {});
+  assert.ok(isStyleOnly(first.violations), JSON.stringify(first.violations));
+  const fixed = applyPolicy(salvage(first.response), {});
+  assert.notEqual(fixed.severity, 'fallback');
+  assert.ok(fixed.response.messages.length >= 2 && fixed.response.messages.length <= 3);
+  assert.ok(fixed.response.messages.every((m) => !/^\s*\d\./m.test(m.text)));
+  assert.equal(isStyleOnly([{ rule: 'banned:email', severity: 'regenerate' }]), false);
 });

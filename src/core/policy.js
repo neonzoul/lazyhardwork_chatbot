@@ -56,6 +56,54 @@ function toSet(allow) {
 
 function clone(x) { return JSON.parse(JSON.stringify(x)); }
 
+// --- voice repairs found in the first-tester replay (2026-10-18) — mechanical, so they never cost a regenerate ---
+// A trailing "if you have anything else, just tell me" sentence is the v2 cousin of v1's "ยินดีช่วยเสมอ".
+const CLOSER_RE = /\s*(?:ถ้า|หาก)\s*(?:พี่|คุณ)?\s*(?:มี|ต้องการ|สนใจ|อยาก)[^\n]{0,70}?(?:บอก|ถาม|สอบถาม|ทัก|แจ้ง)(?:มา)?\s*ได้(?:เลย|ตลอด)?\s*(?:นะ)?\s*(?:ครับ|คะ|ค่ะ)?\s*[!.]?\s*$/u;
+const CLOSER_2_RE = /\s*(?:ผมอยู่ที่นี่เพื่อช่วย[^\n]{0,20}|ยินดีช่วย[^\n]{0,20}|ถามมาเถอะ[^\n]{0,60}|มีอะไรให้ช่วย(?:อีก|เพิ่มเติม)ไหม(?:ครับ)?)\s*[!.?]?\s*$/u;
+function stripClosers(t) {
+  let out = t;
+  for (let i = 0; i < 2; i++) { const n = out.replace(CLOSER_RE, '').replace(CLOSER_2_RE, ''); if (n === out) break; out = n; }
+  if (out === t) return t;                        // untouched: leave whitespace to the trim step
+  return out.trim() ? out.trim() : t;            // never empty a bubble
+}
+function stripExclaim(t) { return t.replace(/!+/gu, '').replace(/\s+([?.])/gu, '$1'); }
+function dedupePriceSentence(t) {
+  if ((t.match(/ราคาเริ่มต้น/gu) || []).length < 2) return t;
+  return t.replace(/\s*(?:ทุกตัวเป็น|ราคาที่เห็นคือ|ทุกแพ็กเป็น)ราคาเริ่มต้น\s*/gu, ' ').replace(/\s{2,}/gu, ' ').trim();
+}
+
+// Style-only rules: when the model breaks only these twice, the reply is repaired by code instead of sending the
+// "system error" line — that line is for real failures (honesty). Banned content is never salvaged.
+const STYLE_RULES = new Set(['prose_list', 'too_long', 'emoji', 'markdown']);
+function isStyleOnly(violations) { return violations.length > 0 && violations.every((v) => v.severity === 'fix' || STYLE_RULES.has(v.rule)); }
+function splitLong(text, max = 220) {
+  const parts = [];
+  let rest = text.trim();
+  while (rest.length > max) {
+    let cut = rest.lastIndexOf('\n', max);
+    if (cut < max * 0.4) cut = rest.lastIndexOf(' ', max);
+    if (cut < max * 0.4) cut = max;
+    parts.push(rest.slice(0, cut).trim()); rest = rest.slice(cut).trim();
+  }
+  if (rest) parts.push(rest);
+  return parts;
+}
+function salvage(response) {
+  const r = clone(response);
+  const out = [];
+  for (const m of r.messages || []) {
+    if (m.type !== 'text') { out.push(m); continue; }
+    let t = lint.stripMarkdown(m.text || '');
+    if (!m.explain) t = t.replace(EMOJI_ALL_RE, '');
+    t = t.replace(/^\s*(?:[1-9][.)]|[-•●▪]|ก[.)]|ข[.)])\s*/gmu, '').replace(/\n{2,}/gu, '\n');   // list markers off
+    for (const piece of splitLong(t)) out.push({ ...m, text: piece });
+  }
+  const cards = out.filter((m) => m.type === 'card');
+  const texts = out.filter((m) => m.type === 'text').slice(0, 3 - cards.length);
+  r.messages = [...texts, ...cards].slice(0, 3);
+  return r;
+}
+
 function applyPolicy(input, { session = {}, pack = null, allow, userText } = {}) {
   const allowSet = toSet(allow);
   const violations = [];
@@ -78,6 +126,8 @@ function applyPolicy(input, { session = {}, pack = null, allow, userText } = {})
     if (m.type === 'text' && typeof m.text === 'string') {
       let t = m.text;
       if (lint.hasMarkdown(t)) { t = lint.stripMarkdown(t); fixed.push(`messages[${i}]: markdown stripped`); }
+      const voiced = dedupePriceSentence(stripExclaim(stripClosers(t)));
+      if (voiced !== t) { t = voiced; fixed.push(`messages[${i}]: stock closer / "!" / repeated price phrase removed`); }
       const trimmed = t.replace(/[ \t]+$/gmu, '').replace(/\s+$/u, '');
       if (trimmed !== t) { t = trimmed; fixed.push(`messages[${i}]: trailing whitespace trimmed`); }
       m.text = t;
@@ -165,4 +215,4 @@ function fallbackReply({ reason = 'error', config } = {}) {
   return response;
 }
 
-module.exports = { applyPolicy, fallbackReply, strings, PRICE_RE, PRICE_REF_RE, BENEFITS_CAVEAT_RE, QUICK_REPLY_MAX, QUICK_REPLY_LABEL_MAX };
+module.exports = { salvage, isStyleOnly, stripClosers, STYLE_RULES, applyPolicy, fallbackReply, strings, PRICE_RE, PRICE_REF_RE, BENEFITS_CAVEAT_RE, QUICK_REPLY_MAX, QUICK_REPLY_LABEL_MAX };

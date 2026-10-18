@@ -164,3 +164,32 @@ test('handleCommand: /lay → pipeline when runTurn given; otherwise direct rele
     assert.match(line.texts()[0], /Lay กลับมาดูแลต่อครับ/);
     assert.equal(line.senders()[0], 'Lay · ผู้ช่วย AI');
 });
+
+// Mos, 18 Oct: "@agent.layline.lazyhardwork Resume" and "Agent lay ไปตอบต่อเลย" hand the chat back to Lay; neither may
+// reach the customer. A mention the bot does not understand gets help in the thread, still not the customer.
+test('relay: @mention resume / plain hand-back phrase → /lay; unknown mention → help; nothing relayed to the customer', async () => {
+    const store = { relayThreads: { byThread: async () => ({ user_id: 'Uabc', lead_id: 'L-1' }) } };
+    const w = await world({ store });
+    const ch = thread();
+    await emit(w.client, message(ch, '<@BOT> Resume'));
+    await emit(w.client, message(ch, 'Agent lay ไปตอบต่อเลย'));
+    await emit(w.client, message(ch, '<@!BOT> propose พรุ่งนี้ บ่าย 13-17'));
+    await emit(w.client, message(ch, '<@BOT> ขอบคุณนะ'));
+    assert.deepEqual(w.commands.map((c) => [c.command, c.args]), [['lay', ''], ['lay', ''], ['propose', 'พรุ่งนี้ บ่าย 13-17']]);
+    assert.equal(w.relayed.length, 0, 'no instruction reaches the customer');
+    assert.ok(ch.sent.some((t) => /ไม่ได้ส่งถึงลูกค้า/.test(t)), 'the unknown mention gets help in the thread');
+    await emit(w.client, message(ch, 'สวัสดีครับ มอสเองนะครับ'));
+    assert.equal(w.relayed.length, 1, 'normal chat still goes to the customer');
+});
+
+test('relay: the "ให้ Lay ดูแลต่อ" button runs /lay for the thread user and replies in Discord', async () => {
+    const { LAY_BUTTON_ID } = require('../../src/discord/commands');
+    const store = { relayThreads: { byThread: async () => ({ user_id: 'Uabc', lead_id: 'L-1' }) } };
+    const w = await world({ store });
+    const replies = [];
+    const interaction = { isButton: () => true, isChatInputCommand: () => false, customId: LAY_BUTTON_ID, channel: thread(), reply: async (r) => { replies.push(r.content); } };
+    w.client.emit('interactionCreate', interaction);
+    await new Promise((r) => setImmediate(() => setImmediate(r)));
+    assert.deepEqual(w.commands.map((c) => [c.command, c.userId]), [['lay', 'Uabc']]);
+    assert.equal(replies[0], '✅ lay');
+});
