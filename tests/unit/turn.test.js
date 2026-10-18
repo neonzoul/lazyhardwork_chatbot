@@ -147,3 +147,13 @@ test('replay 18 Oct: a model handoff_human on a swear word is ignored (no notify
   assert.equal(w.notifier.named('handoff').length, 0);
   assert.equal(r.session.mode, 'lay');
 });
+
+test('replay 18 Oct: when the model keeps breaking a content rule, the customer gets a calm line, not "ระบบขัดข้อง"', async () => {
+  const promise = text('ใจเย็นครับพี่ มอสจะเข้ามาคุยเองนะครับ', { intent: 'abuse' });
+  const w = world([promise, promise]);
+  const r = await runTurn(w.input({ text: 'ไอเหี้ยมอส' }), w.deps);
+  assert.equal(w.line.texts()[0], 'รับทราบครับ');
+  assert.doesNotMatch(w.line.texts().join(' '), /ขัดข้อง|มอสจะเข้ามา/);
+  assert.equal(r.session.mode, 'lay');
+  assert.ok(w.store.events.all().some((e) => e.kind === 'policy_neutral'));
+});

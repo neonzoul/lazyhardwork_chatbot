@@ -59,7 +59,7 @@ function clone(x) { return JSON.parse(JSON.stringify(x)); }
 // --- voice repairs found in the first-tester replay (2026-10-18) — mechanical, so they never cost a regenerate ---
 // A trailing "if you have anything else, just tell me" sentence is the v2 cousin of v1's "ยินดีช่วยเสมอ".
 const CLOSER_RE = /\s*(?:ถ้า|หาก)\s*(?:พี่|คุณ)?\s*(?:มี|ต้องการ|สนใจ|อยาก)[^\n]{0,70}?(?:บอก|ถาม|สอบถาม|ทัก|แจ้ง)(?:มา)?\s*ได้(?:เลย|ตลอด)?\s*(?:นะ)?\s*(?:ครับ|คะ|ค่ะ)?\s*[!.]?\s*$/u;
-const CLOSER_2_RE = /\s*(?:ผมอยู่ที่นี่เพื่อช่วย[^\n]{0,20}|ยินดีช่วย[^\n]{0,20}|ถามมาเถอะ[^\n]{0,60}|(?:พี่)?อยากรู้อะไร[^\n]{0,20}(?:ถาม|บอก)(?:มา)?\s*ได้(?:เลย)?(?:นะ)?(?:ครับ)?|มีอะไรให้ช่วย(?:อีก|เพิ่มเติม)ไหม(?:ครับ)?)\s*[!.?]?\s*$/u;
+const CLOSER_2_RE = /\s*(?:ผมอยู่ที่นี่เพื่อช่วย[^\n]{0,20}|ยินดีช่วย[^\n]{0,20}|ถามมาเถอะ[^\n]{0,60}|(?:พี่)?อยากรู้อะไร[^\n]{0,20}(?:ถาม|บอก)(?:มา)?\s*ได้(?:เลย)?(?:นะ)?(?:ครับ)?|มีอะไรให้ช่วย(?:อีก|เพิ่มเติม)ไหม(?:ครับ)?|(?:พี่)?อยากให้ผมช่วยอะไร(?:เพิ่มเติม|อีก)?ไหม(?:ครับ)?)\s*[!.?]?\s*$/u;
 function stripClosers(t) {
   let out = t;
   for (let i = 0; i < 2; i++) { const n = out.replace(CLOSER_RE, '').replace(CLOSER_2_RE, ''); if (n === out) break; out = n; }
@@ -194,7 +194,13 @@ function applyPolicy(input, { session = {}, pack = null, allow, userText } = {})
 
   // --- benefits caveat ---
   const topics = Array.isArray(r.topics) ? r.topics : [];
-  if (topics.includes('benefits') || r.intent === 'benefits') {
+  // only a reply that actually talks about a programme needs the caveat; a stray 'benefits' tag is dropped (replay 18 Oct)
+  const SUBSIDY_WORDS_RE = /สิทธิ์|สิทธิ|สสว|depa|ดีป้า|อุดหนุน|โครงการรัฐ|ลดหย่อน|ภาษี|BDS|AI ?Pass|AiPASS/iu;
+  if ((topics.includes('benefits') || r.intent === 'benefits') && !SUBSIDY_WORDS_RE.test(texts.join('\n'))) {
+    r.topics = topics.filter((t) => t !== 'benefits');
+    fixed.push('topics: stray benefits tag dropped');
+  }
+  if ((r.topics || []).includes('benefits') || (r.intent === 'benefits' && SUBSIDY_WORDS_RE.test(texts.join('\n')))) {
     const joined = texts.join('\n');
     if (!BENEFITS_CAVEAT_RE.test(joined)) {
       // repaired by code (replay 18 Oct: two misses ended in the system-error line): the caveat is a fixed sentence

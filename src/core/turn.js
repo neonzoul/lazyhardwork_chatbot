@@ -317,6 +317,13 @@ async function runTurn(input, deps, opts = {}) {
             return response;
         } catch (err) {
             if (err.kind === 'exhausted' && degraded?.degradedReply) return await degradedTurn(err);
+            if (err.kind === 'policy') {
+                // The model kept breaking a content rule (e.g. promising Mos without a handoff). Nothing is broken, so
+                // the "ระบบขัดข้อง" line would be untrue: send a calm neutral line with the next questions instead.
+                d.log.warn('model.policy_neutral', { userId: sess.user_id, error: err.message });
+                await d.store.events.append({ kind: 'policy_neutral', user_id: sess.user_id, payload: { error: err.message }, created_at: at.toISOString() });
+                return emptyResponse({ messages: [{ type: 'text', text: 'รับทราบครับ', explain: false, template: null, alt: null, data: null }], quick_replies: topics.nextQuickReplies(null, sess.topics_covered), intent: 'banter' });
+            }
             errs.push(err);
             d.log.error('model.fallback', { userId: sess.user_id, kind: err.kind || 'error', error: err.message });
             await d.store.events.append({ kind: 'model_fallback', user_id: sess.user_id, payload: { error: err.message }, created_at: at.toISOString() });
