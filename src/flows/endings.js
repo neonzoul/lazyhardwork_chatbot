@@ -132,7 +132,7 @@ function cardContext(deps, config) {
     return {
         assets: pack.assets || {},
         log: deps.log,
-        fastworkUrlFor: (cardId) => pack.fastworkUrls?.[cardId] || config.contact?.fastworkUrl || 'https://fastwork.co/user/mos_lazyhardwork',
+        fastworkUrlFor: (cardId) => pack.fastworkUrls?.[cardId] || config.contact?.fastworkUrl || null,
         priceFor: (cardId, tier) => { const p = ladder[cardId]?.tiers?.[tier]; return p ? { price_from: p, label_th: `ราคาเริ่มต้น ${p.toLocaleString('th-TH')} บาท` } : { price_from: null, label_th: 'ราคาเริ่มต้น ปรับตามขอบเขตจริงหลังคุย' }; },
     };
 }

@@ -118,7 +118,7 @@ const FACT_RULES = [
   {
     name: 'fastwork.co URL', re: /fastwork\.co\//u,
     where: ['src/config.js'],
-    debt: { 'src/flows/endings.js': 1, 'src/flows/examples.js': 1 },   // last-resort fallback URL; pack.fastworkUrls / config win
+    debt: {},   // paid 2026-10-18: no invented Fastwork handle anywhere (D-19)
   },
   {
     name: '[Agent Lay] tag', re: /\[Agent Lay\]/u,

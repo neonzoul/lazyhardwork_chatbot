@@ -11,7 +11,7 @@
 const msg = require('../line/messages');
 const lint = require('../core/lint');
 
-const DEFAULT_FASTWORK = 'https://fastwork.co/user/mos_lazyhardwork';
+const DEFAULT_FASTWORK = null; // no invented handle (D-19): the Fastwork item is dropped when no URL is configured
 
 const POSTBACKS = {
     examples: 'DEMO_EXAMPLES',
@@ -90,7 +90,7 @@ function kvLines(text) {
 
 function fastworkUrl(config, pack) {
     const u = (config && config.contact && config.contact.fastworkUrl) || (pack && pack.fastworkUrl) || DEFAULT_FASTWORK;
-    return /^https:\/\//.test(u) ? u : DEFAULT_FASTWORK;
+    return u && /^https:\/\//.test(u) ? u : null;
 }
 
 function examplesAssets(config) {
@@ -119,7 +119,7 @@ function examplesCarousel(pack, config) {
             { image_key: 'demo_shops', title: shops.title || S.demoShops.title, line: shops.line || S.demoShops.line, cta: { label: S.demoShops.cta, postback: POSTBACKS.pick } },
             { image_key: 'this_bot', title: bot.title || S.thisBot.title, line: bot.line || S.thisBot.line, cta: { label: S.thisBot.cta, postback: POSTBACKS.thisBot } },
             { image_key: 'our_work', title: S.ourWork.title, line: S.ourWork.line, cta: { label: S.ourWork.cta, postback: POSTBACKS.ourWork } },
-            { image_key: 'fastwork_profile', title: fw.title || S.fastwork.title, line: fw.line || S.fastwork.line, cta: { label: S.fastwork.cta, uri: fastworkUrl(config, pack) } },
+            ...(fastworkUrl(config, pack) ? [{ image_key: 'fastwork_profile', title: fw.title || S.fastwork.title, line: fw.line || S.fastwork.line, cta: { label: S.fastwork.cta, uri: fastworkUrl(config, pack) } }] : []),
         ],
     };
 }
