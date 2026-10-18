@@ -281,3 +281,19 @@ test('close(): is idempotent and later calls reject instead of throwing', async 
   await store.close();
   await assert.rejects(store.sessions.get('U1'));
 });
+
+test('sessions: fields outside the fixed columns round-trip through the extra JSON column', async () => {
+  const { createStore } = require('../../src/store');
+  const store = createStore({ path: ':memory:' });
+  const s = await store.sessions.getOrCreate('Uextra');
+  s.last_customer_text = 'เรียก Lay'; s.last_kb_refs = ['faq.price-range']; s.offer_shown = true; s.quiet_acked = false; s.discord_thread_id = 'T1'; s.demo_state = { step: 'chat' };
+  await store.sessions.save(s);
+  const back = await store.sessions.get('Uextra');
+  assert.equal(back.last_customer_text, 'เรียก Lay');
+  assert.deepEqual(back.last_kb_refs, ['faq.price-range']);
+  assert.equal(back.offer_shown, true);
+  assert.equal(back.discord_thread_id, 'T1');
+  assert.deepEqual(back.demo_state, { step: 'chat' });
+  assert.equal(back.mode, 'lay');
+  await store.close();
+});

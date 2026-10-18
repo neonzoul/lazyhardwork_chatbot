@@ -5,8 +5,9 @@ const { nowIso, toJson, fromJson, fromBool, bind, insertSql, repo } = require('.
 const COLS = [
   'user_id', 'display_name', 'mode', 'mode_since', 'demo_shop', 'topics_covered', 'draft', 'homework',
   'questions_asked', 'loose_ends_fired', 'opened', 'booking_step', 'last_customer_at', 'last_bot_at',
-  'created_at', 'updated_at',
+  'created_at', 'updated_at', 'extra',
 ];
+const FIXED = new Set(COLS);
 
 const MODES = ['lay', 'quiet', 'mos_active', 'demo'];
 
@@ -21,8 +22,11 @@ function defaultSession(userId) {
 
 function fromRow(r) {
   if (!r) return null;
+  const extra = fromJson(r.extra, {});
+  const { extra: _e, ...rest } = r;
   return {
-    ...r,
+    ...extra,
+    ...rest,
     topics_covered: fromJson(r.topics_covered, []),
     draft: fromJson(r.draft, {}),
     homework: fromJson(r.homework, {}),
@@ -53,6 +57,9 @@ function createSessionsRepo(db, { clock } = {}) {
       created_at: merged.created_at || now,
       updated_at: now,
     };
+    const extra = {};
+    for (const [k, v] of Object.entries(merged)) if (!FIXED.has(k) && v !== undefined) extra[k] = v;
+    row.extra = toJson(extra, {});
     const params = {};
     for (const c of COLS) params[c] = row[c];
     upsert.run(bind(params));
