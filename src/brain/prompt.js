@@ -124,6 +124,8 @@ function renderSession(session = {}, { intentHint } = {}) {
   lines.push(`- homework ที่รู้แล้ว: ${hw.length ? hw.map(([k, v]) => `${k}=${JSON.stringify(v)}`).join(', ') : 'ยังไม่มี'}`);
   if (draft.length || hw.length) lines.push('- ห้ามถามซ้ำสิ่งที่อยู่ใน draft หรือ homework ข้างบน เช่น รู้อาการแล้ว ห้ามถามว่าอยากให้ช่วยเรื่องไหน ให้ถามข้อที่ยังขาดข้อเดียวแทน');
   lines.push('- พูดคำว่า "ราคาเริ่มต้น" ครั้งเดียวต่อข้อความ');
+  if (session.last_lay_question) lines.push(`- คำถามล่าสุดที่ Lay ถามไปแล้ว: "${String(session.last_lay_question).slice(0, 120)}" ห้ามถามซ้ำหรือถามแบบเดียวกัน ถ้าไม่มีคำถามใหม่ที่จำเป็น ไม่ต้องถาม`);
+  lines.push('- อย่าบอกว่ามอสจะเข้ามาคุย ติดต่อกลับ หรือโทรหา ถ้าไม่ได้ตั้ง action เป็น handoff_* ระบบเป็นคนแจ้งมอสเท่านั้น');
   lines.push(`- questions_asked (ถามเก็บข้อมูลไปแล้วกี่ข้อ): ${Number(session.questions_asked || 0)}`);
   if (intentHint) lines.push(`- intent ที่ระบบคาดไว้จากข้อความนี้: ${intentHint} (ใช้เป็นแนวทาง ถ้าอ่านแล้วไม่ใช่ให้ตั้ง intent ตามจริง)`);
   if (intentHint === 'tell_me_more') {

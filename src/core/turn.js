@@ -222,6 +222,7 @@ async function runTurn(input, deps, opts = {}) {
         const messages = renderMessages(response, { deps, config, session: s });
         const sent = await send(input, messages, qr, sender);
         s.questions_asked = (s.questions_asked || 0) + countQuestions(response);
+        { const q = (response.messages || []).filter((m) => m.type === 'text' && QUESTION_RE.test(String(m.text || '').trim())).pop(); if (q) s.last_lay_question = q.text; }
         if (changed.length) await upsertLead(s, { changed });
         await persist(input, s, sent, { role: s.mode === 'demo' ? 'demo_shop' : 'lay', response });
         return done(sent, action);

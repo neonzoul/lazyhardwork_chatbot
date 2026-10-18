@@ -45,7 +45,7 @@ steps:
     expect: { replies: 1, sender: lay, banned_clean: true, emoji_max: 0, text_contains: ["Lay"], text_not_contains: ["[Agent Lay]", "Agent Lay"] }
   - user: "ไอเหี้ยมอส"                                # v1: answered as "can't read images"
     model: { messages: [{ type: text, text: "ใจเย็นๆ ครับ ถ้ามีอะไรให้ช่วยบอกได้เลย", explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: [banter], kb_refs: [], intent: abuse }
-    expect: { replies: 1, sender: lay, banned_clean: true, emoji_max: 0, text_not_contains: ["ขัดข้อง", "!", "บอกได้เลยนะครับ", "อ่านรูป", "ไฟล์", "สุภาพ"], session: { mode: lay } }
+    expect: { replies: 1, sender: lay, banned_clean: true, emoji_max: 0, text_not_contains: ["ขัดข้อง", "!", "บอกได้เลยนะครับ", "อ่านรูป", "ไฟล์", "สุภาพ", "มอสจะเข้ามา", "มอสจะติดต่อ"], session: { mode: lay } }
   - user: "เหมาะ555555"                               # QA BUG-1 regression: "เหมาะ" must not become a price handoff
     model: { messages: [{ type: text, text: "555 ครับ", explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: [banter], kb_refs: [], intent: banter }
     expect: { replies: 1, sender: lay, banned_clean: true, emoji_max: 0, text_not_contains: ["ขัดข้อง", "!", "บอกได้เลยนะครับ"], action: null, not_notified: [handoff], session: { mode: lay } }

@@ -168,3 +168,21 @@ test('style-only violations are salvaged by code: long list → short bubbles wi
   assert.ok(fixed.response.messages.every((m) => !/^\s*\d\./m.test(m.text)));
   assert.equal(isStyleOnly([{ rule: 'banned:email', severity: 'regenerate' }]), false);
 });
+
+test('replay 18 Oct: "มอสจะเข้ามาคุย" without a handoff action is regenerated; with a handoff, or as an offer, it is fine', () => {
+  const { applyPolicy } = require('../../src/core/policy');
+  const mk = (t, action = null) => ({ messages: [{ type: 'text', text: t, explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: [], kb_refs: [], intent: 'abuse', lead_updates: {}, action });
+  const rules = (r) => r.violations.map((v) => v.rule);
+  assert.ok(rules(applyPolicy(mk('ใจเย็นครับพี่ มอสจะเข้ามาคุยเองในเวลาทำการนะครับ'), {})).includes('unbacked_promise'));
+  assert.ok(rules(applyPolicy(mk('ส่งเรื่องให้มอสแล้วครับ'), {})).includes('unbacked_promise'));
+  assert.ok(!rules(applyPolicy(mk('ส่งเรื่องให้มอสแล้วครับ', 'handoff_human'), {})).includes('unbacked_promise'));
+  assert.ok(!rules(applyPolicy(mk('ถ้าอยากคุยกับมอสเอง กดคุยกับมอสได้เลยครับ'), {})).includes('unbacked_promise'));
+});
+
+test('replay 18 Oct: a bubble that is only a stock closer is dropped when other content remains', () => {
+  const { applyPolicy } = require('../../src/core/policy');
+  const t = (x) => ({ type: 'text', text: x, explain: false, template: null, alt: null, data: null });
+  const r = applyPolicy({ messages: [t('แชทบอทตอบลูกค้า 24 ชม. ผ่าน LINE OA ครับ'), t('ถ้าสนใจบริการไหนเพิ่มเติม แจ้งได้เลยครับ')], quick_replies: [], topics: [], kb_refs: [], intent: 'capability', lead_updates: {}, action: null }, {});
+  assert.equal(r.response.messages.length, 1);
+  assert.match(r.response.messages[0].text, /แชทบอท/);
+});

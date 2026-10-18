@@ -169,8 +169,23 @@ function applyPolicy(input, { session = {}, pack = null, allow, userText } = {})
     }
   }
 
+  // --- a bubble that is nothing but a stock closer is dropped when other content remains (replay 18 Oct) ---
+  const closerOnly = (t) => typeof t === 'string' && t.replace(CLOSER_RE, '').replace(CLOSER_2_RE, '').trim() === '';
+  if ((r.messages || []).length > 1) {
+    const before = r.messages.length;
+    r.messages = r.messages.filter((m) => !(m && m.type === 'text' && closerOnly(m.text)));
+    if (!r.messages.length) r.messages = clone(input).messages.slice(0, 1);
+    if (r.messages.length !== before) fixed.push(`messages: ${before - r.messages.length} closer-only bubble(s) dropped`);
+  }
+
   // --- price without grounding ---
   const texts = (r.messages || []).filter((m) => m && m.type === 'text' && typeof m.text === 'string').map((m) => m.text);
+
+  // --- a promise about Mos with no handoff behind it: the customer would wait for someone nobody told (brief §6) ---
+  const UNBACKED_PROMISE_RE = /(?:คุณ\s*)?มอส\s*(?:จะ|จะได้)\s*(?:เข้ามา|ติดต่อ|โทร|ตอบ)|เดี๋ยว\s*(?:คุณ\s*)?มอส\s*(?:จะ)?\s*(?:เข้ามา|ติดต่อ|โทร|ตอบ)|ส่งเรื่อง(?:ให้|ถึง)\s*(?:คุณ\s*)?มอส(?:แล้ว|ให้แล้ว)/u;
+  if (!/^handoff_/.test(String(r.action || '')) && texts.some((t) => UNBACKED_PROMISE_RE.test(t) && !/(?:ถ้า|หาก|อยาก|ต้องการ|กด|บอก)[^\n]{0,20}มอส/u.test(t))) {
+    violate('unbacked_promise', 'regenerate', 'says Mos will come/reply without a handoff action — only code may promise that, after the notify succeeded');
+  }
   const hasPrice = texts.some((t) => PRICE_RE.test(t));
   if (hasPrice) {
     const grounded = r.kb_refs.some((id) => PRICE_REF_RE.test(id) || (known && PRICE_RE.test(known.get(id) || '')));
