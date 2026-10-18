@@ -13,6 +13,10 @@
 
 const { EXAMPLES } = require('./examples');
 const { TOPICS, INTENTS, ACTIONS, TEMPLATES, LEAD_FIELDS } = require('./schema');
+// The strict schema carries card `data` as a JSON string; the examples are kept as objects for readability.
+function exampleForPrompt(r) {
+  return { ...r, messages: (r.messages || []).map((m) => (m.type === 'card' && m.data && typeof m.data === 'object' ? { ...m, data: JSON.stringify(m.data) } : m)) };
+}
 
 const HISTORY_CAP = 12;
 const BANGKOK = 'Asia/Bangkok';
@@ -82,7 +86,7 @@ const CONTRACT = `## รูปแบบคำตอบ (ตอบเป็น JS
 - "action": ${ACTIONS.map((a) => (a === null ? 'null' : a)).join(' | ')} คุณ "เสนอ" action ระบบตัดสินใจว่าจะทำหรือไม่`;
 
 function renderExamples() {
-  return EXAMPLES.map((ex, i) => `### ตัวอย่าง ${i + 1} (${ex.id})${ex.note ? ` — ${ex.note}` : ''}\nลูกค้า: ${ex.user}\nคำตอบ:\n${JSON.stringify(ex.response)}`).join('\n\n');
+  return EXAMPLES.map((ex, i) => `### ตัวอย่าง ${i + 1} (${ex.id})${ex.note ? ` — ${ex.note}` : ''}\nลูกค้า: ${ex.user}\nคำตอบ:\n${JSON.stringify(exampleForPrompt(ex.response))}`).join('\n\n');
 }
 
 const STATIC_PREFIX = [

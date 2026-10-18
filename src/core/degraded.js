@@ -6,7 +6,7 @@
 //   degradedNotifyFailedReply({ config })  — the forward failed too: no promise, phone only
 //   degradedFitChoiceReply({ config })     — "เหมาะกับงานผมไหม" needs no model: the five-symptom choice card
 //
-// Thai strings live here (conventions: next to the flow that uses them). No email, no [Agent Lay], no emoji.
+// Thai strings live here (conventions: next to the flow that uses them). No email, no identity tag, no emoji.
 
 const { emptyResponse } = require('../brain/schema');
 const { CALL_LAY_LABEL } = require('../identity/quiet');

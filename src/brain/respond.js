@@ -72,7 +72,14 @@ function providerSchema(schema, log) {
 
 function parseJson(content) {
   if (typeof content !== 'string') return { ok: false, errors: ['no content'] };
-  try { return { ok: true, value: JSON.parse(content) }; } catch (e) { return { ok: false, errors: [`not JSON: ${e.message}`] }; }
+  try {
+    const value = JSON.parse(content);
+    // strict schema carries card data as a JSON string; the pipeline works with objects
+    if (value && Array.isArray(value.messages)) for (const m of value.messages) {
+      if (m && m.type === 'card' && typeof m.data === 'string') { try { m.data = JSON.parse(m.data); } catch { /* validateResponse reports it */ } }
+    }
+    return { ok: true, value };
+  } catch (e) { return { ok: false, errors: [`not JSON: ${e.message}`] }; }
 }
 
 function errorText(err) {

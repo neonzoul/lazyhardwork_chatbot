@@ -27,7 +27,8 @@ test('static prefix carries persona, voice, emoji policy, contract, not-list and
   }
   for (const ex of EXAMPLES) {
     assert.ok(STATIC_PREFIX.includes(`ลูกค้า: ${ex.user}`), `example ${ex.id} missing`);
-    assert.ok(STATIC_PREFIX.includes(JSON.stringify(ex.response)), `example ${ex.id} response missing`);
+    const shown = { ...ex.response, messages: ex.response.messages.map((m) => (m.type === 'card' && m.data && typeof m.data === 'object' ? { ...m, data: JSON.stringify(m.data) } : m)) };
+    assert.ok(STATIC_PREFIX.includes(JSON.stringify(shown)), `example ${ex.id} response missing`);
   }
   assert.ok(!STATIC_PREFIX.includes('[Agent Lay] สวัสดี'));
 });

@@ -36,7 +36,7 @@ const messageSchema = {
     explain: { type: 'boolean' },                          // true = an explanatory bubble where structural emoji are allowed
     template: { type: ['string', 'null'], enum: [...TEMPLATES, null] },
     alt: nullableString,                                   // card altText
-    data: { type: ['object', 'null'], additionalProperties: true }, // template-specific; validated by cards/validate
+    data: { type: ['string', 'null'], description: 'card data as a JSON string (template-specific shape); null for text' }, // strict mode forbids open objects
   },
   required: ['type', 'text', 'explain', 'template', 'alt', 'data'],
   additionalProperties: false,
@@ -70,7 +70,7 @@ function validateResponse(r) {
     let cards = 0;
     r.messages.forEach((m, i) => {
       if (m.type === 'text') { if (!m.text || !m.text.trim()) errors.push(`messages[${i}]: empty text`); }
-      else if (m.type === 'card') { cards++; if (!TEMPLATES.includes(m.template)) errors.push(`messages[${i}]: unknown template ${m.template}`); if (!m.alt) errors.push(`messages[${i}]: card needs alt`); }
+      else if (m.type === 'card') { cards++; if (!TEMPLATES.includes(m.template)) errors.push(`messages[${i}]: unknown template ${m.template}`); if (!m.alt) errors.push(`messages[${i}]: card needs alt`); if (typeof m.data === 'string') { try { const d = JSON.parse(m.data); if (!d || typeof d !== 'object') errors.push(`messages[${i}]: data must be a JSON object`); } catch { errors.push(`messages[${i}]: data is not valid JSON`); } } else if (m.data !== null && typeof m.data !== 'object') errors.push(`messages[${i}]: data must be an object or JSON string`); }
       else errors.push(`messages[${i}]: bad type ${m.type}`);
     });
     if (cards > 1) errors.push('at most one card per reply');

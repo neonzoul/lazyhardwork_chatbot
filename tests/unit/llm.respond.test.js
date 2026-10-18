@@ -122,7 +122,7 @@ test('request shape for OpenRouter: baseURL + app headers on the real client, st
   const m = createModel({ client, overrides: {} });
   await m.respond(req());
   const { body, opts } = client.calls[0];
-  assert.deepEqual(body.response_format, { type: 'json_schema', json_schema: { ...responseSchema, strict: false } });
+  assert.deepEqual(body.response_format, { type: 'json_schema', json_schema: { ...responseSchema, strict: true } }); // the real schema is strict-compatible since 2026-10-18 (card data = JSON string)
   assert.deepEqual(body.usage, { include: true });
   assert.equal(body.max_tokens, 1024);
   assert.equal(body.temperature, 0.4);
@@ -151,14 +151,16 @@ test('task routing: env override picks the model; a disabled task refuses before
 
 test('strict mode guard: a schema with a free-form object goes out with strict: false (once-logged); a strict-compatible one stays strict', async () => {
   const { strictViolation, providerSchema } = require('../../src/brain/respond');
-  assert.match(strictViolation(responseSchema.schema), /messages\.items\.data: additionalProperties must be false/);
+  assert.equal(strictViolation(responseSchema.schema), null, 'the real schema must stay strict-compatible');
+  const loose = { type: 'object', properties: { data: { type: ['object', 'null'], additionalProperties: true } }, required: ['data'], additionalProperties: false };
+  assert.match(strictViolation(loose), /data: additionalProperties must be false/);
   const tight = { name: 't', strict: true, schema: { type: 'object', properties: { ok: { type: 'boolean' }, list: { type: 'array', items: { type: 'object', properties: { k: { type: 'string' } }, required: ['k'], additionalProperties: false } } }, required: ['ok', 'list'], additionalProperties: false } };
   assert.equal(strictViolation(tight.schema), null);
   assert.equal(providerSchema(tight).strict, true);
   const warns = [];
   const client = fakeClient([completion(JSON.stringify(good))]);
   await createModel({ client, overrides: {}, log: { info() {}, warn: (e, f) => warns.push([e, f]), error() {} } }).respond(req());
-  assert.equal(client.calls[0].body.response_format.json_schema.strict, false);
+  assert.equal(client.calls[0].body.response_format.json_schema.strict, true);
   assert.equal(client.calls[0].body.response_format.json_schema.name, 'lay_turn');
   assert.deepEqual(client.calls[0].body.response_format.json_schema.schema, responseSchema.schema, 'the schema itself is untouched');
   assert.equal(responseSchema.strict, true, 'the source schema object is not mutated');

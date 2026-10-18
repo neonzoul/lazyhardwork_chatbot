@@ -40,8 +40,8 @@ test('valid output → parsed response with non-enumerable _meta; request carrie
   assert.equal(body.max_tokens, 777);
   assert.deepEqual(body.usage, { include: true }, 'OpenRouter returns usage.cost only when asked');
   assert.equal(body.temperature, 0.2);
-  // lay_turn carries a free-form card `data` object, which OpenAI strict mode rejects → sent as strict: false (doc/llm.md §2)
-  assert.deepEqual(body.response_format, { type: 'json_schema', json_schema: { ...responseSchema, strict: false } });
+  // lay_turn is strict-compatible since 2026-10-18 (card data = JSON string) → sent as strict: true
+  assert.deepEqual(body.response_format, { type: 'json_schema', json_schema: { ...responseSchema, strict: true } });
   assert.equal(body.messages[0].role, 'system');
   assert.equal(body.messages[0].content, 'SYS');
   assert.equal(body.messages[1].role, 'user');
