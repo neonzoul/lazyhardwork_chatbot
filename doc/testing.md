@@ -123,3 +123,56 @@ Use it for the voice test, not as the merge gate.
 4. The Thai HTML test report is built from those two Markdown files (one transcript per scenario, Mos scores each
    1–10; ≥ 8/10 on the ten Mos scenarios = §9.1).
 5. Demo mode (§9.7) and lead-sync (§9.9) are checked on the phone / against the test DB, not here.
+
+## Real-surface smoke
+
+`scripts/smoke-webhook.js` proves a **deployed** Lay (tunnel or Railway) works end to end without anyone tapping on a
+phone — practice-audit gap 4. It signs LINE webhook events itself (`x-line-signature` = base64 HMAC-SHA256 of the raw
+body with the channel secret, exactly as `@line/bot-sdk` verifies them), POSTs the sequence
+`follow → "สวัสดีครับ" → FIT_chat_overload → "ราคาเท่าไหร่" → MENU_EXAMPLES → "เรียก Lay"` to `<base>/webhook`, waits for the text
+debounce (7.5 s after a text, 1 s after a postback), and reads the persisted result back through the admin API
+(`GET /admin/sessions/:userId`, `GET /admin/events`). What it proves: signature verification is on (a wrong signature is
+refused, a signed empty body gets 200), events reach the pipeline, the debounce fires, the session mutates
+(`opened`, `draft.symptom`, `last_customer_at`, `mode`), the deterministic turns send the right thing (opening text with
+"3 เรื่อง", `examples` carousel, "Lay กลับมาดูแลต่อ"), the FIT turn produces a `choice`/`offer` card, and no `error` event was
+recorded for that user. The output is a PASS / WARN / FAIL table with what was observed (text snippet, Flex template,
+sender name), total time, and exit code 1 on any FAIL.
+
+```
+node scripts/smoke-webhook.js --base https://<tunnel-host> --secret "$LINE_CHANNEL_SECRET" --token "$ADMIN_TOKEN"
+node scripts/smoke-webhook.js --base https://<app>.up.railway.app --secret … --token …      # same against Railway
+node scripts/smoke-webhook.js … --user Usmoke-$(date +%s)                                  # pick the synthetic id yourself
+node scripts/smoke-webhook.js … --real-push --user U<your real LINE user id>                # messages really arrive on that phone
+```
+
+`--base`, `--secret`, `--token` fall back to `SMOKE_BASE`, `LINE_CHANNEL_SECRET`, `ADMIN_TOKEN` in the environment. The
+secret is the channel secret of the OA the deployment serves (test OA on the tunnel, prod OA on Railway) — a mismatch
+shows as `webhook FAIL HTTP 500` on every step and nothing reaches the pipeline.
+
+**Synthetic-id caveat.** The default user id is `Usmoke-<timestamp>`, which is not a real LINE user, so every push to it
+is rejected by LINE (400). `core/turn.send` then records an `undelivered` event (payload lists the message types that
+were composed) and the turn's catch records an `error` event with `line undelivered`; the transcript row is never
+written because `persist` runs after a successful send. The script treats this as the expected outcome of the synthetic
+id: those `undelivered` events are the evidence that a message of the right kind (`text` / `flex`) was composed and
+handed to LINE, and the two event kinds are filtered out of the error check. What it cannot verify without delivery is
+the content — the exact text or the Flex template name — so the observed column says so
+(`composed [text,flex] → LINE rejected synthetic id (expected); template examples not verifiable without delivery`).
+Session-state checks (`opened`, `draft.symptom`, `last_customer_at`, `mode`) are unaffected because the session is saved
+on the error path too.
+
+**`--real-push --user U<real id>`** turns the filter off: `undelivered` and every `error` event count as FAIL, the
+transcript rows are read, and the text / template assertions are verified for real. The six messages arrive on that
+phone, so use your own id (`MOS_LINE_USER_ID`) and expect the opening, the FIT answer with the offer card, the pricing
+answer, the examples carousel and "Lay กลับมาดูแลต่อ".
+
+**Model unavailable.** The greeting, FIT and pricing turns need the model. When the key is missing or exhausted the turn
+answers with the honest fallback ("ขัดข้อง") and records a `model_fallback` event; the script reports those steps as
+`WARN (model unavailable)` and the missing FIT card as WARN, never FAIL — the never-silent rule is what is asserted. A
+step that sent nothing at all is FAIL. Two more server-side hints the table gives: the examples carousel falls back to
+text when `PUBLIC_BASE_URL` is not an https URL, and the offer card falls back to text when `FASTWORK_URL` is unset
+(the renderer never invents a URL, D-19) — both are reported as FAIL with the variable named.
+
+`tests/unit/smoke-webhook.test.js` runs the same script against `createApp` with the fakes on an ephemeral port
+(`DEBOUNCE_MS=20`), so the signing, the sequence and every assertion are exercised by `npm test`; the test also covers
+the wrong-secret path, the model-unavailable path and the synthetic-vs-real-push filter. The script never pushes to a
+real user unless you pass `--real-push`.
