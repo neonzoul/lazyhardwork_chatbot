@@ -139,3 +139,11 @@ test('LINE push fails twice → undelivered event, no crash loop', async () => {
   assert.ok(r.errors.length >= 1);
   w.line.push = origPush;
 });
+
+test('replay 18 Oct: a model handoff_human on a swear word is ignored (no notify, Lay stays in lay mode)', async () => {
+  const w = world([text('ใจเย็นครับพี่', { intent: 'abuse', action: 'handoff_human' })]);
+  const r = await runTurn(w.input({ text: 'ไอเหี้ยมอส' }), w.deps);
+  assert.equal(r.action, null);
+  assert.equal(w.notifier.named('handoff').length, 0);
+  assert.equal(r.session.mode, 'lay');
+});

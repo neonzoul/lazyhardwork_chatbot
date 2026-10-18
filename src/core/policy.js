@@ -59,7 +59,7 @@ function clone(x) { return JSON.parse(JSON.stringify(x)); }
 // --- voice repairs found in the first-tester replay (2026-10-18) — mechanical, so they never cost a regenerate ---
 // A trailing "if you have anything else, just tell me" sentence is the v2 cousin of v1's "ยินดีช่วยเสมอ".
 const CLOSER_RE = /\s*(?:ถ้า|หาก)\s*(?:พี่|คุณ)?\s*(?:มี|ต้องการ|สนใจ|อยาก)[^\n]{0,70}?(?:บอก|ถาม|สอบถาม|ทัก|แจ้ง)(?:มา)?\s*ได้(?:เลย|ตลอด)?\s*(?:นะ)?\s*(?:ครับ|คะ|ค่ะ)?\s*[!.]?\s*$/u;
-const CLOSER_2_RE = /\s*(?:ผมอยู่ที่นี่เพื่อช่วย[^\n]{0,20}|ยินดีช่วย[^\n]{0,20}|ถามมาเถอะ[^\n]{0,60}|มีอะไรให้ช่วย(?:อีก|เพิ่มเติม)ไหม(?:ครับ)?)\s*[!.?]?\s*$/u;
+const CLOSER_2_RE = /\s*(?:ผมอยู่ที่นี่เพื่อช่วย[^\n]{0,20}|ยินดีช่วย[^\n]{0,20}|ถามมาเถอะ[^\n]{0,60}|(?:พี่)?อยากรู้อะไร[^\n]{0,20}(?:ถาม|บอก)(?:มา)?\s*ได้(?:เลย)?(?:นะ)?(?:ครับ)?|มีอะไรให้ช่วย(?:อีก|เพิ่มเติม)ไหม(?:ครับ)?)\s*[!.?]?\s*$/u;
 function stripClosers(t) {
   let out = t;
   for (let i = 0; i < 2; i++) { const n = out.replace(CLOSER_RE, '').replace(CLOSER_2_RE, ''); if (n === out) break; out = n; }
@@ -196,7 +196,12 @@ function applyPolicy(input, { session = {}, pack = null, allow, userText } = {})
   const topics = Array.isArray(r.topics) ? r.topics : [];
   if (topics.includes('benefits') || r.intent === 'benefits') {
     const joined = texts.join('\n');
-    if (!BENEFITS_CAVEAT_RE.test(joined)) violate('benefits_without_caveat', 'regenerate', 'benefits answer lacks the "ตรวจสอบกับหน่วยงาน" frame');
+    if (!BENEFITS_CAVEAT_RE.test(joined)) {
+      // repaired by code (replay 18 Oct: two misses ended in the system-error line): the caveat is a fixed sentence
+      const last = [...(r.messages || [])].reverse().find((m) => m && m.type === 'text' && typeof m.text === 'string');
+      if (last) { last.text = `${last.text.trim()}\nอาจใช้สิทธิ์ได้ ต้องตรวจสอบกับหน่วยงานก่อนครับ`; fixed.push('benefits caveat appended'); violate('benefits_without_caveat', 'fix', 'caveat appended by code'); }
+      else violate('benefits_without_caveat', 'regenerate', 'benefits answer lacks the "ตรวจสอบกับหน่วยงาน" frame');
+    }
   }
 
   // --- problem_verbatim must be the customer's words ---

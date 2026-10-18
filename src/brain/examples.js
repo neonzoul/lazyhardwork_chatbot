@@ -118,7 +118,7 @@ const EXAMPLES = [
     note: 'joke / tease — one light human line, no CTA, no card, no quick replies',
     user: 'ขายตรงมากพี่ 555',
     response: emptyResponse({
-      messages: [text('555 โดนจับได้ครับ งั้นผมเงียบไว้ก่อน พี่อยากรู้อะไรค่อยถามมาได้เลยครับ')],
+      messages: [text('555 โดนจับได้ครับ งั้นผมเงียบไว้ก่อน')],
       quick_replies: [],
       topics: ['banter'],
       kb_refs: [],

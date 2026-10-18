@@ -284,6 +284,12 @@ async function runTurn(input, deps, opts = {}) {
         let response;
         try {
             response = await attempt();
+            // The model proposes, code disposes: a human handoff only when the customer asked for a person (brief §3.9).
+            // Profanity or banter is answered with one calm line, never a handoff (brief §3.2; replay 18 Oct step 12).
+            if (response && response.action === 'handoff_human' && response.intent !== 'ask_human' && !handoff.isAskHuman(userText)) {
+                d.log.info('model.handoff_ignored', { intent: response.intent });
+                response = { ...response, action: null };
+            }
             if (policy?.applyPolicy) {
                 let p = policy.applyPolicy(response, { session: sess, pack, allow: new Set(), userText });
                 if (p.severity === 'regenerate') {

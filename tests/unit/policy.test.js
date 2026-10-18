@@ -186,3 +186,10 @@ test('replay 18 Oct: a bubble that is only a stock closer is dropped when other 
   assert.equal(r.response.messages.length, 1);
   assert.match(r.response.messages[0].text, /แชทบอท/);
 });
+
+test('replay 18 Oct: a benefits answer without the caveat gets it appended by code (no regenerate, no error line)', () => {
+  const { applyPolicy } = require('../../src/core/policy');
+  const r = applyPolicy({ messages: [{ type: 'text', text: 'มีโครงการ BDS ของ สสว. ช่วยค่าบริการบางส่วนครับ', explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: ['benefits'], kb_refs: [], intent: 'benefits', lead_updates: {}, action: null }, {});
+  assert.equal(r.severity, 'fix');
+  assert.match(r.response.messages[0].text, /ตรวจสอบกับหน่วยงาน/);
+});
