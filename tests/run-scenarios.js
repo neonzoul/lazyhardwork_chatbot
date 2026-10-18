@@ -29,6 +29,11 @@
 //   · alerts { critical: n, recovered: n, warn: n } (cumulative Discord operator alerts posted so far — real discord/alerts with a recording transport)
 //   · session { mode, topics_covered_includes [..], questions_asked_max, draft_has [..], homework_has [..] }
 
+// Deterministic test config: the scenarios must not depend on a developer's .env (the first CI run on 18 Oct failed
+// because offer cards need a Fastwork URL and the examples carousel needs an https base URL). Real values win when set.
+process.env.FASTWORK_URL = process.env.FASTWORK_URL || 'https://fastwork.co/test-profile';
+process.env.PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || 'https://lay.example.test';
+
 const fs = require('fs');
 const path = require('path');
 const yaml = require('js-yaml');

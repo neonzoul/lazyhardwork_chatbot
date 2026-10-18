@@ -61,7 +61,9 @@ function createApp({ overrides = {} } = {}) {
         }
     }
 
-    const deps = createDeps({ line: lineClient, notifier, store, model, log, pack, config, senders: createSenders(config), keyring, budget, alerts });
+    // The keyring gates the real provider only: an injected model (tests, smoke) must not be short-circuited by an empty
+    // keyring (CI has no OPENROUTER_API_KEY — the first CI run on 18 Oct failed exactly here).
+    const deps = createDeps({ line: lineClient, notifier, store, model, log, pack, config, senders: createSenders(config), keyring: overrides.model && !overrides.keyring ? undefined : keyring, budget, alerts });
     const handleEvent = createEventHandler(deps);
 
     const app = express();
