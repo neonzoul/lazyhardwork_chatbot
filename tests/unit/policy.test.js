@@ -193,3 +193,12 @@ test('replay 18 Oct: a benefits answer without the caveat gets it appended by co
   assert.equal(r.severity, 'fix');
   assert.match(r.response.messages[0].text, /ตรวจสอบกับหน่วยงาน/);
 });
+
+test('18 Oct: a closing question similar to the last one Lay asked is dropped; a new question stays', () => {
+  const { applyPolicy } = require('../../src/core/policy');
+  const t = (x) => ({ type: 'text', text: x, explain: false, template: null, alt: null, data: null });
+  const mk = (q) => ({ messages: [t('แชทบอทตอบลูกค้า 24 ชม. ครับ'), t(q)], quick_replies: [], topics: [], kb_refs: [], intent: 'capability', lead_updates: {}, action: null });
+  const session = { last_lay_question: 'ตอนนี้พี่สนใจบริการไหนเป็นพิเศษครับ' };
+  assert.equal(applyPolicy(mk('ตอนนี้พี่สนใจบริการไหนอยู่ครับ จะได้เล่าให้ตรงจุด'), { session }).response.messages.length, 1);
+  assert.equal(applyPolicy(mk('ตอนนี้ร้านพี่มีคนตอบแชทกี่คนครับ'), { session }).response.messages.length, 2);
+});

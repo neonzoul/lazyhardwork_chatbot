@@ -39,7 +39,7 @@ test('a question goes to the model; topics union; follow-up quick replies filter
 
 test('model throws → honest fallback with phone + เรียก Lay, never silent', async () => {
   const w = world(['throw']);
-  const r = await runTurn(w.input({ text: 'อธิบายเพิ่ม' }), w.deps);
+  const r = await runTurn(w.input({ text: 'ร้านผมเป็นร้านกาแฟครับ' }), w.deps);
   assert.equal(w.line.sent.length, 1);
   assert.match(w.line.texts()[0], /095 569 1674/);
   assert.deepEqual(w.line.quickReplies(), ['เรียก Lay']);
@@ -172,4 +172,23 @@ test('replay 18 Oct: banter or a swear word gets exactly one line, no follow-up 
   await runTurn(w.input({ text: 'ไอเหี้ยมอส' }), w.deps);
   assert.deepEqual(w.line.texts(), ['ใจเย็นๆ ครับพี่']);
   assert.deepEqual(w.line.quickReplies(), []);
+});
+
+test('18 Oct: "ขอดีเทล" is answered by code — choice of work, then the chosen package card from the pack, no model call', async () => {
+  const { loadPack } = require('../../src/brain/kb');
+  const w = world();
+  w.deps.pack = loadPack('knowledge');
+  const r1 = await runTurn(w.input({ text: 'แต่มันไม่มีดีเทลงานเลยหรอแบบแจกแจง' }), w.deps);
+  assert.equal(w.model.calls.length, 0);
+  assert.equal(r1.errors.length, 0);
+  assert.match(w.line.texts()[0], /แจกแจง/);
+  assert.equal(w.line.cards().length, 1);
+  assert.match(JSON.stringify(w.line.cards()[0]), /DETAIL_A2/);
+  w.line.reset();
+  const r2 = await runTurn(w.input({ kind: 'postback', data: 'DETAIL_A2' }), w.deps);
+  assert.equal(w.model.calls.length, 0);
+  assert.equal(r2.session.draft.card, 'A2');
+  const json = JSON.stringify(w.line.cards()[0] || {});
+  assert.match(json, /ราคาเริ่มต้น/);
+  assert.match(json, /15,000/);
 });

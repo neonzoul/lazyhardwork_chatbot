@@ -172,6 +172,7 @@ async function runTurn(input, deps, opts = {}) {
             if (data.startsWith('FIT_') && fit?.onSymptomPostback) { ({ intentHint, userText } = fit.onSymptomPostback(data, s)); }
             else if (data.startsWith('BOOK_') && endings?.onBookingPostback) { return await endings.onBookingPostback({ data, input, session: s, deps, config, send, persist, done, sender: senders.lay, doHandoff, upsertLead }); }
             else if (data.startsWith('DEMO_') && demo?.onDemoPostback) { return await demo.onDemoPostback({ data, input, session: s, deps, config, send, persist, done, senders }); }
+            else if (data.startsWith('DETAIL_')) { return await detailsTurn(data.slice('DETAIL_'.length)); }
             else if (data === 'MENU_EXAMPLES' || data === 'MENU_PORTFOLIO') { const demo = flows.demo || lazy('../flows/demo'); if (demo?.onDemoPostback) return await demo.onDemoPostback({ data: 'DEMO_EXAMPLES', input, session: s, deps, config, send, persist, done, senders }); }
             else if (data.startsWith('MENU_')) { const t = MENU_TO_TEXT[data]; if (t) { userText = t; intentHint = topics.topicFromText(t) || 'unknown'; } }
             else { userText = data; }
@@ -179,6 +180,12 @@ async function runTurn(input, deps, opts = {}) {
         if (input.kind === 'text' && intentHint === 'proof' && !s.examples_shown && [...text.trim()].length <= 20) {
             const demo = flows.demo || lazy('../flows/demo');
             if (demo?.onDemoPostback) { s.examples_shown = true; session.unionTopics(s, ['proof']); return await demo.onDemoPostback({ data: 'DEMO_EXAMPLES', input, session: s, deps, config, send, persist, done, senders }); }
+        }
+        // 8b. "ขอดีเทล / แจกแจง / ได้อะไรบ้าง" is answered by code with real deliverables from the pack (replay 18 Oct:
+        // the model kept answering with a summary of the four services and asking back). A plain "explain more" right
+        // after a specific answer still goes to the model, anchored on that answer.
+        if (input.kind === 'text' && (DETAIL_RE.test(text) || (isTellMeMore(text) && !(s.last_kb_refs || []).length))) {
+            return await detailsTurn(s.draft?.card || null);
         }
         if (isTellMeMore(text) && s.last_kb_refs?.length) intentHint = 'tell_me_more';
 
@@ -239,6 +246,39 @@ async function runTurn(input, deps, opts = {}) {
 
     // ---- helpers bound to this turn -------------------------------------------------------------------------
     function done(sent, action, extra = {}) { return { sent, action, session: s, errors, ...extra }; }
+
+    // Package details, owned by code (18 Oct): no card yet → a choice of five kinds of work; a card → its T1 deliverables,
+    // starting price and Fastwork button straight from the knowledge pack (endings.offerCard). No model call, no invention.
+    async function detailsTurn(cardId) {
+        const endings = deps.flows?.endings || lazy('../flows/endings');
+        const card = DETAIL_CHOICES.find((c) => c.card === cardId) ? cardId : null;
+        let response;
+        if (!card || !endings?.offerCard) {
+            response = emptyResponse({
+                intent: 'capability', topics: ['capability'],
+                messages: [
+                    { type: 'text', text: 'ได้ครับ เลือกงานที่อยากดูรายละเอียด ผมแจกแจงให้ว่าได้อะไรบ้าง', explain: false, template: null, alt: null, data: null },
+                    { type: 'card', text: null, explain: false, template: 'choice', alt: 'เลือกงานที่อยากดูรายละเอียด', data: { title: 'อยากดูรายละเอียดงานไหน', options: DETAIL_CHOICES.map((c) => ({ label: c.label, postback: `DETAIL_${c.card}` })) } },
+                ],
+            });
+        } else {
+            s.draft = { ...(s.draft || {}), card, tier: s.draft?.tier || 'T1' };
+            const offer = endings.offerCard({ ...s, draft: { ...s.draft, tier: 'T1' } }, { deps });
+            response = emptyResponse({
+                intent: 'capability', topics: ['capability', 'pricing'],
+                messages: [
+                    { type: 'text', text: `แพ็กเริ่มต้นของงาน${DETAIL_CHOICES.find((c) => c.card === card).label}ได้ตามนี้ครับ`, explain: false, template: null, alt: null, data: null },
+                    { type: 'card', text: null, explain: false, template: offer.template, alt: offer.alt, data: offer.data },
+                ],
+            });
+            s.offer_shown = true;
+        }
+        session.unionTopics(s, response.topics);
+        const messages = renderMessages(response, { deps, config, session: s });
+        const sent = await send(input, messages, response.quick_replies?.length ? response.quick_replies : topics.nextQuickReplies('capability', s.topics_covered), senders.lay);
+        await persist(input, s, sent, { role: 'lay', response });
+        return done(sent, null);
+    }
 
     async function doHandoff(kind, inp, sess, { question }) {
         const lead = await upsertLead(sess, { reason: kind });
@@ -427,7 +467,15 @@ async function runTurn(input, deps, opts = {}) {
 const MENU_TO_TEXT = { MENU_CAPABILITY: 'ทำอะไรได้บ้าง', MENU_FIT: 'เหมาะกับงานผมไหม', MENU_PRICING: 'ราคาเท่าไหร่', MENU_EXAMPLES: 'ขอดูตัวอย่าง', MENU_START: 'เริ่มยังไง', MENU_SERVICES: 'ทำอะไรได้บ้าง', MENU_PORTFOLIO: 'ขอดูตัวอย่าง' };
 const BOOK_ENTRY_RE = /^\s*(?:นัดคุยกับมอส(?:ก่อน)?|นัดคุย|ขอนัดคุย|จองคิวคุย|นัดเวลาคุย)\s*$/u;
 const GREETING_RE = /^\s*(?:สวัสดี(?:ครับ|ค่ะ|คับ)?|หวัดดี(?:ครับ|ค่ะ)?|hi|hello|ดีครับ|ดีค่ะ|ทักครับ|ทัก)\s*[!.]*\s*$/iu;
-const TELL_ME_MORE_RE = /อธิบาย(?:เพิ่ม|ละเอียด|ต่อ)|ละเอียดกว่านี้|ขอรายละเอียด|เพิ่มเติมหน่อย|ยังไง(?:บ้าง)?ครับ?$|แล้ว(?:ไง|ยังไง)ต่อ|มีอะไรอีก|ดีเทล|detail/iu;
+const DETAIL_RE = /ดีเทล|แจกแจง|ได้อะไรบ้าง|มีอะไรบ้างในแพ็ก|รายละเอียดแพ็ก|รายละเอียดงาน/u;
+const DETAIL_CHOICES = [
+    { card: 'A2', label: 'แชทบอทตอบลูกค้า' },
+    { card: 'A1', label: 'ระบบงานภายใน' },
+    { card: 'A3', label: 'ออโตเมชันงานซ้ำ' },
+    { card: 'A4', label: 'ตั้งค่า AI ให้รู้จักงาน' },
+    { card: 'C1', label: 'ดูว่าควรเริ่มตรงไหน' },
+];
+const TELL_ME_MORE_RE =/อธิบาย(?:เพิ่ม|ละเอียด|ต่อ)|ละเอียดกว่านี้|ขอรายละเอียด|เพิ่มเติมหน่อย|ยังไง(?:บ้าง)?ครับ?$|แล้ว(?:ไง|ยังไง)ต่อ|มีอะไรอีก|ดีเทล|detail/iu;
 const QUESTION_RE = /(?:ไหม|มั้ย|หรือเปล่า|หรือยัง|อะไร(?:บ้าง)?|ยังไง|กี่\S*|ที่ไหน|เมื่อไหร่|ช่วงไหน|แบบไหน)\s*(?:ครับ|คะ)?\s*[?？]?\s*$/u;
 
 function isGreeting(text) { return GREETING_RE.test(text || ''); }

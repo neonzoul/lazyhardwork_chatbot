@@ -37,9 +37,10 @@ steps:
   - user: "มันไม่เห็นข้อความมอน มันเห็นแต่ข้อความ อป.\nชอบๆ"
     model: { messages: [{ type: text, text: "ขอบคุณครับ", explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: [banter], kb_refs: [], intent: banter }
     expect: { replies: 1, sender: lay, banned_clean: true, emoji_max: 0, text_not_contains: ["ขัดข้อง", "!", "บอกได้เลยนะครับ", "ยินดีช่วยเสมอ"] }
-  - user: "แต่มันไม่มีดีเทลงานเลยหรอแบบแจกแจง"           # v1: "ยังไม่มีข้อมูล"; the KB now carries deliverables
-    model: { messages: [{ type: text, text: "มีครับ แชทบอทแพ็กเริ่มต้นได้บอท 1 ช่องทาง คลังความรู้ของร้าน ส่งต่อแอดมินเมื่อตอบไม่ได้ ทดสอบด้วยเคสจริงและเคสหลอก สอนใช้ 30 นาที และดูแล 3 เดือนแรกครับ", explain: false, template: null, alt: null, data: null }], quick_replies: ["ใช้เวลานานไหม"], topics: [capability], kb_refs: ["offer.A2.T1"], intent: tell_me_more }
-    expect: { replies_min: 1, sender: lay, banned_clean: true, emoji_max: 0, text_not_contains: ["ขัดข้อง", "!", "บอกได้เลยนะครับ", "ยังไม่มีข้อมูล", "ไม่มีข้อมูลในระบบ"] }
+  - user: "แต่มันไม่มีดีเทลงานเลยหรอแบบแจกแจง"           # v1: "ยังไม่มีข้อมูล"; since 18 Oct answered by code: choice of work → package card
+    expect: { replies: 2, card: choice, sender: lay, banned_clean: true, emoji_max: 0, text_contains: ["แจกแจง"], text_not_contains: ["ขัดข้อง", "!", "ยังไม่มีข้อมูล"] }
+  - postback: DETAIL_A2                               # the customer taps "แชทบอทตอบลูกค้า": deliverables + starting price from the pack
+    expect: { replies: 2, card: offer, sender: lay, banned_clean: true, emoji_max: 0, session: { draft_has: [card] } }
   - user: "แล้วจะให้มัยเรียกว่าอะไร"                   # honest AI identity, no [Agent Lay]
     model: { messages: [{ type: text, text: "เรียกผมว่า Lay ได้เลยครับ ผมเป็นผู้ช่วย AI ของมอส", explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: [policy], kb_refs: ["policies.ai-disclosure"], intent: ai_disclosure }
     expect: { replies: 1, sender: lay, banned_clean: true, emoji_max: 0, text_contains: ["Lay"], text_not_contains: ["[Agent Lay]", "Agent Lay"] }

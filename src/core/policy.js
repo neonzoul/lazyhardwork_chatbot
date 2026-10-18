@@ -180,6 +180,20 @@ function applyPolicy(input, { session = {}, pack = null, allow, userText } = {})
     }
   }
 
+  // --- the same closing question as last turn is dropped when other content remains (replay 18 Oct: Lay asked
+  // "ตอนนี้พี่สนใจบริการไหน…" on four turns in a row). Similarity = character-bigram overlap, Thai-safe. ---
+  if (session && session.last_lay_question && (r.messages || []).length > 1) {
+    const norm = (t) => String(t || '').replace(/ครับ|คะ|ค่ะ|พี่|นะ|ตอนนี้|[\s?!.]/gu, '');
+    const grams = (t) => { const a = [...norm(t)]; const set = new Set(); for (let k = 0; k < a.length - 1; k++) set.add(a[k] + a[k + 1]); return set; };
+    const dice = (x, y) => { const A = grams(x); const B = grams(y); if (!A.size || !B.size) return 0; let n = 0; for (const g of A) if (B.has(g)) n++; return (2 * n) / (A.size + B.size); };
+    const isQuestion = (t) => /(?:ไหน|ไหม|มั้ย|อะไร|ยังไง|เท่าไหร่|เท่าไร)\s*(?:อยู่)?\s*(?:ครับ|คะ|ค่ะ)?\s*\??\s*$/u.test(String(t || '').trim()) || /จะได้เล่าให้ตรง/u.test(String(t || ''));
+    const WHICH_ONE_RE = /(?:สนใจ|อยากให้ช่วย|ต้องการ|อยากได้)[^\n]{0,15}(?:บริการ|งาน|เรื่อง|แพ็ก)\s*(?:ไหน|อะไร)/u;
+    const before = r.messages.length;
+    r.messages = r.messages.filter((m) => !(m && m.type === 'text' && isQuestion(m.text) && (dice(m.text, session.last_lay_question) >= 0.4 || (WHICH_ONE_RE.test(m.text) && WHICH_ONE_RE.test(session.last_lay_question)))));
+    if (!r.messages.length) r.messages = clone(input).messages.slice(0, 1);
+    if (r.messages.length !== before) fixed.push('messages: question repeated from last turn dropped');
+  }
+
   // --- a bubble that is nothing but a stock closer is dropped when other content remains (replay 18 Oct) ---
   const closerOnly = (t) => typeof t === 'string' && t.replace(CLOSER_RE, '').replace(CLOSER_2_RE, '').trim() === '';
   if ((r.messages || []).length > 1) {
