@@ -169,6 +169,17 @@ function applyPolicy(input, { session = {}, pack = null, allow, userText } = {})
     }
   }
 
+  // --- banter / profanity: one short human line, no follow-up question, no buttons (brief §2, §3.2) ---
+  // Enforced by code: in the 18 Oct replay the model kept adding "ตอนนี้พี่สนใจบริการไหน…" after a joke or a swear word.
+  if ((r.intent === 'banter' || r.intent === 'abuse') && !r.action) {
+    const firstText = (r.messages || []).find((m) => m && m.type === 'text');
+    if (firstText && ((r.messages || []).length > 1 || (r.quick_replies || []).length)) {
+      r.messages = [firstText];
+      r.quick_replies = [];
+      fixed.push('banter: reduced to one line, no follow-up question or buttons');
+    }
+  }
+
   // --- a bubble that is nothing but a stock closer is dropped when other content remains (replay 18 Oct) ---
   const closerOnly = (t) => typeof t === 'string' && t.replace(CLOSER_RE, '').replace(CLOSER_2_RE, '').trim() === '';
   if ((r.messages || []).length > 1) {

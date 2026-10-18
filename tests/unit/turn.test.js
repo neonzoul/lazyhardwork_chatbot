@@ -157,3 +157,19 @@ test('replay 18 Oct: when the model keeps breaking a content rule, the customer 
   assert.equal(r.session.mode, 'lay');
   assert.ok(w.store.events.all().some((e) => e.kind === 'policy_neutral'));
 });
+
+test('replay 18 Oct: "อยากได้คนขาย" with a model handoff_scope stays with Lay (honest no in words, no quiet window)', async () => {
+  const w = world([text('หาคนขายไม่ใช่งานที่เราทำครับ', { intent: 'out_of_scope', action: 'handoff_scope' })]);
+  const r = await runTurn(w.input({ text: 'อยากได้คนขาย' }), w.deps);
+  assert.equal(r.action, null);
+  assert.equal(w.notifier.named('handoff').length, 0);
+  assert.equal(r.session.mode, 'lay');
+});
+
+test('replay 18 Oct: banter or a swear word gets exactly one line, no follow-up question, no buttons', async () => {
+  const w = world([emptyBanter()]);
+  function emptyBanter() { const { emptyResponse } = require('../../src/brain/schema'); return emptyResponse({ intent: 'abuse', messages: [{ type: 'text', text: 'ใจเย็นๆ ครับพี่', explain: false, template: null, alt: null, data: null }, { type: 'text', text: 'ตอนนี้พี่สนใจบริการไหนอยู่ครับ', explain: false, template: null, alt: null, data: null }], quick_replies: ['ราคาเท่าไหร่'] }); }
+  await runTurn(w.input({ text: 'ไอเหี้ยมอส' }), w.deps);
+  assert.deepEqual(w.line.texts(), ['ใจเย็นๆ ครับพี่']);
+  assert.deepEqual(w.line.quickReplies(), []);
+});

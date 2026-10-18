@@ -290,6 +290,14 @@ async function runTurn(input, deps, opts = {}) {
                 d.log.info('model.handoff_ignored', { intent: response.intent });
                 response = { ...response, action: null };
             }
+            // A scope handoff only for special price / discount / firm quote; "not what we do" is an honest no in words
+            // (brief §2 row "อยากได้คนขาย"; replay 18 Oct on gpt-4.1-mini silenced Lay for the rest of the chat).
+            // Allowed: special price / discount / firm quote, and help applying for a subsidy (brief §5.7).
+            const HELP_APPLY_RE = /ช่วย\s*(?:ยื่น|สมัคร|ทำเรื่อง|กรอก)|ยื่นขอ|ทำเรื่องขอ/u;
+            if (response && response.action === 'handoff_scope' && !['special_price', 'benefits'].includes(response.intent) && !handoff.isSpecialPrice(userText) && !HELP_APPLY_RE.test(userText || '') && !handoff.isAskHuman(userText)) {
+                d.log.info('model.handoff_ignored', { intent: response.intent, action: 'handoff_scope' });
+                response = { ...response, action: null };
+            }
             if (policy?.applyPolicy) {
                 let p = policy.applyPolicy(response, { session: sess, pack, allow: new Set(), userText });
                 if (p.severity === 'regenerate') {
