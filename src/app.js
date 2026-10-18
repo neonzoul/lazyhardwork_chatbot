@@ -62,10 +62,20 @@ function createApp({ overrides = {} } = {}) {
 
     app.use(createAdminRouter({ store, token: config.adminToken, log }));
 
+    // Signature failures and other middleware errors: a quiet 401/500 JSON, never Express's HTML stack.
+    // eslint-disable-next-line no-unused-vars
+    app.use((err, req, res, next) => {
+        if (err && (err.name === 'SignatureValidationFailed' || /signature/i.test(err.message || ''))) { log.warn('webhook.bad_signature', {}); return res.status(401).json({ error: 'bad signature' }); }
+        log.error('http.error', { error: err?.message });
+        res.status(500).json({ error: 'internal' });
+    });
+
     // Discord relay (inbound): started with the server when the module and token exist.
     let relay = null;
     const relayMod = optional('./discord/relay');
-    if (relayMod?.createRelay && config.discord.botToken) {
+    // No relay when the LINE client is a test double (unit/smoke tests) or when explicitly disabled.
+    const wantRelay = overrides.relay !== false && !overrides.line;
+    if (wantRelay && relayMod?.createRelay && config.discord.botToken) {
         relay = relayMod.createRelay({
             botToken: config.discord.botToken, guildId: config.discord.guildId, leadsChannelId: config.discord.leadsChannelId, store, log,
             onMosMessage: async ({ userId, text }) => runTurn({ userId, kind: 'mos_relay', text, timestamp: Date.now() }, deps),
