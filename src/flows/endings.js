@@ -113,6 +113,8 @@ function offerCard(session, { deps = {}, secondary = true } = {}) {
 function decorateResponse({ response, session, deps }) {
     if (!response || !session || session.offer_shown) return false;
     if (chooseEnding(session) !== 'short' || !session.draft?.card) return false;
+    // symptom before card (head review 19 Oct, Oat): a symptom the model guessed from a vague business gets no card
+    if (!session.draft.confirmed) return false;
     const ready = homework.readyForEnding(session) || ['fit', 'howtostart', 'pricing'].includes(response.intent);
     if (!ready) return false;
     if ((response.messages || []).some((m) => m.type === 'card')) { if ((response.messages || []).some((m) => m.type === 'card' && m.template === 'offer')) session.offer_shown = true; return false; }

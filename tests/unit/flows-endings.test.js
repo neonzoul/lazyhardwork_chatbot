@@ -55,7 +55,7 @@ test('offerCard: bullets from the pack section when present, fixed default other
 });
 
 test('decorateResponse appends the offer once on the short path when ready, never when a card is already there', () => {
-  const s = { draft: { card: 'C1', tier: 'T1' }, homework: {}, questions_asked: 0 };
+  const s = { draft: { card: 'C1', tier: 'T1', confirmed: true }, homework: {}, questions_asked: 0 };
   const r = text('เหมาะครับ', { intent: 'fit' });
   assert.equal(endings.decorateResponse({ response: r, session: s, deps: {} }), true);
   assert.equal(r.messages.length, 2); assert.equal(r.messages[1].template, 'offer'); assert.equal(s.offer_shown, true);

@@ -5,8 +5,8 @@ const { validateResponse } = require('../../src/brain/schema');
 const lint = require('../../src/core/lint');
 const { applyPolicy } = require('../../src/core/policy');
 
-test('there are 6–8 examples with unique ids and a user line each', () => {
-  assert.ok(EXAMPLES.length >= 6 && EXAMPLES.length <= 8, `got ${EXAMPLES.length}`);
+test('there are 6–9 examples with unique ids and a user line each', () => {
+  assert.ok(EXAMPLES.length >= 6 && EXAMPLES.length <= 9, `got ${EXAMPLES.length}`);
   assert.equal(new Set(EXAMPLES.map((e) => e.id)).size, EXAMPLES.length);
   for (const e of EXAMPLES) assert.ok(typeof e.user === 'string' && e.user.trim());
   for (const id of ['capability', 'fit', 'pricing', 'timeline', 'howtostart', 'banter', 'ai_disclosure', 'unknown']) {

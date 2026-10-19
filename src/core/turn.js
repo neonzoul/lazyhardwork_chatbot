@@ -201,6 +201,13 @@ async function runTurn(input, deps, opts = {}) {
         }
         if (isTellMeMore(text) && s.last_kb_refs?.length) intentHint = 'tell_me_more';
 
+        if (input.kind === 'text' && !s.draft?.confirmed) { const fitMod = flows.fit || lazy('../flows/fit'); const k = fitMod?.symptomFromText?.(text); if (k) fitMod.chooseSymptom(s, k); }
+        // 8c. "เหมาะกับงานผมไหม" before the customer named a problem: ask which work takes the most time with the symptom
+        // chooser, never a guess from the business name (head correction 19 Oct, Oat: "ขายและให้บริการพื้นที่")
+        if ((input.kind === 'text' || data === 'MENU_FIT') && intentHint === 'fit' && !s.draft?.confirmed && [...String(userText || '').trim()].length <= 30) {
+            const r = await fitChooserTurn();
+            if (r) return r;
+        }
         // 9. the model
         const response = await askModel({ s, userText, intentHint, now, config, deps, errors });
 
@@ -208,6 +215,8 @@ async function runTurn(input, deps, opts = {}) {
         session.unionTopics(s, response.topics);
         const changed = session.mergeLeadUpdates(s, response.lead_updates);
         if (s.draft?.symptom && !s.draft.card) { const fitMod = flows.fit || lazy('../flows/fit'); const c = fitMod?.cardForSymptom?.(s.draft.symptom); if (c) s.draft.card = c; }
+        // the customer's own words name a symptom → confirmed (an offer card may follow); a model guess alone is not
+        if (input.kind === 'text' && !s.draft?.confirmed) { const fitMod = flows.fit || lazy('../flows/fit'); const k = fitMod?.symptomFromText?.(text); if (k) fitMod.chooseSymptom(s, k); }
         if (s.draft?.card && !s.draft.tier) s.draft.tier = 'T1';
         try { endingsMod?.decorateResponse?.({ response, session: s, deps }); } catch (e) { deps.log.warn('endings.decorate_failed', { error: e?.message }); }
         fixA1Offer(response, s, deps, endingsMod);
@@ -266,7 +275,7 @@ async function runTurn(input, deps, opts = {}) {
         const again = !!s.out_of_scope;
         s.out_of_scope = true;
         if (!s.draft?.card) s.not_fit = true;
-        const lines = again ? [OOS_AGAIN] : OOS_LINES;
+        const lines = again ? [OOS_AGAIN] : [OOS_LINES.join('\n')]; // one message per turn
         const response = emptyResponse({ intent: 'capability', topics: ['capability'], messages: lines.map((text) => ({ type: 'text', text, explain: false, template: null, alt: null, data: null })) });
         session.unionTopics(s, response.topics);
         const sent = await send(input, renderMessages(response, { deps, config, session: s }), [], senders.lay);
@@ -275,11 +284,25 @@ async function runTurn(input, deps, opts = {}) {
         return done(sent, null);
     }
 
+    async function fitChooserTurn() {
+        const fitMod = deps.flows?.fit || lazy('../flows/fit');
+        if (!fitMod?.fitChoiceCard) return null;
+        const card = fitMod.fitChoiceCard();
+        const response = emptyResponse({ intent: 'fit', topics: ['fit'], messages: [
+            { type: 'text', text: FIT_ASK, explain: false, template: null, alt: null, data: null },
+            { type: 'card', text: null, explain: false, template: card.template, alt: card.alt, data: card.data },
+        ] });
+        session.unionTopics(s, response.topics);
+        const sent = await send(input, renderMessages(response, { deps, config, session: s }), [], senders.lay);
+        await persist(input, s, sent, { role: 'lay', response });
+        return done(sent, null);
+    }
+
     async function priceRangeTurn() {
         const raw = sectionBody(deps.pack, 'faq.price-range');
         if (!raw) return null;
         const q = raw.search(/ตอนนี้[^\n]*ครับ\s*$/u);
-        const parts = q > 0 ? [raw.slice(0, q).trim(), raw.slice(q).trim()] : [raw];
+        const parts = q > 0 ? [`${raw.slice(0, q).trim()}\n${raw.slice(q).trim()}`] : [raw]; // one message, the question on its own line
         s.last_kb_refs = ['faq.price-range']; // "อธิบายเพิ่ม" right after expands this answer
         const response = emptyResponse({ intent: 'pricing', topics: ['pricing'], kb_refs: ['faq.price-range'], messages: parts.map((text) => ({ type: 'text', text, explain: false, template: null, alt: null, data: null })) });
         session.unionTopics(s, response.topics);
@@ -301,7 +324,7 @@ async function runTurn(input, deps, opts = {}) {
                 ],
             });
         } else {
-            s.draft = { ...(s.draft || {}), card, tier: s.draft?.tier || 'T1' };
+            s.draft = { ...(s.draft || {}), card, tier: s.draft?.tier || 'T1', confirmed: true };
             const offer = endings.offerCard({ ...s, draft: { ...s.draft, tier: 'T1' } }, { deps });
             response = emptyResponse({
                 intent: 'capability', topics: ['capability', 'pricing'],
@@ -519,6 +542,7 @@ function fixA1Offer(response, s, deps, endingsMod) {
         if (c) { m.data = typeof m.data === 'string' ? JSON.stringify(c.data) : c.data; m.alt = c.alt; }
     }
 }
+const FIT_ASK = 'บอกได้ตรงขึ้นถ้ารู้ว่างานไหนกินเวลามากที่สุดครับ เลือกข้อที่ใกล้ที่สุด หรือพิมพ์เล่าสั้นๆ ก็ได้';
 const OOS_LINES = [
     'เรื่องบอทเทรด กลยุทธ์ อินดิเคเตอร์ หรือ backtest ไม่ใช่งานที่ LazyHardWork รับครับ บอกตรงๆ จะได้ไม่เสียเวลาพี่',
     'งานที่เราทำคือระบบหลังบ้านของธุรกิจ เช่น แชทบอทตอบลูกค้า ระบบงานภายใน หรือออโตเมชันงานซ้ำ ถ้าวันไหนมีงานแบบนี้ ทักมาได้เลยครับ',

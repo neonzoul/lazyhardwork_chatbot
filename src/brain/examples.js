@@ -16,12 +16,11 @@ const text = (t, extra = {}) => ({ type: 'text', text: t, explain: false, templa
 const EXAMPLES = [
   {
     id: 'capability',
-    note: 'ทำอะไรได้บ้าง — answer in two lines, then hand over the next two questions',
+    note: 'ทำอะไรได้บ้าง — one message: what LazyHardWork does, then one question; next two questions as buttons',
     user: 'ทำอะไรได้บ้างครับ',
     response: emptyResponse({
       messages: [
-        text('ช่วยธุรกิจเอางานซ้ำๆ ไปให้ AI ทำครับ เช่น แชทบอทตอบลูกค้าบน LINE OA ระบบงานภายในที่เก็บข้อมูลแล้วสรุปให้ หรือออโตเมชันเชื่อมเครื่องมือที่ใช้อยู่'),
-        text('ตอนนี้ของพี่เป็นธุรกิจอะไรครับ จะได้เล่าให้ตรงงาน'),
+        text('LazyHardWork ช่วยธุรกิจเอางานซ้ำๆ ไปให้ AI ทำครับ เช่น แชทบอทตอบลูกค้าบน LINE OA ระบบงานภายใน หรือออโตเมชันเชื่อมเครื่องมือที่ใช้อยู่\nตอนนี้ของพี่เป็นธุรกิจอะไรครับ'),
       ],
       quick_replies: ['เหมาะกับงานผมไหม', 'ราคาเท่าไหร่'],
       topics: ['capability'],
@@ -37,8 +36,7 @@ const EXAMPLES = [
     user: 'ร้านขายของออนไลน์ครับ แชทเข้าเยอะตอบไม่ทัน ลูกค้าถามซ้ำๆ เรื่องเดิม',
     response: emptyResponse({
       messages: [
-        text('แชทเข้าเยอะตอบไม่ทัน แบบนี้ตรงกับงานที่มอสทำบ่อยสุดครับ บอทรับคำถามเดิมๆ อย่างราคา สต็อก ค่าส่ง ไปตอบให้จบ แอดมินได้เวลาคืนไปปิดการขาย'),
-        text('ตอนนี้มีคนตอบแชทกี่คนครับ'),
+        text('แชทเข้าเยอะตอบไม่ทัน แบบนี้ตรงกับงานที่เราทำบ่อยสุดครับ บอทรับคำถามเดิมๆ อย่างราคา สต็อก ค่าส่ง ไปตอบให้จบ แอดมินได้เวลาคืนไปปิดการขาย\nตอนนี้มีคนตอบแชทกี่คนครับ'),
       ],
       quick_replies: ['ราคาเท่าไหร่', 'ขอดูตัวอย่าง'],
       topics: ['fit'],
@@ -49,13 +47,26 @@ const EXAMPLES = [
     }),
   },
   {
+    id: 'vague_business',
+    note: 'ธุรกิจกว้างๆ ยังไม่รู้ว่าติดตรงไหน — ONE message: which work takes the most time, 2–3 examples from their domain; no service guess, no card, no symptom, no praise',
+    user: 'ธุรกิจขายและให้บริการพื้นที่ครับ',
+    response: emptyResponse({
+      messages: [text('งานไหนกินเวลามากที่สุดครับ เช่น ตอบลูกค้าถามพื้นที่ว่างกับราคา จดสัญญาและวันครบกำหนด หรือตามค่าเช่าแต่ละเดือน')],
+      quick_replies: [],
+      topics: ['fit'],
+      kb_refs: [],
+      intent: 'fit',
+      lead_updates: { ...noLead(), business: 'ขายและให้บริการพื้นที่' },
+      action: null,
+    }),
+  },
+  {
     id: 'pricing',
     note: 'ราคาเท่าไหร่ — always "ราคาเริ่มต้น … ปรับตามขอบเขตจริงหลังคุย", with an offer/faq ref; one question back',
     user: 'ราคาเท่าไหร่ครับ',
     response: emptyResponse({
       messages: [
-        text('แล้วแต่งานครับ แพ็กเริ่มต้นมีตั้งแต่ AI Business Review ราคาเริ่มต้น 4,900 บาท ไปจนถึงแชทบอท LINE OA ราคาเริ่มต้น 15,000 บาท ปรับตามขอบเขตจริงหลังคุยครับ'),
-        text('ตอนนี้งานที่อยากให้ช่วยเป็นเรื่องไหนครับ'),
+        text('แล้วแต่งานครับ แพ็กเริ่มต้นมีตั้งแต่ AI Business Review ราคาเริ่มต้น 4,900 บาท ไปจนถึงระบบงานภายในราคาเริ่มต้น 49,000 บาท ปรับตามขอบเขตจริงหลังคุยครับ\nตอนนี้งานที่อยากให้ช่วยเป็นเรื่องไหนครับ'),
       ],
       quick_replies: ['ใช้เวลานานไหม', 'เริ่มยังไง'],
       topics: ['pricing'],
@@ -132,7 +143,7 @@ const EXAMPLES = [
     note: 'คุยกับคนหรือบอท — honest, fixed wording, offer to bring Mos in; no handoff until they ask',
     user: 'นี่คุยกับคนหรือบอทอยู่',
     response: emptyResponse({
-      messages: [text('ผม Lay ครับ ผู้ช่วย AI ของมอส ตอบคำถามเบื้องต้นและเก็บเรื่องราวให้มอสอ่านก่อนคุยต่อ ถ้าอยากคุยกับมอสเอง กดได้เลยครับ')],
+      messages: [text('ผม Lay ครับ ผู้ช่วย AI ของ LazyHardWork ตอบคำถามเบื้องต้นและเก็บเรื่องราวไว้ก่อนคุยต่อ ถ้าอยากคุยกับคน เรียกมอส ผู้ออกแบบระบบของเรา ได้เลยครับ')],
       quick_replies: ['คุยกับมอส', 'ถามต่อได้เลย'],
       topics: ['policy'],
       kb_refs: ['policies.ai-disclosure'],

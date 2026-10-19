@@ -65,6 +65,7 @@ function chooseSymptom(session, key) {
     session.draft.card = s.card;
     session.draft.tier = 'T1';
     session.draft.fit_ref = s.kbRef;
+    session.draft.confirmed = true; // the customer chose it (tap or own words): an offer card may follow
     session.intent_hints = [...new Set([...(session.intent_hints || []), 'fit'])];
     return s;
 }

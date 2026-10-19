@@ -22,7 +22,7 @@ test('static prefix is byte-identical across calls and comes first', () => {
 });
 
 test('static prefix carries persona, voice, emoji policy, contract, not-list and every example', () => {
-  for (const needle of ['Lay', 'ผู้ช่วย AI ของมอส', 'นโยบายอีโมจิ', 'รูปแบบคำตอบ', 'สิ่งที่ Lay ไม่ทำ', 'ห้าม markdown', 'kb_refs', 'lead_updates']) {
+  for (const needle of ['Lay', 'ผู้ช่วย AI ของ LazyHardWork', 'นโยบายอีโมจิ', 'รูปแบบคำตอบ', 'สิ่งที่ Lay ไม่ทำ', 'ห้าม markdown', 'kb_refs', 'lead_updates']) {
     assert.ok(STATIC_PREFIX.includes(needle), `prefix missing "${needle}"`);
   }
   for (const ex of EXAMPLES) {

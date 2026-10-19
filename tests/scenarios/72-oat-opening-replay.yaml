@@ -1,0 +1,18 @@
+name: 72 · Oat's opening replay — naming (เรา / ผม / มอส), symptom before card, no filler, one message per turn
+covers: ["§9.2", "§3.2", "head correction 19 Oct 15:20"]
+# Source: production chats of 19 Oct (Oat: "ธุรกิจขายและให้บริการพื้นที่"; oatwarayu: "เหมาะกับงานผมไหม").
+# v2 before the fix: "มอสช่วยธุรกิจ…", "…ฟังดูน่าสนใจครับ", a chatbot guess with an offer card, two bubbles,
+# "ผมช่วยได้แน่นอน". Real check: `--model real --only "72 ·"`.
+user: { id: U72, displayName: "โอ๊ต" }
+steps:
+  - follow: true
+    expect: { replies: 1, sender: lay, text_contains: ["ผม Lay ผู้ช่วย AI ของ LazyHardWork"], text_not_contains: ["ของมอส"] }
+  - user: "ทำอะไรได้บ้าง"
+    model: { messages: [{ type: text, text: "LazyHardWork ช่วยธุรกิจเอางานซ้ำๆ ไปให้ AI ทำครับ เช่น แชทบอทตอบลูกค้าบน LINE OA ระบบงานภายใน หรือออโตเมชันเชื่อมเครื่องมือที่ใช้อยู่\nตอนนี้ของพี่เป็นธุรกิจอะไรครับ", explain: false, template: null, alt: null, data: null }], quick_replies: ["เหมาะกับงานผมไหม", "ราคาเท่าไหร่"], topics: [capability], kb_refs: ["offer.overview"], intent: capability }
+    expect: { replies: 1, sender: lay, banned_clean: true, text_not_contains: ["มอส", "แน่นอน"] }
+  - user: "ธุรกิจขายและให้บริการพื้นที่"
+    model: { messages: [{ type: text, text: "งานไหนกินเวลามากที่สุดครับ เช่น ตอบลูกค้าถามพื้นที่ว่างกับราคา จดสัญญาและวันครบกำหนด หรือตามค่าเช่าแต่ละเดือน", explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: [fit], kb_refs: [], intent: fit, lead_updates: { business: "ขายและให้บริการพื้นที่" } }
+    expect: { replies: 1, sender: lay, banned_clean: true, text_not_contains: ["ฟังดูน่าสนใจ", "น่าสนใจครับ", "มอส", "แน่นอน", "แชทบอทให้"] }
+  - user: "เหมาะกับงานผมไหม"
+    model: { messages: [{ type: text, text: "บอกได้ตรงขึ้นถ้ารู้ว่างานไหนกินเวลาที่สุดครับ เช่น ตอบลูกค้าถามพื้นที่ว่าง หรือตามค่าเช่า", explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: [fit], kb_refs: [], intent: fit }
+    expect: { replies: 2, card: choice, sender: lay, banned_clean: true, text_contains: ["งานไหนกินเวลามากที่สุด"], text_not_contains: ["มอส", "แน่นอน", "ผมช่วยได้"] }   # code: the symptom chooser

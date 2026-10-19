@@ -58,7 +58,7 @@ function clone(x) { return JSON.parse(JSON.stringify(x)); }
 
 // --- voice repairs found in the first-tester replay (2026-10-18) — mechanical, so they never cost a regenerate ---
 // A trailing "if you have anything else, just tell me" sentence is the v2 cousin of v1's "ยินดีช่วยเสมอ".
-const CLOSER_RE = /\s*(?:ถ้า|หาก)\s*(?:พี่|คุณ)?\s*(?:มี|ต้องการ|สนใจ|อยาก)[^\n]{0,110}?(?:บอก|ถาม|สอบถาม|ทัก|แจ้ง)(?:มา)?\s*ได้(?:เลย|ตลอด)?\s*(?:นะ)?\s*(?:ครับ|คะ|ค่ะ)?\s*[!.]?\s*$/u;
+const CLOSER_RE = /\s*(?:ถ้า|หาก)\s*(?:พี่|คุณ)?\s*(?:มี|ต้องการ|สนใจ|อยาก)[^\n]{0,110}?(?:บอก|ถาม|สอบถาม|ทัก|แจ้ง)(?:มา)?\s*ได้(?:เลย|ตลอด|เสมอ)?\s*(?:นะ)?\s*(?:ครับ|คะ|ค่ะ)?\s*[!.]?\s*$/u;
 const CLOSER_2_RE = /\s*(?:ผมอยู่ที่นี่เพื่อช่วย[^\n]{0,20}|ยินดีช่วย[^\n]{0,20}|ถามมาเถอะ[^\n]{0,60}|(?:พี่)?อยากรู้อะไร[^\n]{0,20}(?:ถาม|บอก)(?:มา)?\s*ได้(?:เลย)?(?:นะ)?(?:ครับ)?|มีอะไรให้ช่วย(?:อีก|เพิ่มเติม)ไหม(?:ครับ)?|(?:พี่)?อยากให้ผมช่วยอะไร(?:เพิ่มเติม|อีก)?ไหม(?:ครับ)?)\s*[!.?]?\s*$/u;
 function stripClosers(t) {
   let out = t;
@@ -66,9 +66,25 @@ function stripClosers(t) {
   if (out === t) return t;                        // untouched: leave whitespace to the trim step
   return out.trim() ? out.trim() : t;            // never empty a bubble
 }
-// Speaker rule (head review 19 Oct): Lay says "ผม" only for itself. Phrases where "ผม" stands for Mos's work become "มอส".
+// Naming rule (head correction 19 Oct 15:20): studio work is "เรา", Lay itself is "ผม", "มอส" only at human steps
+// (the 30-min call, firm quote / budget, handoff, Mos replying). "ผม" or "มอส" doing studio work becomes "เรา".
 const MOS_AS_ME_RE = /(งานที่|ลูกค้าของ|ผลงานของ|โปรไฟล์(?:\s*Fastwork)?\s*ของ)ผม|ผม(?=\s*(?:จะ\s*)?(?:ตั้งค่า|ติดตั้ง|สร้างระบบ|สร้างบอท|สร้างคลัง|ออกแบบ|วางระบบ|ทำระบบ|ดูแลระบบ|รับทำ|ทำบ่อย|ทำให้ลูกค้า))/gu;
-function speakAsLay(t) { return t.replace(MOS_AS_ME_RE, (m, pre) => (pre ? `${pre}มอส` : 'มอส')); }
+const MOS_STUDIO_RE = /(งานที่|ลูกค้าของ|ผลงานของ|โปรไฟล์(?:\s*Fastwork)?\s*ของ|ระบบ(?:งาน)?ที่)มอส|มอส(?=\s*(?:จะ\s*)?(?:สามารถ\s*)?(?:ช่วย(?:ธุรกิจ|ทำ|สร้าง|ได้)|สร้าง|ทดสอบ|ออกแบบ|ติดตั้ง|ตั้งค่า|ดูแลระบบ|ส่งมอบ|สรุปปริมาณ|แก้และเพิ่ม|เลือก|ไม่ส่ง|ไม่ลด|ทำบ่อย|ทำให้|ทำระบบ|ใช้ทุกวัน|รับทำ))/gu;
+// a message that is about a human step keeps "มอส"; studio work elsewhere becomes "เรา"
+const HUMAN_STEP_RE = /(?<!ถ)นัด|โทร|คุยกับมอส|คุยเอง|ราคาเป๊ะ|ราคาจริง|ใบเสนอราคา|งบ(?:ประมาณ|มี|เท่า|แค่|จำกัด|ไม่|ของ|\s|$)|ส่งเรื่อง|ส่งต่อ|ส่งให้มอส|มอสตอบ|มอสดูให้|ยืนยัน/u;
+function speakAsLay(t) {
+  let out = t.replace(MOS_AS_ME_RE, (m, pre) => (pre ? `${pre}เรา` : 'เรา'));
+  if (!HUMAN_STEP_RE.test(out)) out = out.replace(MOS_STUDIO_RE, (m, pre) => (pre ? `${pre}เรา` : 'เรา'));
+  return out;
+}
+// Empty praise before the point (head correction 19 Oct): "ล่องแก่งที่พัทลุงฟังดูน่าสนใจครับ", "การเทรดเป็นธุรกิจที่น่าสนใจครับ"
+function dropFiller(t) {
+  const n = t.replace(/^[^\n]{0,40}?(?:ฟังดู(?:น่าสนใจ|ดี)|เป็น(?:ธุรกิจ|งาน)ที่น่าสนใจ)(?:มาก)?(?:เลย)?(?:ครับ|นะครับ)?[ \t]*/u, '')
+    .replace(/(^|\s)[^\s]{0,40}?ฟังดู(?:น่าสนใจ|ดี)(?:มาก)?(?:เลย)?(?:ครับ|นะครับ)?[ \t]*/gu, '$1')
+    .replace(/(^|\s)[^\s]{0,40}?เป็น(?:ธุรกิจ|งาน)ที่น่าสนใจ(?:มาก)?(?:ครับ)?[ \t]*/gu, '$1')
+    .replace(/^[ \t]+/u, '');
+  return n.trim() ? n : t;
+}
 // No "แน่นอน" guarantees (head review 19 Oct, demo café and "ผมช่วยได้แน่นอน").
 function dropCertainty(t) {
   if (!/แน่นอน/u.test(t)) return t;
@@ -76,6 +92,14 @@ function dropCertainty(t) {
 }
 // Topics LazyHardWork does not take (head review 19 Oct): trading bots, strategies, indicators, backtests, signals.
 const OUT_OF_SCOPE_RE = /เทรด|trading|back\s*-?\s*test|แบ็ค?เทส|อินดี้|อินดิเคเตอร์|indicator|บอทเทรด|EA\s*(?:เทรด|forex)|forex|ฟอเร็กซ์|สัญญาณ(?:ซื้อ|ขาย|เทรด)|กราฟเทคนิค/iu;
+function mergeShortPair(r) {
+  const ms = r && Array.isArray(r.messages) ? r.messages : [];
+  if (ms.length !== 2 || !ms.every((m) => m && m.type === 'text' && typeof m.text === 'string' && !m.explain)) return false;
+  const joined = `${ms[0].text.trim()}\n${ms[1].text.trim()}`;
+  if (joined.length > 220 || joined.split('\n').length > 3) return false;
+  r.messages = [{ ...ms[0], text: joined }];
+  return true;
+}
 function stripExclaim(t) { return t.replace(/!+/gu, '').replace(/\s+([?.])/gu, '$1'); }
 function dedupePriceSentence(t) {
   if ((t.match(/ราคาเริ่มต้น/gu) || []).length < 2) return t;
@@ -136,7 +160,7 @@ function applyPolicy(input, { session = {}, pack = null, allow, userText } = {})
     if (m.type === 'text' && typeof m.text === 'string') {
       let t = m.text;
       if (lint.hasMarkdown(t)) { t = lint.stripMarkdown(t); fixed.push(`messages[${i}]: markdown stripped`); }
-      const voiced = dropCertainty(speakAsLay(dedupePriceSentence(stripExclaim(stripClosers(t)))));
+      const voiced = dropFiller(dropCertainty(speakAsLay(dedupePriceSentence(stripExclaim(stripClosers(t))))));
       if (voiced !== t) { t = voiced; fixed.push(`messages[${i}]: stock closer / "!" / repeated price phrase removed / speaker or "แน่นอน" fixed`); }
       const trimmed = t.replace(/[ \t]+$/gmu, '').replace(/\s+$/u, '');
       if (trimmed !== t) { t = trimmed; fixed.push(`messages[${i}]: trailing whitespace trimmed`); }
@@ -213,6 +237,19 @@ function applyPolicy(input, { session = {}, pack = null, allow, userText } = {})
     if (r.messages.length !== before) fixed.push(`messages: ${before - r.messages.length} closer-only bubble(s) dropped`);
   }
 
+  // --- symptom before card (head correction 19 Oct): no "ตรงกับงานที่เราทำ" until the customer named the problem ---
+  let namedNow = false;
+  try { namedNow = !!(userText && require('../flows/fit').symptomFromText(userText)); } catch { /* fit module absent */ }
+  if (!(session && session.draft && session.draft.confirmed) && !namedNow) {
+    for (const m of r.messages || []) {
+      if (!m || m.type !== 'text' || typeof m.text !== 'string') continue;
+      const n = m.text.replace(/[^\s\n]{0,40}?\s*(?:แบบนี้)?\s*ตรงกับงานที่(?:เรา|ผม|มอส)ทำ(?:บ่อย(?:สุด|ที่สุด)?)?(?:ครับ)?[ \t]*/u, '').trim();
+      if (n && n !== m.text) { m.text = n; fixed.push('fit claim before the customer named a problem removed'); }
+    }
+  }
+  // --- one message per turn (head correction 19 Oct): a short reply split in two bubbles goes out as one ---
+  if (mergeShortPair(r)) fixed.push('messages: two short bubbles merged into one');
+
   // --- price without grounding ---
   const texts = (r.messages || []).filter((m) => m && m.type === 'text' && typeof m.text === 'string').map((m) => m.text);
 
@@ -280,4 +317,4 @@ function fallbackReply({ reason = 'error', config } = {}) {
   return response;
 }
 
-module.exports = { speakAsLay, dropCertainty, OUT_OF_SCOPE_RE, salvage, isStyleOnly, stripClosers, STYLE_RULES, applyPolicy, fallbackReply, strings, PRICE_RE, PRICE_REF_RE, BENEFITS_CAVEAT_RE, QUICK_REPLY_MAX, QUICK_REPLY_LABEL_MAX };
+module.exports = { speakAsLay, dropFiller, mergeShortPair, dropCertainty, OUT_OF_SCOPE_RE, salvage, isStyleOnly, stripClosers, STYLE_RULES, applyPolicy, fallbackReply, strings, PRICE_RE, PRICE_REF_RE, BENEFITS_CAVEAT_RE, QUICK_REPLY_MAX, QUICK_REPLY_LABEL_MAX };

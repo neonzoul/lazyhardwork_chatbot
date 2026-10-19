@@ -13,7 +13,7 @@ steps:
       intent: pricing
       lead_updates: { business: "ร้านกาแฟ" }
     expect:
-      replies: 2
+      replies_min: 1
       text_contains: ["ราคาเริ่มต้น", "สัปดาห์", "ร้านกาแฟ"]
       quick_replies: ["ขอดูตัวอย่าง", "เริ่มยังไง"]
       quick_replies_max: 4

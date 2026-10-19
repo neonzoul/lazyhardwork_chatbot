@@ -72,9 +72,13 @@ test('2b. "อยากได้แบบนี้" on an example → that card 
   assert.match(offer.altText, /ระบบงานภายใน/);
 });
 
-test('3. speaker: "ผม" meaning Mos becomes "มอส"; "แน่นอน" is dropped', () => {
-  assert.equal(policy.speakAsLay('แบบนี้ตรงกับงานที่ผมทำบ่อยครับ ผมจะตั้งค่า AI ให้'), 'แบบนี้ตรงกับงานที่มอสทำบ่อยครับ มอสจะตั้งค่า AI ให้');
-  assert.equal(policy.speakAsLay('ผมเป็น Lay ผู้ช่วย AI ของมอสครับ'), 'ผมเป็น Lay ผู้ช่วย AI ของมอสครับ');
+test('3. naming (correction 15:20): studio work is "เรา", Lay is "ผม", มอส only at human steps; no "แน่นอน"', () => {
+  assert.equal(policy.speakAsLay('แบบนี้ตรงกับงานที่ผมทำบ่อยครับ ผมจะตั้งค่า AI ให้'), 'แบบนี้ตรงกับงานที่เราทำบ่อยครับ เราจะตั้งค่า AI ให้');
+  assert.equal(policy.speakAsLay('มอสสามารถช่วยทำแชทบอทให้ตอบคำถามซ้ำๆ ได้ครับ'), 'เราสามารถช่วยทำแชทบอทให้ตอบคำถามซ้ำๆ ได้ครับ');
+  assert.equal(policy.speakAsLay('ราคาจริงมอสขอดูงานก่อนครับ'), 'ราคาจริงมอสขอดูงานก่อนครับ');
+  assert.equal(policy.speakAsLay('ผมเป็น Lay ผู้ช่วย AI ครับ'), 'ผมเป็น Lay ผู้ช่วย AI ครับ');
+  assert.equal(policy.dropFiller('ล่องแก่งที่พัทลุงฟังดูน่าสนใจครับ ธุรกิจนี้มีแชทเยอะไหมครับ'), 'ธุรกิจนี้มีแชทเยอะไหมครับ');
+  assert.equal(policy.dropFiller('การเทรดเป็นธุรกิจที่น่าสนใจครับ AI ช่วยได้'), 'AI ช่วยได้');
   assert.equal(policy.dropCertainty('ถ้ามีปัญหาเรื่องงานซ้ำๆ ผมช่วยได้แน่นอน'), 'ถ้ามีปัญหาเรื่องงานซ้ำๆ ผมช่วยได้');
   assert.equal(policy.dropCertainty('แน่นอนครับ ลาเต้เย็นได้เลย'), 'ได้ครับ ลาเต้เย็นได้เลย');
 });
