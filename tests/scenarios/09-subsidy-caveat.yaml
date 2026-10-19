@@ -27,7 +27,7 @@ steps:
         - { type: text, text: "มีมาตรการให้ SME หักรายจ่ายได้ 2 เท่าสำหรับบริการดิจิทัลที่อยู่ในบัญชีของ depa ครับ แต่ตอนนี้บริการของเรายังไม่ได้อยู่ในบัญชีนั้น\nต้องตรวจสอบกับกรมสรรพากรหรือผู้ทำบัญชีของคุณก่อนครับ", explain: false, template: null, alt: null, data: null }
       quick_replies: ["ราคาเท่าไหร่", "เริ่มยังไง"]
       topics: [benefits]
-      kb_refs: ["faq.tax-deduction", "benefits.rd-tax200-digital"]
+      kb_refs: ["benefits.rd-tax200-digital"]
       intent: benefits
     expect: { replies: 1, text_contains: ["ตรวจสอบกับกรมสรรพากร"], text_not_contains: ["ลดหย่อนได้แน่"], sender: lay, banned_clean: true, emoji_max: 0 }
   - user: "ช่วยยื่นขอให้หน่อยได้ไหมครับ"

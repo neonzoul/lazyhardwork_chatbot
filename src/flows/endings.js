@@ -43,6 +43,8 @@ const DEFAULT_BULLETS = {
 const strings = {
     offerAlt: (title) => `แพ็กเริ่มต้น ${title}`,
     offerSecondary: 'นัดคุยกับมอสก่อน',
+    a1Title: 'ระบบงานภายใน · วางระบบ',
+    a1Note: (p) => `เริ่มด้วย AI Business Review ${Number(p).toLocaleString('en-US')} บาทได้`,
     askName: 'ขอชื่อที่ให้มอสเรียกหน่อยครับ พิมพ์มาได้เลย',
     askNameWithDefault: 'ขอชื่อที่ให้มอสเรียกหน่อยครับ',
     useName: (name) => `ใช้ชื่อ ${name}`,
@@ -92,6 +94,15 @@ function offerCard(session, { deps = {}, secondary = true } = {}) {
     const tier = DOOR_CARDS.has(cardId) ? (d.tier || DOOR_TIER) : DOOR_TIER;
     const title = CARD_TITLES[cardId] || cardId;
     const bullets = bulletsFromPack(deps.pack, cardId, tier) || DEFAULT_BULLETS[cardId] || DEFAULT_BULLETS.C1;
+    // A1's door (T1) is the AI Business Review itself: the A1 card shows its own build package (T2) and names the
+    // review as the way in, so the card never shows C1 content under the A1 title (head review 19 Oct).
+    if (cardId === 'A1' && tier === DOOR_TIER) {
+        const t2Bullets = bulletsFromPack(deps.pack, 'A1', 'T2') || DEFAULT_BULLETS.A1;
+        const review = deps.pack?.ladders?.C1?.tiers?.T1;
+        const a1 = { card_id: 'A1', tier: 'T2', title: strings.a1Title, bullets: t2Bullets, ...(review ? { note: strings.a1Note(review) } : {}) };
+        if (secondary) a1.secondary_cta = { label: strings.offerSecondary, postback: PB.start };
+        return { template: 'offer', alt: strings.offerAlt(strings.a1Title), data: a1 };
+    }
     const data = { card_id: cardId, tier, title, bullets };
     if (secondary) data.secondary_cta = { label: strings.offerSecondary, postback: PB.start };
     return { template: 'offer', alt: strings.offerAlt(title), data };

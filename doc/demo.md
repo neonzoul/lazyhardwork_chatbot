@@ -89,6 +89,10 @@ titles/lines prefer the pack's `examples.carousel.*` `title:` / `line:` values w
 
 ## Assets to replace (placeholders)
 
+Until they are replaced, production runs without : no placeholder art reaches customers, the
+examples and "งานของเรา" become a text line with buttons (head review 19 Oct). After replacing the files, set
+ on Railway to bring the carousels back.
+
 Generated solid-colour PNGs with a pixel label; Mos replaces them with real screens (keep the file names, 16:9 for the
 carousel, square for icons, https via `PUBLIC_BASE_URL`):
 

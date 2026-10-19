@@ -35,7 +35,7 @@ steps:
       kb_refs: ["faq.price-range"]
       intent: pricing
     expect:
-      replies: 1                                     # the window lapsed: Lay answers again, no ack text
+      replies_min: 1                                     # the window lapsed: Lay answers again, no ack text
       text_contains: ["ราคาเริ่มต้น"]
       text_not_contains: ["กำลังรอมอสตอบ"]
       sender: lay

@@ -20,6 +20,7 @@ const config = {
   identity: { layName: 'Lay · ผู้ช่วย AI', mosName: 'มอส', layIconUrl: 'https://x/lay.png', mosIconUrl: 'https://x/mos.png' },
   quiet: { windowMinutes: 30, debounceMs: 10 },
   publicBaseUrl: 'https://lay.example.com',
+  examplesImagesReady: true, // the carousel tests use images; the text-only path has its own test below
 };
 
 const pack = loadPack();

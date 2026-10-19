@@ -36,4 +36,4 @@ steps:
       topics: [pricing]
       kb_refs: ["faq.price-range"]
       intent: pricing
-    expect: { replies: 1, text_contains: ["ราคาเริ่มต้น"], sender: lay, session: { mode: lay } }
+    expect: { replies_min: 1, text_contains: ["ราคาเริ่มต้น"], sender: lay, session: { mode: lay } }

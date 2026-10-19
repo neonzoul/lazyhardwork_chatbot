@@ -33,6 +33,7 @@
 // because offer cards need a Fastwork URL and the examples carousel needs an https base URL). Real values win when set.
 process.env.FASTWORK_URL = process.env.FASTWORK_URL || 'https://fastwork.co/test-profile';
 process.env.PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || 'https://lay.example.test';
+process.env.EXAMPLES_IMAGES_READY = process.env.EXAMPLES_IMAGES_READY || '1'; // the carousel scenarios test the image path
 
 const fs = require('fs');
 const path = require('path');
@@ -157,7 +158,7 @@ function createAlertsRecorder(clock) {
   return alerts;
 }
 
-function runnerConfig() { try { return require('../src/config'); } catch { return { contact: { phoneDisplay: '095 569 1674 (มอส)', hoursStart: 13, hoursEnd: 22 }, identity: { layName: 'Lay · ผู้ช่วย AI', mosName: 'มอส' }, quiet: { windowMinutes: 30, debounceMs: 6500 }, publicBaseUrl: '' }; } }
+function runnerConfig() { try { return { ...require('../src/config'), examplesImagesReady: true }; } catch { return { contact: { phoneDisplay: '095 569 1674 (มอส)', hoursStart: 13, hoursEnd: 22 }, identity: { layName: 'Lay · ผู้ช่วย AI', mosName: 'มอส' }, quiet: { windowMinutes: 30, debounceMs: 6500 }, publicBaseUrl: '' }; } }
 
 async function runScenario(sc, { turn, modelMode }) {
   const line = withFailNext(createFakeLine({ profiles: sc.user?.displayName ? { [sc.user?.id || 'Utest']: sc.user.displayName } : {} }));
@@ -173,10 +174,11 @@ async function runScenario(sc, { turn, modelMode }) {
   const stepResults = [];
   let allow = new Set();
   let pendingNotifierFault = null;
+  let pendingModelFault = null;
   for (const [i, step] of (sc.steps || []).entries()) {
     if (step.fault) {
       if (step.fault.notifier) { notifier.fail[step.fault.notifier] = true; pendingNotifierFault = step.fault.notifier; }
-      if (step.fault.model) model.push(step.fault.model);
+      if (step.fault.model && typeof model.push === 'function') { model.push(step.fault.model); pendingModelFault = step.fault.model; } // real model: faults cannot be injected
       if (step.fault.line) line.failNext = step.fault.line;
       stepResults.push({ i, kind: 'fault', ok: true });
       continue;
@@ -184,6 +186,9 @@ async function runScenario(sc, { turn, modelMode }) {
     if (step.clock) { if (step.clock.advance_minutes) clock.advanceMinutes(step.clock.advance_minutes); stepResults.push({ i, kind: 'clock', ok: true }); continue; }
     if (step.allow) { allow = new Set(step.allow); continue; }
     if (step.model && modelMode !== 'real') model.push(step.model);
+    // a scripted reply the turn did not use (code answered it: price range, out of scope, details) must not leak into the
+    // next step's model call (19 Oct: the price answer moved from the model to the approved FAQ)
+    const scripted = step.model && modelMode !== 'real' ? step.model : null;
 
     if (step.decision) {
       // Mos's booking decision from Discord: not a turn — flows/endings.applyMosDecision pushes to the customer as Lay.
@@ -216,6 +221,8 @@ async function runScenario(sc, { turn, modelMode }) {
     const sentBefore = line.sent.length;
     let result = null; let err = null;
     try { result = await turn.runTurn(input, deps); } catch (e) { err = e; }
+    if (scripted) { const k = model.queue.indexOf(scripted); if (k >= 0) model.queue.splice(k, 1); }
+    if (pendingModelFault !== null) { const k = model.queue.indexOf(pendingModelFault); if (k >= 0) model.queue.splice(k, 1); pendingModelFault = null; }
     const session = await store.sessions.get(userId);
     const fails = err ? [`runTurn threw: ${err.message}`] : assertStep(step.expect || {}, { line, notifier, alerts, result, session, sentBefore, allow });
     // never-silent: every customer-originated step must produce at least one outgoing message unless the scenario says silent

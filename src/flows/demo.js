@@ -202,13 +202,41 @@ async function askShop({ shop, userText, sess, deps, config, now }) {
             response = await attempt(`คำตอบก่อนหน้าละเมิดกฎ: ${p.violations.map((v) => v.rule || v).join(', ')} — ตอบใหม่โดยไม่ละเมิด`);
             p = apply(response);
         }
+        // a menu answer that is only too long or list-shaped is split, not thrown away (real replay 19 Oct: "มีอะไรบ้าง"
+        // became the shop's error line)
+        if (p.severity !== 'fix' && policy && policy.salvage && policy.isStyleOnly && policy.isStyleOnly(p.violations)) {
+            const s2 = apply(policy.salvage(p.response || response));
+            if (s2.severity !== 'fallback' && !s2.violations.some((v) => String(v.rule).startsWith('banned:'))) { deps.log.warn('demo.policy.salvaged', { shop: shop.key }); p = { ...s2, severity: 'fix' }; }
+        }
         if (p.severity !== 'fix') throw Object.assign(new Error(`policy: ${p.violations.map((v) => v.rule || v).join(', ')}`), { kind: 'policy' });
-        return { response: p.response, ok: true };
+        const lastShop = [...history].reverse().find((h) => h.role === 'demo_shop');
+        return { response: oneQuestionAtATime(p.response, lastShop ? lastShop.text : null), ok: true };
     } catch (err) {
         deps.log.error('demo.model.fallback', { userId: sess.user_id, shop: shop.key, kind: err.kind || 'error', error: err.message });
         try { await deps.store.events.append({ kind: 'model_fallback', user_id: sess.user_id, payload: { error: err.message, demo_shop: shop.key }, created_at: now.toISOString() }); } catch { /* ignore */ }
         return { response: emptyResponse({ messages: [{ type: 'text', text: strings.shopFallback, explain: false, template: null, alt: null, data: null }], quick_replies: [], intent: 'demo' }), ok: false, error: err };
     }
+}
+
+// Demo shop asks one thing at a time (head review 19 Oct: "เย็นหรือร้อน" and the sweetness list came together, then the
+// sweetness list again). Keeps the first asking bubble, drops later ones, and drops a bubble that repeats the shop's
+// previous message word for word.
+const ASKS_RE = /[?？]|ไหม|หรือเปล่า|หรือยัง|เลือก|ต้องการ|รับ(?:ที่ร้าน|เอง)|ส่งหรือ|ร้อนหรือ|เย็นหรือ/u;
+const norm = (s) => String(s || '').replace(/[\s.。!?？…]+/gu, '');
+function oneQuestionAtATime(response, lastShopText) {
+    if (!response || !Array.isArray(response.messages)) return response;
+    let asked = false;
+    const last = norm(lastShopText);
+    const kept = response.messages.filter((m) => {
+        if (!m || m.type !== 'text') return true;
+        if (last && norm(m.text) === last) return false;
+        if (!ASKS_RE.test(m.text || '')) return true;
+        if (asked) return false;
+        asked = true;
+        return true;
+    });
+    response.messages = kept.length ? kept : response.messages.slice(0, 1);
+    return response;
 }
 
 // Turn the response into LINE messages. A summary_confirm card becomes THE demo order: code sets status + postbacks.
@@ -389,4 +417,4 @@ async function onModelAction({ action, response, input, session: sess, deps, con
     throw new Error(`demo.onModelAction: unknown action ${action}`);
 }
 
-module.exports = { demoShops, enterDemo, exitDemo, runDemoTurn, onDemoPostback, onModelAction, exitToLay, shopFromText, withBack, symptomChoice, strings, BACK_LABEL, POSTBACKS, SYMPTOMS, SHOP_DEFS };
+module.exports = { oneQuestionAtATime, demoShops, enterDemo, exitDemo, runDemoTurn, onDemoPostback, onModelAction, exitToLay, shopFromText, withBack, symptomChoice, strings, BACK_LABEL, POSTBACKS, SYMPTOMS, SHOP_DEFS };

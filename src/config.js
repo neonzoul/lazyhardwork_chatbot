@@ -46,6 +46,8 @@ module.exports = {
     },
     publicBaseUrl,
     db: { path: env.DB_PATH || './data/lay.sqlite' },
+    // examples carousels show images only when Mos has replaced the placeholders (head review 19 Oct)
+    examplesImagesReady: env.EXAMPLES_IMAGES_READY === '1',
     knowledgeDir: env.KNOWLEDGE_DIR || 'knowledge',
     quiet: { windowMinutes: int(env.QUIET_WINDOW_MINUTES, 30), debounceMs: int(env.DEBOUNCE_MS, 6500) },
     port: int(env.PORT, 3000),

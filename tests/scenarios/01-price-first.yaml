@@ -12,7 +12,7 @@ steps:
       kb_refs: ["faq.price-range"]
       intent: pricing
     expect:
-      replies: 1
+      replies_min: 1
       text_contains: ["ราคาเริ่มต้น"]
       text_not_contains: ["Sprint", "[Agent Lay]"]
       quick_replies: ["ใช้เวลานานไหม", "เริ่มยังไง"]

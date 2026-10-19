@@ -24,12 +24,16 @@ function buildLeadRow({ session, existing = null, now, status = null }) {
   if (!session || !session.user_id) throw new Error('buildLeadRow: session with user_id required');
   const at = (now || new Date()).toISOString();
   const homework = { ...((existing && existing.homework) || {}), ...(session.homework || {}) };
-  const derived = homework.business && homework.problem_verbatim ? 'qualified' : 'new';
+  // qualified needs a matched card (head review 19 Oct: a trading lead with business + problem but no service is not_fit)
+  const card = session.draft?.card || existing?.card_id || null;
+  const derived = homework.business && homework.problem_verbatim && card ? 'qualified' : 'new';
+  const raised = advanceStatus(existing?.status, derived, status);
+  const notFit = session.not_fit && !card && rank(raised) < rank('booking_pending');
   const words = session.homework?.problem_verbatim || existing?.customer_words_th || null;
   return {
     ...(existing || {}),
     user_id: session.user_id,
-    status: advanceStatus(existing?.status, derived, status),
+    status: notFit ? 'not_fit' : raised,
     card_id: session.draft?.card || existing?.card_id || null,
     symptom: session.draft?.symptom || existing?.symptom || null,
     homework,
@@ -125,6 +129,7 @@ function redactForDiscord(lead) {
 const NEXT_STEP_TH = {
   new: 'รอการบ้านเพิ่ม — Lay ถามต่อ',
   qualified: 'มอสอ่านลีด แล้วตอบภายในวัน',
+  not_fit: 'นอกขอบเขตงานของเรา ไม่ต้องติดตาม',
   booking_pending: 'มอสยืนยันช่วงเวลาโทร',
   booked: 'โทรตามเวลานัด',
   offer_shown: 'ติดตามข้อเสนอ',

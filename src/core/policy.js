@@ -58,7 +58,7 @@ function clone(x) { return JSON.parse(JSON.stringify(x)); }
 
 // --- voice repairs found in the first-tester replay (2026-10-18) — mechanical, so they never cost a regenerate ---
 // A trailing "if you have anything else, just tell me" sentence is the v2 cousin of v1's "ยินดีช่วยเสมอ".
-const CLOSER_RE = /\s*(?:ถ้า|หาก)\s*(?:พี่|คุณ)?\s*(?:มี|ต้องการ|สนใจ|อยาก)[^\n]{0,70}?(?:บอก|ถาม|สอบถาม|ทัก|แจ้ง)(?:มา)?\s*ได้(?:เลย|ตลอด)?\s*(?:นะ)?\s*(?:ครับ|คะ|ค่ะ)?\s*[!.]?\s*$/u;
+const CLOSER_RE = /\s*(?:ถ้า|หาก)\s*(?:พี่|คุณ)?\s*(?:มี|ต้องการ|สนใจ|อยาก)[^\n]{0,110}?(?:บอก|ถาม|สอบถาม|ทัก|แจ้ง)(?:มา)?\s*ได้(?:เลย|ตลอด)?\s*(?:นะ)?\s*(?:ครับ|คะ|ค่ะ)?\s*[!.]?\s*$/u;
 const CLOSER_2_RE = /\s*(?:ผมอยู่ที่นี่เพื่อช่วย[^\n]{0,20}|ยินดีช่วย[^\n]{0,20}|ถามมาเถอะ[^\n]{0,60}|(?:พี่)?อยากรู้อะไร[^\n]{0,20}(?:ถาม|บอก)(?:มา)?\s*ได้(?:เลย)?(?:นะ)?(?:ครับ)?|มีอะไรให้ช่วย(?:อีก|เพิ่มเติม)ไหม(?:ครับ)?|(?:พี่)?อยากให้ผมช่วยอะไร(?:เพิ่มเติม|อีก)?ไหม(?:ครับ)?)\s*[!.?]?\s*$/u;
 function stripClosers(t) {
   let out = t;
@@ -66,6 +66,16 @@ function stripClosers(t) {
   if (out === t) return t;                        // untouched: leave whitespace to the trim step
   return out.trim() ? out.trim() : t;            // never empty a bubble
 }
+// Speaker rule (head review 19 Oct): Lay says "ผม" only for itself. Phrases where "ผม" stands for Mos's work become "มอส".
+const MOS_AS_ME_RE = /(งานที่|ลูกค้าของ|ผลงานของ|โปรไฟล์(?:\s*Fastwork)?\s*ของ)ผม|ผม(?=\s*(?:จะ\s*)?(?:ตั้งค่า|ติดตั้ง|สร้างระบบ|สร้างบอท|สร้างคลัง|ออกแบบ|วางระบบ|ทำระบบ|ดูแลระบบ|รับทำ|ทำบ่อย|ทำให้ลูกค้า))/gu;
+function speakAsLay(t) { return t.replace(MOS_AS_ME_RE, (m, pre) => (pre ? `${pre}มอส` : 'มอส')); }
+// No "แน่นอน" guarantees (head review 19 Oct, demo café and "ผมช่วยได้แน่นอน").
+function dropCertainty(t) {
+  if (!/แน่นอน/u.test(t)) return t;
+  return t.replace(/ได้\s*(?:อย่าง)?แน่นอน/gu, 'ได้').replace(/^แน่นอน(?:ครับ|ค่ะ)?[ \t]*/u, 'ได้ครับ ').replace(/[ \t]*(?:อย่าง)?แน่นอน/gu, '').replace(/[ \t]{2,}/gu, ' ');
+}
+// Topics LazyHardWork does not take (head review 19 Oct): trading bots, strategies, indicators, backtests, signals.
+const OUT_OF_SCOPE_RE = /เทรด|trading|back\s*-?\s*test|แบ็ค?เทส|อินดี้|อินดิเคเตอร์|indicator|บอทเทรด|EA\s*(?:เทรด|forex)|forex|ฟอเร็กซ์|สัญญาณ(?:ซื้อ|ขาย|เทรด)|กราฟเทคนิค/iu;
 function stripExclaim(t) { return t.replace(/!+/gu, '').replace(/\s+([?.])/gu, '$1'); }
 function dedupePriceSentence(t) {
   if ((t.match(/ราคาเริ่มต้น/gu) || []).length < 2) return t;
@@ -126,8 +136,8 @@ function applyPolicy(input, { session = {}, pack = null, allow, userText } = {})
     if (m.type === 'text' && typeof m.text === 'string') {
       let t = m.text;
       if (lint.hasMarkdown(t)) { t = lint.stripMarkdown(t); fixed.push(`messages[${i}]: markdown stripped`); }
-      const voiced = dedupePriceSentence(stripExclaim(stripClosers(t)));
-      if (voiced !== t) { t = voiced; fixed.push(`messages[${i}]: stock closer / "!" / repeated price phrase removed`); }
+      const voiced = dropCertainty(speakAsLay(dedupePriceSentence(stripExclaim(stripClosers(t)))));
+      if (voiced !== t) { t = voiced; fixed.push(`messages[${i}]: stock closer / "!" / repeated price phrase removed / speaker or "แน่นอน" fixed`); }
       const trimmed = t.replace(/[ \t]+$/gmu, '').replace(/\s+$/u, '');
       if (trimmed !== t) { t = trimmed; fixed.push(`messages[${i}]: trailing whitespace trimmed`); }
       m.text = t;
@@ -211,6 +221,10 @@ function applyPolicy(input, { session = {}, pack = null, allow, userText } = {})
   if (!/^handoff_/.test(String(r.action || '')) && texts.some((t) => UNBACKED_PROMISE_RE.test(t) && !/(?:ถ้า|หาก|อยาก|ต้องการ|กด|บอก)[^\n]{0,20}มอส/u.test(t))) {
     violate('unbacked_promise', 'regenerate', 'says Mos will come/reply without a handoff action — only code may promise that, after the notify succeeded');
   }
+  // --- out of scope: once the customer asked about something LazyHardWork does not do, never tailor an offer to it ---
+  if (session && session.out_of_scope && texts.some((t) => OUT_OF_SCOPE_RE.test(t))) {
+    violate('out_of_scope_offer', 'regenerate', 'the reply talks about the out-of-scope topic (e.g. trading) as if it were a service — answer with the real services only');
+  }
   const hasPrice = texts.some((t) => PRICE_RE.test(t));
   if (hasPrice) {
     const grounded = r.kb_refs.some((id) => PRICE_REF_RE.test(id) || (known && PRICE_RE.test(known.get(id) || '')));
@@ -266,4 +280,4 @@ function fallbackReply({ reason = 'error', config } = {}) {
   return response;
 }
 
-module.exports = { salvage, isStyleOnly, stripClosers, STYLE_RULES, applyPolicy, fallbackReply, strings, PRICE_RE, PRICE_REF_RE, BENEFITS_CAVEAT_RE, QUICK_REPLY_MAX, QUICK_REPLY_LABEL_MAX };
+module.exports = { speakAsLay, dropCertainty, OUT_OF_SCOPE_RE, salvage, isStyleOnly, stripClosers, STYLE_RULES, applyPolicy, fallbackReply, strings, PRICE_RE, PRICE_REF_RE, BENEFITS_CAVEAT_RE, QUICK_REPLY_MAX, QUICK_REPLY_LABEL_MAX };

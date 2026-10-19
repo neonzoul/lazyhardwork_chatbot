@@ -3,7 +3,7 @@ covers: ["§9.4", "§3.10", "doc/llm.md §5"]
 user: { id: U42, displayName: "คุณต้น" }
 steps:
   - fault: { model: exhausted }
-  - user: "ราคาเท่าไหร่"
+  - user: "ค่าดูแลรายเดือนเท่าไหร่"
     expect:
       replies: 1
       text_contains: ["ระบบตอบอัตโนมัติขัดข้องชั่วคราว", "ส่งคำถามของคุณให้มอสแล้ว", "095 569 1674"]

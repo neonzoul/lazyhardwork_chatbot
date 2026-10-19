@@ -25,7 +25,7 @@ const UPDATED_BY = 'lead-sync (Lay v2)';
 // bot status → ledger state / leads.yaml status. Sync only raises a state; hand-set higher states are kept.
 const LEDGER_STATE = { new: 'inquiry', qualified: 'discovery', booking_pending: 'discovery', booked: 'discovery', offer_shown: 'proposed', closed: 'closed' };
 const LEDGER_RANK = ['inquiry', 'discovery', 'proposed', 'paid'];
-const LEADS_STATUS = { new: 'new', qualified: 'qualifying', booking_pending: 'interested', booked: 'interested', offer_shown: 'interested', closed: 'contacted' };
+const LEADS_STATUS = { new: 'new', qualified: 'qualifying', booking_pending: 'interested', booked: 'interested', offer_shown: 'interested', closed: 'contacted', not_fit: 'new' };
 const LEADS_RANK = ['new', 'contacted', 'qualifying', 'interested', 'converted'];
 const LEADS_TERMINAL = new Set(['converted', 'lost']);
 const NEXT_ACTION = {

@@ -76,7 +76,7 @@ test('runSmoke against createApp with the fakes: every check PASS, no WARN, no F
     const table = lines.join('\n');
     assert.match(table, /opening text\s+PASS\s+text "สวัสดีครับ ผม Lay/);
     assert.match(table, /card choice\|offer\s+PASS\s+flex:offer from "Lay/);
-    assert.match(table, /card examples\s+PASS\s+flex:examples/);
+    assert.match(table, /card examples\s+PASS\s+(?:flex:examples|text "ดูตัวอย่างได้)/);
     assert.match(table, /draft\.symptom\s+PASS\s+draft=.*"symptom":"chat_overload"/);
     assert.match(table, /result: PASS/);
     // the model was asked exactly for the three free-text / FIT turns; the rest was deterministic

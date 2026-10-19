@@ -10,7 +10,7 @@ steps:
       topics: [pricing]
       kb_refs: ["faq.price-range"]
       intent: pricing
-    expect: { replies: 1, quick_replies: ["ใช้เวลานานไหม", "เริ่มยังไง"], sender: lay, banned_clean: true, emoji_max: 0 }
+    expect: { replies_min: 1, quick_replies: ["ใช้เวลานานไหม", "เริ่มยังไง"], sender: lay, banned_clean: true, emoji_max: 0 }
   - user: "ใช้เวลานานไหม"
     model:
       messages:

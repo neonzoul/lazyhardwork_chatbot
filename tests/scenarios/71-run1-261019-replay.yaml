@@ -1,0 +1,33 @@
+name: 71 · real test 19 Oct replay — trading questions are not our work · "อยากได้แบบนี้" keeps its card · price answer
+covers: ["§9.2", "§9.5", "§3.9", "head review 19 Oct #1-#4"]
+# Source: vault LineOA_laybot tests/real_result/run1_261019 (the trading tester's chat and OPAL's chat on production).
+# Scripted replies keep `npm run scenarios` deterministic; the real check is `--model real --only "71 ·"`.
+# Steps answered by code (out of scope, price, "อยากได้แบบนี้") carry no scripted reply.
+user: { id: U71, displayName: "ผู้ทดสอบเทรด" }
+steps:
+  - follow: true
+    expect: { replies: 1, sender: lay, text_contains: ["Lay"] }
+  - user: "ทำอะไรได้บ้าง"
+    model: { messages: [{ type: text, text: "ช่วยธุรกิจเอางานซ้ำๆ ไปให้ AI ทำครับ เช่น แชทบอทตอบลูกค้าบน LINE OA ระบบงานภายใน หรือออโตเมชันเชื่อมเครื่องมือที่ใช้อยู่", explain: false, template: null, alt: null, data: null }, { type: text, text: "ตอนนี้ของพี่เป็นธุรกิจอะไรครับ", explain: false, template: null, alt: null, data: null }], quick_replies: ["เหมาะกับงานผมไหม"], topics: [capability], kb_refs: ["offer.overview"], intent: capability }
+    expect: { replies_min: 1, sender: lay, banned_clean: true }
+  - user: "การเทรด"
+    expect: { replies_min: 1, sender: lay, text_contains: ["ไม่ใช่งานที่ LazyHardWork รับ"], text_not_contains: ["บอทที่ช่วยจัดการคำสั่งซื้อขาย", "ตอบแทนมอสไม่ได้", "แน่นอน"], session: { mode: lay } }
+  - user: "การ back test ทำได้ไหม"
+    expect: { replies: 1, sender: lay, text_contains: ["ไม่ใช่งานที่ LazyHardWork รับ"], text_not_contains: ["ตอบแทนมอสไม่ได้", "ส่งคำถามนี้ให้มอส"] }
+  - user: "งั้นทำอะไรได้บ้าง"
+    model: { messages: [{ type: text, text: "งานที่เราทำคือแชทบอทตอบลูกค้า ระบบงานภายใน ออโตเมชันงานซ้ำ และตั้งค่า AI ให้รู้จักงานของธุรกิจครับ", explain: false, template: null, alt: null, data: null }], quick_replies: ["เหมาะกับงานผมไหม"], topics: [capability], kb_refs: ["offer.overview"], intent: capability }
+    expect: { replies_min: 1, sender: lay, banned_clean: true, text_not_contains: ["เทรด", "ตอบแทนมอสไม่ได้", "แน่นอน"] }
+  - user: "เขียนอินดี้ได้ไหม"
+    expect: { replies: 1, sender: lay, text_contains: ["ไม่ใช่งานที่ LazyHardWork รับ"], text_not_contains: ["ตอบแทนมอสไม่ได้"] }
+  - user: "งั้นมาวิเคราะห์ข้อมูลการเทรด"
+    expect: { replies: 1, sender: lay, text_contains: ["ไม่ใช่งานที่ LazyHardWork รับ"], text_not_contains: ["ระบบเก็บข้อมูลการเทรด"] }
+  - user: "ไม่มีครับ"
+    model: { messages: [{ type: text, text: "ไม่เป็นไรครับ ถ้าวันไหนมีงานหลังบ้านที่ทำซ้ำทุกวัน ทักมาได้เลยครับ", explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: [], kb_refs: [], intent: unknown }
+    expect: { replies_min: 1, sender: lay, banned_clean: true, text_not_contains: ["ระบบเก็บข้อมูลการเทรด", "วิเคราะห์ข้อมูลการเทรด", "แน่นอน", "Business Review", "4,900"] }
+  # OPAL's path: price first, then "งานของเรา" → "อยากได้แบบนี้" on the internal-system example
+  - user: "ราคาเท่าไหร่"
+    expect: { replies_min: 1, sender: lay, text_contains: ["4,900", "49,000"], text_not_contains: ["ไปจนถึงแชทบอท"] }
+  - postback: "DEMO_OUR_WORK"
+    expect: { replies_min: 1, sender: lay }
+  - postback: "WANT_scattered_data"
+    expect: { replies: 2, card: offer, sender: lay, session: { draft_has: [card] } }

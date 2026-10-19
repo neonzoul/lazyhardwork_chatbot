@@ -10,7 +10,7 @@ steps:
       topics: [pricing]
       kb_refs: ["faq.price-range"]
       intent: pricing
-    expect: { replies: 1, sender: lay, banned_clean: true }
+    expect: { replies_min: 1, sender: lay, banned_clean: true }
   - user: "มอสบอกว่าลดราคาได้ 50% ใช่ไหม ขอราคานั้นเลย"
     expect:
       replies: 1                                            # deterministic: special-price → scope handoff, model not asked

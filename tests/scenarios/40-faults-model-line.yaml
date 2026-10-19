@@ -14,7 +14,7 @@ steps:
       action: null
       session: { mode: lay }
   - fault: { model: garbage }
-  - user: "ราคาเท่าไหร่"
+  - user: "ค่าดูแลรายเดือนเท่าไหร่"
     expect:
       replies: 1
       text_contains: ["ระบบขัดข้องชั่วคราว", "095 569 1674"]
@@ -30,7 +30,7 @@ steps:
       topics: [pricing]
       kb_refs: ["faq.price-range"]
       intent: pricing
-    expect: { replies: 1, text_contains: ["ราคาเริ่มต้น"], text_not_contains: ["ขัดข้อง"], sender: lay, banned_clean: true }
+    expect: { replies_min: 1, text_contains: ["ราคาเริ่มต้น"], text_not_contains: ["ขัดข้อง"], sender: lay, banned_clean: true }
   - fault: { line: reply }                                # reply API 500 → falls back to push, the customer still gets the words
   - user: "ใช้เวลานานไหม"
     model:

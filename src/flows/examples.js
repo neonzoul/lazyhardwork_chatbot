@@ -55,11 +55,17 @@ const strings = {
         ],
         note: 'พี่กำลังคุยกับตัวอย่างนี้อยู่ครับ',
     },
+    textOnly: {
+        examples: 'ดูตัวอย่างได้ 3 แบบครับ ลองเป็นลูกค้าร้านตัวอย่าง ดูว่าบอทตัวนี้ทำอะไรให้ LazyHardWork หรือดูงานของเราเอง กดเลือกด้านล่างได้เลย',
+        pick: 'ลองร้านตัวอย่าง', thisBot: 'บอทตัวนี้ทำอะไร', ourWork: 'งานของเรา', fastwork: 'โปรไฟล์ Fastwork',
+        ourWorkList: 'ชิ้นแรกคือระบบงานภายในของธุรกิจค้าส่ง รวมรายการสินค้าและสถานะงานไว้ที่เดียว ชิ้นที่สองคือ AI Workspace ที่มอสใช้ทุกวัน ไฟล์ที่จัดแล้ว กฎ และชุดคำสั่งที่ AI อ่านจากไฟล์จริง',
+        wantKv: 'อยากได้ระบบงานภายใน', wantWs: 'อยากได้ AI Workspace',
+    },
     ourWorkIntro: 'งานของเราเองครับ ทุกภาพใช้ข้อมูลสมมติ ไม่มีข้อมูลธุรกิจหรือลูกค้าจริง',
     ourWork: {
         title: 'งานของเรา (ตัวอย่าง)',
-        kv: { title: 'ระบบงานภายในค้าส่ง (ตัวอย่าง)', line: 'รวมรายการสินค้าและสถานะงานไว้ที่เดียว ทีมขายและเจ้าของเห็นชุดเดียวกัน ไม่ต้องถามกันในแชท', cta: 'อยากได้แบบนี้', postback: 'FIT_scattered_data' },
-        workspace: { title: 'AI Workspace ของ LazyHardWork', line: 'โฟลเดอร์ที่จัดแล้ว ไฟล์กฎ และชุดคำสั่งที่มอสใช้ทุกวัน สั่ง "สรุปสัปดาห์นี้" แล้ว AI อ่านจากไฟล์จริง', cta: 'อยากได้แบบนี้', postback: 'FIT_ai_know_my_work' },
+        kv: { title: 'ระบบงานภายในค้าส่ง (ตัวอย่าง)', line: 'รวมรายการสินค้าและสถานะงานไว้ที่เดียว ทีมขายและเจ้าของเห็นชุดเดียวกัน ไม่ต้องถามกันในแชท', cta: 'อยากได้แบบนี้', postback: 'WANT_scattered_data' },
+        workspace: { title: 'AI Workspace ของ LazyHardWork', line: 'โฟลเดอร์ที่จัดแล้ว ไฟล์กฎ และชุดคำสั่งที่มอสใช้ทุกวัน สั่ง "สรุปสัปดาห์นี้" แล้ว AI อ่านจากไฟล์จริง', cta: 'อยากได้แบบนี้', postback: 'WANT_ai_know_my_work' },
     },
     alts: { carousel: 'ตัวอย่างงาน 4 แบบ กดดูได้เลย', pick: 'เลือกร้านตัวอย่างที่อยากลอง', thisBot: 'สิ่งที่ Lay ทำให้ LazyHardWork ตอนนี้ 3 อย่าง', ourWork: 'งานของเรา (ตัวอย่าง) 2 ชิ้น' },
     quickAfter: { pick: 'ลองร้านตัวอย่าง', fit: 'เหมาะกับงานผมไหม', pricing: 'ราคาเท่าไหร่', start: 'เริ่มยังไง' },
@@ -93,7 +99,12 @@ function fastworkUrl(config, pack) {
     return u && /^https:\/\//.test(u) ? u : null;
 }
 
+// The images in public/assets are placeholders until Mos replaces them. No placeholder art goes to customers
+// (head review 19 Oct): without EXAMPLES_IMAGES_READY=1 there are no image assets and the carousels become a text
+// line with quick replies instead.
+function imagesReady(config) { return !!(config && config.examplesImagesReady); }
 function examplesAssets(config) {
+    if (!imagesReady(config)) return {};
     const base = (config && config.publicBaseUrl) || '';
     if (!/^https:\/\//.test(base)) return {};
     return Object.fromEntries(Object.entries(IMAGE_FILES).map(([k, f]) => [k, `${base}/assets/${f}`]));
@@ -176,6 +187,15 @@ async function onExamplesPostback({ data, input, session, deps, config, send, pe
     const lay = senders.lay;
     const unionProof = () => { const set = new Set(session.topics_covered || []); set.add('proof'); session.topics_covered = [...set]; };
 
+    if (data === POSTBACKS.examples && !imagesReady(config)) {
+        unionProof();
+        const qr = [{ label: strings.textOnly.pick, data: POSTBACKS.pick }, { label: strings.textOnly.thisBot, data: POSTBACKS.thisBot }, { label: strings.textOnly.ourWork, data: POSTBACKS.ourWork }];
+        const fw = fastworkUrl(config, pack);
+        if (fw) qr.push({ label: strings.textOnly.fastwork, uri: fw });
+        const sent = await send(input, [msg.text(strings.textOnly.examples)], qr, lay);
+        await persist(input, session, sent, { role: 'lay' });
+        return done(sent, null);
+    }
     if (data === POSTBACKS.examples) {
         unionProof();
         const card = flexMessage(cards, 'examples', examplesCarousel(pack, config), ctx, strings.alts.carousel);
@@ -197,6 +217,14 @@ async function onExamplesPostback({ data, input, session, deps, config, send, pe
         const card = flexMessage(cards, 'info', thisBotCard(), ctx, strings.alts.thisBot);
         const qr = card.quickReplies || [{ label: strings.quickAfter.pick, data: POSTBACKS.pick }, strings.quickAfter.fit, strings.quickAfter.pricing];
         const sent = await send(input, [msg.text(strings.thisBotIntro), card.message], qr, lay);
+        await persist(input, session, sent, { role: 'lay' });
+        return done(sent, null);
+    }
+    if (data === POSTBACKS.ourWork && !imagesReady(config)) {
+        unionProof();
+        const W = strings.ourWork;
+        const qr = [{ label: strings.textOnly.wantKv, data: W.kv.postback }, { label: strings.textOnly.wantWs, data: W.workspace.postback }, { label: strings.quickAfter.pick, data: POSTBACKS.pick }];
+        const sent = await send(input, [msg.text(strings.ourWorkIntro), msg.text(strings.textOnly.ourWorkList)], qr, lay);
         await persist(input, session, sent, { role: 'lay' });
         return done(sent, null);
     }

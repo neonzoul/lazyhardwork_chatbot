@@ -213,6 +213,9 @@ async function runSmoke({ base, secret, token, user, realPush = false, waits = {
             }
             case 'examples': {
                 const card = sentEvidence(obs, { kind: 'flex', match: (m) => flexTemplate(m) === 'examples', matchLabel: 'template examples' });
+                // EXAMPLES_IMAGES_READY unset (placeholder images): the examples go out as one text line with buttons by design
+                const textOnly = sentEvidence(obs, { kind: 'text', match: (m) => /ดูตัวอย่างได้ \d แบบ/u.test(String(m.text || '')), matchLabel: 'text-only examples (images not ready)' });
+                if (card.status !== 'PASS' && textOnly.status === 'PASS') { check(st, 'card examples', 'PASS', `${textOnly.observed} (images not ready)`); break; }
                 check(st, 'card examples', card.status, card.status === 'FAIL' && obs.newMessages.some((m) => isBotRow(m) && m.kind === 'text')
                     ? `${card.observed} — carousel fell back to text: is PUBLIC_BASE_URL an https URL on the server?` : card.observed);
                 break;

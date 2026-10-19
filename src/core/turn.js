@@ -21,6 +21,7 @@ const { selectSections } = require('../brain/select');
 const { validateResponse, emptyResponse } = require('../brain/schema');
 const lint = require('./lint');
 const intake = require('../leads/intake');
+const { OUT_OF_SCOPE_RE } = require('./policy');
 
 const REPLY_TOKEN_MAX_AGE_MS = 20 * 1000;
 const sanitizeInput = (text) => String(text || '')
@@ -173,6 +174,9 @@ async function runTurn(input, deps, opts = {}) {
             else if (data.startsWith('BOOK_') && endings?.onBookingPostback) { return await endings.onBookingPostback({ data, input, session: s, deps, config, send, persist, done, sender: senders.lay, doHandoff, upsertLead }); }
             else if (data.startsWith('DEMO_') && demo?.onDemoPostback) { return await demo.onDemoPostback({ data, input, session: s, deps, config, send, persist, done, senders }); }
             else if (data.startsWith('DETAIL_')) { return await detailsTurn(data.slice('DETAIL_'.length)); }
+            // "อยากได้แบบนี้" on an example: that example's card, its offer and its next step — decided by code, no model
+            // question from another card (head review 19 Oct).
+            else if (data.startsWith('WANT_') && fit?.chooseSymptom) { const sym = fit.chooseSymptom(s, data.slice('WANT_'.length)); if (sym) return await detailsTurn(sym.card); }
             else if (data === 'MENU_EXAMPLES' || data === 'MENU_PORTFOLIO') { const demo = flows.demo || lazy('../flows/demo'); if (demo?.onDemoPostback) return await demo.onDemoPostback({ data: 'DEMO_EXAMPLES', input, session: s, deps, config, send, persist, done, senders }); }
             else if (data.startsWith('MENU_')) { const t = MENU_TO_TEXT[data]; if (t) { userText = t; intentHint = topics.topicFromText(t) || 'unknown'; } }
             else { userText = data; }
@@ -180,6 +184,14 @@ async function runTurn(input, deps, opts = {}) {
         if (input.kind === 'text' && intentHint === 'proof' && !s.examples_shown && [...text.trim()].length <= 20) {
             const demo = flows.demo || lazy('../flows/demo');
             if (demo?.onDemoPostback) { s.examples_shown = true; session.unionTopics(s, ['proof']); return await demo.onDemoPostback({ data: 'DEMO_EXAMPLES', input, session: s, deps, config, send, persist, done, senders }); }
+        }
+        // 8a. out of scope (head review 19 Oct): trading bots, strategies, indicators and backtests are not services.
+        // Say so plainly, name the real services once, close politely; the lead becomes not_fit unless a card was matched.
+        if (input.kind === 'text' && OUT_OF_SCOPE_RE.test(text)) return await outOfScopeTurn();
+        // 8a'. a plain price question before any card is matched: the approved FAQ answer word for word (4,900 → 49,000)
+        if (input.kind === 'text' && intentHint === 'pricing' && !s.draft?.card && [...text.trim()].length <= 30 && !/ค่าดูแล|รายเดือน|ลด|โปร|งบ/u.test(text)) {
+            const r = await priceRangeTurn();
+            if (r) return r;
         }
         // 8b. "ขอดีเทล / แจกแจง / ได้อะไรบ้าง" is answered by code with real deliverables from the pack (replay 18 Oct:
         // the model kept answering with a summary of the four services and asking back). A plain "explain more" right
@@ -198,6 +210,7 @@ async function runTurn(input, deps, opts = {}) {
         if (s.draft?.symptom && !s.draft.card) { const fitMod = flows.fit || lazy('../flows/fit'); const c = fitMod?.cardForSymptom?.(s.draft.symptom); if (c) s.draft.card = c; }
         if (s.draft?.card && !s.draft.tier) s.draft.tier = 'T1';
         try { endingsMod?.decorateResponse?.({ response, session: s, deps }); } catch (e) { deps.log.warn('endings.decorate_failed', { error: e?.message }); }
+        fixA1Offer(response, s, deps, endingsMod);
         s.last_kb_refs = response.kb_refs || [];
         s.last_intent = response.intent;
         if (response.intent === 'unknown' || response.intent === 'faq' && response.action === 'handoff_unknown') s.last_unknown_question = userText;
@@ -249,6 +262,32 @@ async function runTurn(input, deps, opts = {}) {
 
     // Package details, owned by code (18 Oct): no card yet → a choice of five kinds of work; a card → its T1 deliverables,
     // starting price and Fastwork button straight from the knowledge pack (endings.offerCard). No model call, no invention.
+    async function outOfScopeTurn() {
+        const again = !!s.out_of_scope;
+        s.out_of_scope = true;
+        if (!s.draft?.card) s.not_fit = true;
+        const lines = again ? [OOS_AGAIN] : OOS_LINES;
+        const response = emptyResponse({ intent: 'capability', topics: ['capability'], messages: lines.map((text) => ({ type: 'text', text, explain: false, template: null, alt: null, data: null })) });
+        session.unionTopics(s, response.topics);
+        const sent = await send(input, renderMessages(response, { deps, config, session: s }), [], senders.lay);
+        await persist(input, s, sent, { role: 'lay', response });
+        try { await upsertLead(s, {}); } catch (e) { deps.log.warn('lead.upsert_failed', { error: e?.message }); }
+        return done(sent, null);
+    }
+
+    async function priceRangeTurn() {
+        const raw = sectionBody(deps.pack, 'faq.price-range');
+        if (!raw) return null;
+        const q = raw.search(/ตอนนี้[^\n]*ครับ\s*$/u);
+        const parts = q > 0 ? [raw.slice(0, q).trim(), raw.slice(q).trim()] : [raw];
+        s.last_kb_refs = ['faq.price-range']; // "อธิบายเพิ่ม" right after expands this answer
+        const response = emptyResponse({ intent: 'pricing', topics: ['pricing'], kb_refs: ['faq.price-range'], messages: parts.map((text) => ({ type: 'text', text, explain: false, template: null, alt: null, data: null })) });
+        session.unionTopics(s, response.topics);
+        const sent = await send(input, renderMessages(response, { deps, config, session: s }), topics.nextQuickReplies('pricing', s.topics_covered), senders.lay);
+        await persist(input, s, sent, { role: 'lay', response });
+        return done(sent, null);
+    }
+
     async function detailsTurn(cardId) {
         const endings = deps.flows?.endings || lazy('../flows/endings');
         const card = DETAIL_CHOICES.find((c) => c.card === cardId) ? cardId : null;
@@ -467,6 +506,34 @@ async function runTurn(input, deps, opts = {}) {
 const MENU_TO_TEXT = { MENU_CAPABILITY: 'ทำอะไรได้บ้าง', MENU_FIT: 'เหมาะกับงานผมไหม', MENU_PRICING: 'ราคาเท่าไหร่', MENU_EXAMPLES: 'ขอดูตัวอย่าง', MENU_START: 'เริ่มยังไง', MENU_SERVICES: 'ทำอะไรได้บ้าง', MENU_PORTFOLIO: 'ขอดูตัวอย่าง' };
 const BOOK_ENTRY_RE = /^\s*(?:นัดคุยกับมอส(?:ก่อน)?|นัดคุย|ขอนัดคุย|จองคิวคุย|นัดเวลาคุย)\s*$/u;
 const GREETING_RE = /^\s*(?:สวัสดี(?:ครับ|ค่ะ|คับ)?|หวัดดี(?:ครับ|ค่ะ)?|hi|hello|ดีครับ|ดีค่ะ|ทักครับ|ทัก)\s*[!.]*\s*$/iu;
+// An offer card for A1 at its door tier would show the AI Business Review under the A1 title: replace it with the
+// code-built A1 card (A1 build package + "start with the review" note), whoever produced it (head review 19 Oct).
+function fixA1Offer(response, s, deps, endingsMod) {
+    if (!endingsMod?.offerCard) return;
+    for (const m of response?.messages || []) {
+        if (!m || m.type !== 'card' || m.template !== 'offer') continue;
+        let d = m.data;
+        if (typeof d === 'string') { try { d = JSON.parse(d); } catch { continue; } }
+        if (!d || d.card_id !== 'A1' || (d.tier || 'T1') !== 'T1') continue;
+        const c = endingsMod.offerCard({ ...s, draft: { ...(s.draft || {}), card: 'A1', tier: 'T1' } }, { deps });
+        if (c) { m.data = typeof m.data === 'string' ? JSON.stringify(c.data) : c.data; m.alt = c.alt; }
+    }
+}
+const OOS_LINES = [
+    'เรื่องบอทเทรด กลยุทธ์ อินดิเคเตอร์ หรือ backtest ไม่ใช่งานที่ LazyHardWork รับครับ บอกตรงๆ จะได้ไม่เสียเวลาพี่',
+    'งานที่เราทำคือระบบหลังบ้านของธุรกิจ เช่น แชทบอทตอบลูกค้า ระบบงานภายใน หรือออโตเมชันงานซ้ำ ถ้าวันไหนมีงานแบบนี้ ทักมาได้เลยครับ',
+];
+const OOS_AGAIN = 'เรื่องนี้ยังไม่ใช่งานที่ LazyHardWork รับครับ ถ้ามีงานหลังบ้านของธุรกิจ เช่น ตอบแชทลูกค้าหรืองานคีย์ซ้ำ ทักมาได้เลยครับ';
+// the answer line of a KB section: drops the heading, the **question** line and status comments
+function sectionBody(pack, id) {
+    const sec = pack && pack.sections;
+    let v = null;
+    if (sec instanceof Map) v = sec.get(id); else if (Array.isArray(sec)) v = sec.find((x) => x && x.id === id); else if (sec && typeof sec === 'object') v = sec[id];
+    const text = v && (typeof v === 'string' ? v : (v.text || v.body || ''));
+    if (!text) return null;
+    const lines = text.split('\n').map((l) => l.trim()).filter((l) => l && !l.startsWith('#') && !l.startsWith('<!--') && !/^\*\*.*\*\*$/u.test(l));
+    return lines.join(' ').trim() || null;
+}
 const DETAIL_RE = /ดีเทล|แจกแจง|ได้อะไรบ้าง|มีอะไรบ้างในแพ็ก|รายละเอียดแพ็ก|รายละเอียดงาน/u;
 const DETAIL_CHOICES = [
     { card: 'A2', label: 'แชทบอทตอบลูกค้า' },
