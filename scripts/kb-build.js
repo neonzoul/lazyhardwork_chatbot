@@ -6,7 +6,7 @@
 //                            [--faq <file>] [--fit-map <file>] [--examples <file>] [--hours 13-22]
 //
 // Defaults: vault = $VAULT_ROOT or the LhW vault root on Mos's machine; project-dir =
-// <vault>/Clients/000_lazyhardwork/PJ_lineOA_chatbot_v2, falling back to .../PJ_lineOA_chatcot_v1.
+// <vault>/Clients/000_lazyhardwork/LineOA_laybot, falling back to the folder's older names.
 //
 // Writes knowledge/kb/{about,offer,fit-map,process,faq,examples,benefits,policies}.md,
 // knowledge/promotions.yaml and knowledge/kb-manifest.json. Output is deterministic: the same inputs
@@ -49,9 +49,10 @@ const BENEFITS = path.join(CLIENT_DIR, 'PJ_benefits');
 
 function resolveProjectDir() {
   if (args['project-dir']) return path.resolve(args['project-dir']);
-  const v2 = path.join(CLIENT_DIR, 'PJ_lineOA_chatbot_v2');
-  if (fs.existsSync(v2)) return v2;
-  return path.join(CLIENT_DIR, 'PJ_lineOA_chatcot_v1');
+  // Mos renamed the folder on 19 Oct 2026; older names stay as fallbacks for checkouts not yet renamed.
+  const names = ['LineOA_laybot', 'PJ_lineOA_chatbot_v1', 'PJ_lineOA_chatbot_v2', 'PJ_lineOA_chatcot_v1'];
+  const found = names.map((n) => path.join(CLIENT_DIR, n)).find((d) => fs.existsSync(d));
+  return found || path.join(CLIENT_DIR, names[0]);
 }
 const PROJECT_DIR = resolveProjectDir();
 

@@ -48,7 +48,7 @@ touches leads or notifications. Exit with กลับไปคุยกับ L
 
 Offer, prices, FAQ, fit map, process, policies and demo shop facts come from the vault, never from this repo:
 
-1. Edit the source in the vault (`Clients/000_lazyhardwork/PJ_lineOA_chatbot_v2/…`, the GTM ledger for prices).
+1. Edit the source in the vault (`Clients/000_lazyhardwork/LineOA_laybot/…`, the GTM ledger for prices).
 2. `npm run kb:build -- --project-dir <that folder>` — fails if a card price disagrees with the ledger.
 3. Commit `knowledge/` (generated files) → push the deployed branch → Railway redeploys.
 

@@ -1,7 +1,7 @@
 # Lay v2 — engineering conventions (read before writing code)
 
-Design of record: vault `Clients/000_lazyhardwork/PJ_lineOA_chatbot_v2/design-lay-v2.md` (folder may still be
-`PJ_lineOA_chatcot_v1`). Platform limits: `doc/line-platform-notes.md`. This page is the short form every
+Design of record: vault `Clients/000_lazyhardwork/LineOA_laybot/design-lay-v2.md` (folder may still be
+`LineOA_laybot`). Platform limits: `doc/line-platform-notes.md`. This page is the short form every
 implementer follows; the head engineer reviews against it.
 
 ## Branches and merges

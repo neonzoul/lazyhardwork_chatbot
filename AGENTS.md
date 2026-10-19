@@ -10,7 +10,7 @@ the model returns one structured JSON response, then code validates, renders (te
 replies, the right `sender`) and sends. Mos answers from a Discord thread and the bot relays him as "มอส".
 
 - **Code lives here**; the **record lives in the vault**:
-  `LazyHardWork/Clients/000_lazyhardwork/PJ_lineOA_chatbot_v2/` (folder may still be named `PJ_lineOA_chatcot_v1`)
+  `LazyHardWork/Clients/000_lazyhardwork/LineOA_laybot/` (folder may still be named `LineOA_laybot`)
   → `design-lay-v2.md` (architecture), `decisions.md` (D-xx), `build-log.md`, the brief (`brief-lay-v2-*.md`).
 - Status: **v2 in build**. `main` is still v1 and live. Cut-over planned **Tue 2026-10-20**. The Railway `lay-v2`
   service does not exist yet (D-18) — see `doc/deploy.md`.
