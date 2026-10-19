@@ -112,3 +112,16 @@ test('6. demo shop asks one thing at a time and never repeats its last message',
   const again = demo.oneQuestionAtATime({ messages: [{ type: 'text', text: 'เลือกความหวานครับ: หวานน้อย, ปกติ, หวานมาก.' }, { type: 'text', text: 'รับที่ร้านหรือส่งครับ?' }] }, 'เลือกความหวานครับ: หวานน้อย, ปกติ, หวานมาก');
   assert.deepEqual(again.messages.map((m) => m.text), ['รับที่ร้านหรือส่งครับ?']);
 });
+
+test('7. "มอส ผู้ออกแบบระบบของเรา" once per conversation, then "มอส" (Mos, 19 Oct)', () => {
+  const { shortenMosIntro } = require('../../src/core/turn');
+  const sess = {};
+  const a = [{ type: 'text', text: 'นัดคุย 30 นาทีกับมอส ผู้ออกแบบระบบของเรา ได้ครับ' }, { type: 'text', text: 'ราคาจริงต้องให้มอส ผู้ออกแบบระบบของเรา ดูงานก่อน' }];
+  shortenMosIntro(a, sess);
+  assert.match(a[0].text, /มอส ผู้ออกแบบระบบของเรา/);
+  assert.equal(a[1].text, 'ราคาจริงต้องให้มอส ดูงานก่อน');
+  assert.equal(sess.mos_introduced, true);
+  const b = [{ type: 'text', text: 'โทรหามอส ผู้ออกแบบระบบของเรา ที่ 095 569 1674 ได้เลยครับ' }];
+  shortenMosIntro(b, sess);
+  assert.equal(b[0].text, 'โทรหามอส ที่ 095 569 1674 ได้เลยครับ');
+});

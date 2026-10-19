@@ -1,5 +1,5 @@
 {
-  "built_at": "2026-10-19T05:43:32.743Z",
+  "built_at": "2026-10-19T09:02:39.741Z",
   "builder": "scripts/kb-build.js",
   "vault": "F:/_WORK-KERNEL/ANANTAGENT_Vault/DEPARTMENT/LazyHardWork",
   "project_dir": ".claude/worktrees/laughing-mcnulty-d3105b/Clients/000_lazyhardwork/LineOA_laybot",
@@ -17,7 +17,7 @@
       "source_sha256": {
         "Clients/000_lazyhardwork/PJ_go_to_market/lhw-public-profile.yaml": "71a9e765183fb1583340e0575985dd4128a285cdeaf978aa14ba611f04abb06b"
       },
-      "sha256": "3b6dbf10d88d6c58733ee686c50cd8e4d8c1dcf4cc41c4d37db2616b9b24bbff",
+      "sha256": "e81f0e0409f7b7628b86eecad212ca61221cab5084b6b7e35abda9fa6c2ef336",
       "chars": 2499,
       "sections": [
         "about.brand",
@@ -27,7 +27,7 @@
         "about.hours",
         "about.prototypes"
       ],
-      "built_at": "2026-10-19T05:43:32.743Z"
+      "built_at": "2026-10-19T09:02:39.741Z"
     },
     "kb/offer.md": {
       "sources": [
@@ -40,7 +40,7 @@
         "Clients/000_lazyhardwork/PJ_go_to_market/growth-ledger.yaml": "ad8c17d600160b8c18e145fb23aff010aed3aa59bc50e4283ab26bdfb1cbe3c3",
         "Clients/000_lazyhardwork/PJ_go_to_market/lhw-public-profile.yaml": "71a9e765183fb1583340e0575985dd4128a285cdeaf978aa14ba611f04abb06b"
       },
-      "sha256": "64b01d8d4ac32f6f898aa265e3b7478a0edbea69edb64576f582320da79b2d76",
+      "sha256": "9b73df1dec63833e91c9e4e90db8e59f7b39b4c0ff16eac447c7650f95072705",
       "chars": 24069,
       "sections": [
         "offer.overview",
@@ -83,7 +83,7 @@
         "offer.B13",
         "offer.B14"
       ],
-      "built_at": "2026-10-19T05:43:32.743Z"
+      "built_at": "2026-10-19T09:02:39.741Z"
     },
     "kb/fit-map.md": {
       "sources": [
@@ -98,7 +98,7 @@
         "Clients/000_lazyhardwork/PJ_go_to_market/growth-ledger.yaml": "ad8c17d600160b8c18e145fb23aff010aed3aa59bc50e4283ab26bdfb1cbe3c3",
         "Clients/000_lazyhardwork/PJ_go_to_market/lhw-public-profile.yaml": "71a9e765183fb1583340e0575985dd4128a285cdeaf978aa14ba611f04abb06b"
       },
-      "sha256": "5b953e881e643b6c8f8eb387628ed95dc617c2371ca0f919c41203ef210e7163",
+      "sha256": "fe4154c7c82eddf5099e5ae69b38dc91d70bc14ed39f6759ef73333fed223bcf",
       "chars": 7397,
       "sections": [
         "fit.chat-overload",
@@ -107,7 +107,7 @@
         "fit.ai-knows-my-work",
         "fit.where-to-start"
       ],
-      "built_at": "2026-10-19T05:43:32.743Z"
+      "built_at": "2026-10-19T09:02:39.741Z"
     },
     "kb/process.md": {
       "sources": [
@@ -124,7 +124,7 @@
         "Clients/000_lazyhardwork/PJ_go_to_market/growth-ledger.yaml": "ad8c17d600160b8c18e145fb23aff010aed3aa59bc50e4283ab26bdfb1cbe3c3",
         "Clients/000_lazyhardwork/PJ_go_to_market/lhw-public-profile.yaml": "71a9e765183fb1583340e0575985dd4128a285cdeaf978aa14ba611f04abb06b"
       },
-      "sha256": "b344d49bff4180e7445454ca5433755111aa93c6624507d302f7bac2a166476f",
+      "sha256": "88eda88897f60733ec544aadb9a930f37da10c2a20de5214c18b5cdeec9a61f6",
       "chars": 4690,
       "sections": [
         "process.steps",
@@ -136,17 +136,17 @@
         "process.timelines",
         "process.after-handover"
       ],
-      "built_at": "2026-10-19T05:43:32.743Z"
+      "built_at": "2026-10-19T09:02:39.741Z"
     },
     "kb/faq.md": {
       "sources": [
         ".claude/worktrees/laughing-mcnulty-d3105b/Clients/000_lazyhardwork/LineOA_laybot/faq-lay-v2.md"
       ],
       "source_sha256": {
-        ".claude/worktrees/laughing-mcnulty-d3105b/Clients/000_lazyhardwork/LineOA_laybot/faq-lay-v2.md": "1024d3f1c65319a46e36e3bf1e8726b35757455cca0ff1c020c1bc49c41ce556"
+        ".claude/worktrees/laughing-mcnulty-d3105b/Clients/000_lazyhardwork/LineOA_laybot/faq-lay-v2.md": "2a60653eb9a871b93c24c9000ea32d7f4ea99e1967e2fbd6f902d88ad99c89c2"
       },
-      "sha256": "0108a639108320ccac2afe7755a9a0eb2972d020bcba6bf6ab39d94f717d82dd",
-      "chars": 10348,
+      "sha256": "78e9e166435a70b6c67a7784e9880f761b8c8cb4f160a3b52fd14fafb731f1b1",
+      "chars": 10545,
       "sections": [
         "faq.price-range",
         "faq.what-price-includes",
@@ -187,7 +187,7 @@
         "faq.help-apply-subsidy",
         "faq.what-lay-cannot"
       ],
-      "built_at": "2026-10-19T05:43:32.743Z"
+      "built_at": "2026-10-19T09:02:39.741Z"
     },
     "kb/examples.md": {
       "sources": [
@@ -198,7 +198,7 @@
         ".claude/worktrees/laughing-mcnulty-d3105b/Clients/000_lazyhardwork/LineOA_laybot/examples-lay-v2.md": "5c11034c927eb1c3245fbf6a97b224cc59afefd95814c461c627227ba4898ae3",
         "Clients/000_lazyhardwork/PJ_go_to_market/lhw-public-profile.yaml": "71a9e765183fb1583340e0575985dd4128a285cdeaf978aa14ba611f04abb06b"
       },
-      "sha256": "b99068496748e069c4708206d1bad65863646689064c49c32383c2f71114fd21",
+      "sha256": "67b7a5fd544fd4fff16a272b12d8955f1afabb02b98fd31f2bd6e4c726e5099a",
       "chars": 6860,
       "sections": [
         "examples.carousel",
@@ -211,7 +211,7 @@
         "examples.demo-cafe",
         "examples.demo-clinic"
       ],
-      "built_at": "2026-10-19T05:43:32.743Z"
+      "built_at": "2026-10-19T09:02:39.741Z"
     },
     "kb/benefits.md": {
       "sources": [
@@ -222,7 +222,7 @@
         "Clients/000_lazyhardwork/PJ_benefits/benefits-register.yaml": "1ce421ea4ace00feac930b66c71ad330c93b119e7bcca71d9bf90295ee4ee936",
         "Clients/000_lazyhardwork/PJ_go_to_market/lhw-public-profile.yaml": "71a9e765183fb1583340e0575985dd4128a285cdeaf978aa14ba611f04abb06b"
       },
-      "sha256": "fc6df29f8a09bd1123b83080b8ccdb7276f5542fa5bb21f3fbd44abb018b3ede",
+      "sha256": "3a206546f426d5bf3c16ca1ceff361ac0b66bec60206ed7d14e91ec5260befd8",
       "chars": 14945,
       "sections": [
         "benefits.overview",
@@ -244,7 +244,7 @@
         "benefits.dsd-one-platform",
         "benefits.gsb-temmax-transformation"
       ],
-      "built_at": "2026-10-19T05:43:32.743Z"
+      "built_at": "2026-10-19T09:02:39.741Z"
     },
     "kb/policies.md": {
       "sources": [
@@ -255,7 +255,7 @@
         "Clients/000_lazyhardwork/PJ_go_to_market/lhw-public-profile.yaml": "71a9e765183fb1583340e0575985dd4128a285cdeaf978aa14ba611f04abb06b",
         "Clients/000_lazyhardwork/PJ_go_to_market/fastwork-cards-v2-2026-10.md": "c0a8a5410e52885e6d25a0b90995aa69e83a5f8a31b5b2325945025a6b2a51e5"
       },
-      "sha256": "318a529c21ec374b7bcf69fd07cccade8358f1adc22d45b7f7b27c8338e37418",
+      "sha256": "1cadfcc4cb18a5d25da34296166ca221b50141a7f9f6cb580d940addf51cebd6",
       "chars": 4980,
       "sections": [
         "policies.ai-disclosure",
@@ -265,7 +265,7 @@
         "policies.banned-claims",
         "policies.privacy"
       ],
-      "built_at": "2026-10-19T05:43:32.743Z"
+      "built_at": "2026-10-19T09:02:39.741Z"
     },
     "promotions.yaml": {
       "sources": [
@@ -274,10 +274,10 @@
       "source_sha256": {
         "Clients/000_lazyhardwork/PJ_go_to_market/promotions.yaml": "b141dc93dddc71646624f5339dbff2a110562922801a96c59e22356e1b66915e"
       },
-      "sha256": "876f5edce91b5e839f0f1a5cbee9bfa34e6916257b98eb0026ffadadb11bbfa8",
+      "sha256": "353011512208e353ae77ebe76923771f669f80cc42eb1a068d2c72a6e5641d28",
       "chars": 673,
       "sections": [],
-      "built_at": "2026-10-19T05:43:32.743Z"
+      "built_at": "2026-10-19T09:02:39.741Z"
     },
     "ladders.json": {
       "sources": [
@@ -289,7 +289,7 @@
       "sha256": "8817e7443d9ed133aca7aca6250d93e8de93e7663b15e8136d8d023ba6c29036",
       "chars": 1232,
       "sections": [],
-      "built_at": "2026-10-19T05:43:32.743Z"
+      "built_at": "2026-10-19T09:02:39.741Z"
     }
   }
 }

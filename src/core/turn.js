@@ -486,6 +486,7 @@ async function runTurn(input, deps, opts = {}) {
     }
 
     async function send(inp, messages, quickReplies, snd, { allowReply = true } = {}) {
+        shortenMosIntro(messages, s);
         const list = msg.attachQuickReplies(messages.slice(0, 5), quickReplies || [], snd);
         const fresh = allowReply && inp.replyToken && (now.getTime() - (inp.timestamp || 0)) < REPLY_TOKEN_MAX_AGE_MS && !inp.replyTokenUsed;
         if (fresh) {
@@ -541,6 +542,20 @@ function fixA1Offer(response, s, deps, endingsMod) {
         const c = endingsMod.offerCard({ ...s, draft: { ...(s.draft || {}), card: 'A1', tier: 'T1' } }, { deps });
         if (c) { m.data = typeof m.data === 'string' ? JSON.stringify(c.data) : c.data; m.alt = c.alt; }
     }
+}
+// "มอส ผู้ออกแบบระบบของเรา" introduces Mos once per conversation; from the second mention on it is just "มอส"
+// (Mos, 19 Oct: several FAQ answers in one chat would repeat the introduction). Runs on every message Lay sends.
+const MOS_INTRO_RE = /มอส\s*ผู้ออกแบบระบบของเรา/gu;
+function shortenMosIntro(messages, sess) {
+    let introduced = !!(sess && sess.mos_introduced);
+    for (const m of messages || []) {
+        if (!m || m.type !== 'text' || typeof m.text !== 'string' || !MOS_INTRO_RE.test(m.text)) continue;
+        MOS_INTRO_RE.lastIndex = 0;
+        m.text = m.text.replace(MOS_INTRO_RE, (full) => { if (introduced) return 'มอส'; introduced = true; return full; });
+    }
+    MOS_INTRO_RE.lastIndex = 0;
+    if (introduced && sess) sess.mos_introduced = true;
+    return messages;
 }
 const FIT_ASK = 'บอกได้ตรงขึ้นถ้ารู้ว่างานไหนกินเวลามากที่สุดครับ เลือกข้อที่ใกล้ที่สุด หรือพิมพ์เล่าสั้นๆ ก็ได้';
 const OOS_LINES = [
@@ -611,4 +626,4 @@ function createEventHandler(deps, opts = {}) {
 }
 
 const INPUT_KINDS = ['text', 'postback', 'media', 'follow', 'unfollow', 'mos_relay', 'mos_release'];
-module.exports = { cardContext, runTurn, createEventHandler, isGreeting, isTellMeMore, countQuestions, sanitizeInput, MENU_TO_TEXT, INPUT_KINDS };
+module.exports = { shortenMosIntro, cardContext, runTurn, createEventHandler, isGreeting, isTellMeMore, countQuestions, sanitizeInput, MENU_TO_TEXT, INPUT_KINDS };
