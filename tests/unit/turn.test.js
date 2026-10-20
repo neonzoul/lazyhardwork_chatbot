@@ -151,7 +151,7 @@ test('replay 18 Oct: a model handoff_human on a swear word is ignored (no notify
 test('replay 18 Oct: when the model keeps breaking a content rule, the customer gets a calm line, not "ระบบขัดข้อง"', async () => {
   const promise = text('ใจเย็นครับพี่ มอสจะเข้ามาคุยเองนะครับ', { intent: 'abuse' });
   const w = world([promise, promise]);
-  const r = await runTurn(w.input({ text: 'ไอเหี้ยมอส' }), w.deps);
+  const r = await runTurn(w.input({ text: 'โอ๊ยยย' }), w.deps); // swear words are answered by code since 20 Oct
   assert.equal(w.line.texts()[0], 'รับทราบครับ');
   assert.doesNotMatch(w.line.texts().join(' '), /ขัดข้อง|มอสจะเข้ามา/);
   assert.equal(r.session.mode, 'lay');
@@ -169,7 +169,7 @@ test('replay 18 Oct: "อยากได้คนขาย" with a model handoff
 test('replay 18 Oct: banter or a swear word gets exactly one line, no follow-up question, no buttons', async () => {
   const w = world([emptyBanter()]);
   function emptyBanter() { const { emptyResponse } = require('../../src/brain/schema'); return emptyResponse({ intent: 'abuse', messages: [{ type: 'text', text: 'ใจเย็นๆ ครับพี่', explain: false, template: null, alt: null, data: null }, { type: 'text', text: 'ตอนนี้พี่สนใจบริการไหนอยู่ครับ', explain: false, template: null, alt: null, data: null }], quick_replies: ['ราคาเท่าไหร่'] }); }
-  await runTurn(w.input({ text: 'ไอเหี้ยมอส' }), w.deps);
+  await runTurn(w.input({ text: 'ขายตรงจังเลยนะ' }), w.deps); // swear words are answered by code since 20 Oct
   assert.deepEqual(w.line.texts(), ['ใจเย็นๆ ครับพี่']);
   assert.deepEqual(w.line.quickReplies(), []);
 });

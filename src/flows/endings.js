@@ -110,11 +110,23 @@ function offerCard(session, { deps = {}, secondary = true } = {}) {
 
 // Hook for core/turn (between step 10 and 12): append the offer card to a model response when the short path is
 // ready and no card is in the reply yet. Returns true when a card was added. Shows the offer once per session.
+// C1 (AI Business Review) needs an operating business with real work and files (3–5 real files): not pre-launch, and
+// the customer said where the work lives (head review 20 Oct).
+const NOTHING_YET_RE = /ยังไม่(?:ได้)?(?:เริ่ม|มี|ทำ)|ไม่มี(?:เลย)?$/u;
+function c1Fits(session) {
+    if (!session || session.too_early) return false;
+    const w = session.homework && session.homework.where_work_lives;
+    return !!(w && !NOTHING_YET_RE.test(String(w).trim()));
+}
+
 function decorateResponse({ response, session, deps }) {
     if (!response || !session || session.offer_shown) return false;
     if (chooseEnding(session) !== 'short' || !session.draft?.card) return false;
     // symptom before card (head review 19 Oct, Oat): a symptom the model guessed from a vague business gets no card
     if (!session.draft.confirmed) return false;
+    // no paid card before there is a business running, or for a request we do not do (head review 20 Oct)
+    if (session.too_early || session.not_fit) return false;
+    if (session.draft.card === 'C1' && !c1Fits(session)) return false;
     const ready = homework.readyForEnding(session) || ['fit', 'howtostart', 'pricing'].includes(response.intent);
     if (!ready) return false;
     if ((response.messages || []).some((m) => m.type === 'card')) { if ((response.messages || []).some((m) => m.type === 'card' && m.template === 'offer')) session.offer_shown = true; return false; }
@@ -449,4 +461,4 @@ async function applyMosDecision({ decision, windows = [], booking, session, deps
     return { sent: [list], booking: updated, allow };
 }
 
-module.exports = { PB, DAYS, TIMES, CARD_TITLES, DEFAULT_BULLETS, strings, chooseEnding, offerCard, decorateResponse, summaryCard, windowText, dayLabel, nextPrompt, onBookingPostback, onBookingText, onModelAction, applyMosDecision, startBooking, confirmBooking };
+module.exports = { c1Fits, PB, DAYS, TIMES, CARD_TITLES, DEFAULT_BULLETS, strings, chooseEnding, offerCard, decorateResponse, summaryCard, windowText, dayLabel, nextPrompt, onBookingPostback, onBookingText, onModelAction, applyMosDecision, startBooking, confirmBooking };

@@ -13,6 +13,8 @@
 const { HOMEWORK_FIELDS } = require('../core/session');
 
 const STATUS_ORDER = ['new', 'qualified', 'booking_pending', 'booked', 'offer_shown', 'closed'];
+// side statuses (not on the ladder): not_fit = asked for something we do not do; nurture = not ready yet (pre-launch),
+// come back later (head review 20 Oct). nurture wins over not_fit; a booking in progress wins over both.
 const rank = (s) => { const i = STATUS_ORDER.indexOf(s); return i < 0 ? 0 : i; };
 
 /** Highest of the given statuses (unknown values count as `new`). */
@@ -29,11 +31,12 @@ function buildLeadRow({ session, existing = null, now, status = null }) {
   const derived = homework.business && homework.problem_verbatim && card ? 'qualified' : 'new';
   const raised = advanceStatus(existing?.status, derived, status);
   const notFit = session.not_fit && !card && rank(raised) < rank('booking_pending');
+  const nurture = (session.too_early || session.nurture) && rank(raised) < rank('booking_pending');
   const words = session.homework?.problem_verbatim || existing?.customer_words_th || null;
   return {
     ...(existing || {}),
     user_id: session.user_id,
-    status: notFit ? 'not_fit' : raised,
+    status: nurture ? 'nurture' : notFit ? 'not_fit' : raised,
     card_id: session.draft?.card || existing?.card_id || null,
     symptom: session.draft?.symptom || existing?.symptom || null,
     homework,
@@ -130,6 +133,7 @@ const NEXT_STEP_TH = {
   new: 'รอการบ้านเพิ่ม — Lay ถามต่อ',
   qualified: 'มอสอ่านลีด แล้วตอบภายในวัน',
   not_fit: 'นอกขอบเขตงานของเรา ไม่ต้องติดตาม',
+  nurture: 'ยังไม่ถึงเวลา (ยังไม่เริ่มขาย) ทักกลับเมื่อเริ่มขายและงานเริ่มล้น',
   booking_pending: 'มอสยืนยันช่วงเวลาโทร',
   booked: 'โทรตามเวลานัด',
   offer_shown: 'ติดตามข้อเสนอ',

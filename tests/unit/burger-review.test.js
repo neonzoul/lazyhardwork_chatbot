@@ -1,0 +1,83 @@
+// Head review of the pre-launch burger chat (20 Oct 2026): marketing is not ours, too early → nurture, C1 needs an operating
+// business, screening only after a matched symptom, model-side filler rule, "ผมจะ + studio action" → "เรา".
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const path = require('path');
+const { runTurn } = require('../../src/core/turn');
+const { createFakeLine } = require('../fakes/line');
+const { createFakeNotifier } = require('../fakes/notifier');
+const { createFakeModel } = require('../fakes/model');
+const { createFakeClock } = require('../fakes/clock');
+const { createFakeStore } = require('../fakes/store');
+const { loadPack } = require('../../src/brain/kb');
+const policy = require('../../src/core/policy');
+const intake = require('../../src/leads/intake');
+const endings = require('../../src/flows/endings');
+
+const pack = loadPack(path.resolve(__dirname, '..', '..', 'knowledge'));
+const config = { contact: { phoneDisplay: '095 569 1674 (มอส)', hoursStart: 13, hoursEnd: 22, fastworkUrl: 'https://fastwork.com/user/moslazyhardwork' }, identity: { layName: 'Lay · ผู้ช่วย AI', mosName: 'มอส', layIconUrl: 'https://x/lay.png', mosIconUrl: 'https://x/mos.png' }, quiet: { windowMinutes: 30, debounceMs: 10 }, publicBaseUrl: '' };
+function world() {
+  const line = createFakeLine(); const notifier = createFakeNotifier(); const model = createFakeModel();
+  const clock = createFakeClock(); const store = createFakeStore();
+  const deps = { line, notifier, model, clock, store, pack, log: { info() {}, warn() {}, error() {} }, config };
+  const input = (o) => ({ userId: 'U1', kind: 'text', text: '', replyToken: 'rt', timestamp: clock.now().getTime(), ...o });
+  return { line, model, store, deps, input };
+}
+
+test('pre-launch → "not needed yet, come back when…", no model, no card; lead nurture', async () => {
+  const w = world();
+  await runTurn(w.input({ text: 'กำลังจะเริ่มทำธุรกิจขายburger homemade' }), w.deps);
+  assert.equal(w.model.calls.length, 0);
+  const said = w.line.texts().join('\n');
+  assert.match(said, /ยังไม่ต้องใช้ระบบหรือจ้างเรา/);
+  assert.doesNotMatch(said, /Business Review|4,900/);
+  assert.equal((await w.store.leads.byUser('U1')).status, 'nurture');
+});
+
+test('marketing work → not ours, one tip, no card; an in-scope chat problem from ads still goes to the model', async () => {
+  const w = world();
+  await runTurn(w.input({ text: 'การตลาด' }), w.deps);
+  assert.equal(w.model.calls.length, 0);
+  assert.match(w.line.texts().join('\n'), /ไม่ใช่งานที่ LazyHardWork รับ/);
+  assert.equal(w.line.sent.flatMap((x) => x.messages || []).filter((m) => m.type === 'flex').length, 0);
+});
+
+test('C1 fits only an operating business with work somewhere', () => {
+  assert.equal(endings.c1Fits({ homework: {} }), false);
+  assert.equal(endings.c1Fits({ homework: { where_work_lives: 'ยังไม่ได้เริ่มทำอะไรเลยค่ะ' } }), false);
+  assert.equal(endings.c1Fits({ too_early: true, homework: { where_work_lives: 'Google Sheets' } }), false);
+  assert.equal(endings.c1Fits({ homework: { where_work_lives: 'Google Sheets กับ LINE' } }), true);
+});
+
+test('policy: no package for a too-early lead; screening before a symptom is regenerated; ผมจะดูงาน → เราดูงาน', () => {
+  const mk = (x, intent = 'capability') => ({ messages: [{ type: 'text', text: x, explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: [], kb_refs: [], intent, lead_updates: {}, action: null });
+  assert.equal(policy.applyPolicy(mk('ลองแพ็ก AI Business Review ราคาเริ่มต้น 4,900 บาทได้ครับ'), { session: { too_early: true } }).severity, 'regenerate');
+  assert.ok(policy.applyPolicy(mk('ตอนนี้มีคนช่วยทำการตลาดอยู่กี่คนครับ'), { session: {}, userText: 'การตลาด' }).violations.some((v) => v.rule === 'screening_before_symptom'));
+  assert.ok(!policy.applyPolicy(mk('ตอนนี้มีคนตอบแชทกี่คนครับ'), { session: {}, userText: 'แชทเข้าเยอะตอบไม่ทัน' }).violations.some((v) => v.rule === 'screening_before_symptom'));
+  assert.equal(policy.speakAsLay('ผมจะดูงานจริงของคุณสองรอบ'), 'เราดูงานจริงของคุณสองรอบ');
+});
+
+test('lead status: nurture beats not_fit; qualified still needs a card', () => {
+  const row = intake.buildLeadRow({ session: { user_id: 'U2', too_early: true, not_fit: true, homework: { business: 'เบอร์เกอร์', problem_verbatim: 'การตลาด', came_from: 'เพื่อนแชร์โพสต์' } }, now: new Date() });
+  assert.equal(row.status, 'nurture');
+  assert.equal(row.homework.came_from, 'เพื่อนแชร์โพสต์');
+});
+
+test('a swear word → one calm line by code, no model, no buttons', async () => {
+  const w = world();
+  await runTurn(w.input({ text: 'ไอเหี้ยมอส' }), w.deps);
+  assert.equal(w.model.calls.length, 0);
+  assert.equal(w.line.texts().length, 1);
+  assert.doesNotMatch(w.line.texts()[0], /[?？]|แพ็ก|ราคา/);
+});
+
+test('pre-launch: telling us about the team gets the short line by code; each repeat is shorter', async () => {
+  const w = world();
+  await runTurn(w.input({ text: 'กำลังจะเริ่มทำธุรกิจขายburger homemade' }), w.deps);
+  await runTurn(w.input({ text: 'มี 3 คน ตัวเราทำการตลาด พี่สาวทำเอกสาร' }), w.deps);
+  await runTurn(w.input({ text: 'ยังไม่ได้เริ่มทำอะไรเลยค่ะ' }), w.deps);
+  assert.equal(w.model.calls.length, 0);
+  const t = w.line.texts();
+  assert.equal(t.length, 3);
+  assert.ok(t[1].length < t[0].length && t[2].length < t[1].length);
+});

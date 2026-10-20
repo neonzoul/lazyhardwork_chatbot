@@ -5,6 +5,7 @@
 //   GET  /admin/sessions/:userId              session + last 30 messages
 //   POST /admin/sessions/:userId/mode {mode}  lay | quiet | mos_active | demo | human
 //   POST /admin/sessions/:userId/take         Human Mode + open the lead thread in #leads
+//   POST /admin/sessions/:userId/lead {nurture?, came_from?}  mark the lead from what Mos knows outside the chat
 //   GET  /admin/events?limit=                 debugging feed (default 100, max 1000)
 //   GET  /admin/llm/calls?since=&task=&limit= llm_calls rows, newest first (doc/llm.md §4)
 //   GET  /admin/llm/summary?days=7            day × task × model: calls, tokens, cost
@@ -93,6 +94,22 @@ function createAdminRouter({ store, token, clock, log, llm, take } = {}) {
     const r = await take(req.params.userId);
     const after = await store.sessions.get(req.params.userId);
     res.json({ mode: after.mode, threadId: r.threadId || null });
+  }));
+
+  // Mark a lead from what Mos knows outside the chat (20 Oct): {nurture: true} and/or {came_from: "เพื่อนแชร์โพสต์"}.
+  // Writes the session (so later turns keep it) and rebuilds the lead row from it.
+  router.post('/admin/sessions/:userId/lead', wrap(async (req, res) => {
+    const session = await store.sessions.get(req.params.userId);
+    if (!session) return res.status(404).json({ error: 'not found' });
+    const body = req.body || {};
+    if (body.nurture === true) session.nurture = true;
+    if (typeof body.came_from === 'string' && body.came_from.trim()) session.homework = { ...(session.homework || {}), came_from: body.came_from.trim().slice(0, 120) };
+    await store.sessions.save(session);
+    const intake = require('./leads/intake');
+    const existing = await store.leads.byUser(req.params.userId);
+    const lead = await store.leads.upsert(intake.buildLeadRow({ session, existing, now: clock && clock.now ? clock.now() : new Date() }));
+    if (store.events && store.events.append) await store.events.append({ kind: 'admin_lead_update', user_id: req.params.userId, payload: { nurture: body.nurture === true, came_from: !!body.came_from } });
+    res.json({ lead: { id: lead.id, status: lead.status, came_from: lead.homework && lead.homework.came_from } });
   }));
 
   router.get('/admin/events', wrap(async (req, res) => {

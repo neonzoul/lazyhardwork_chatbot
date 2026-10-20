@@ -1,0 +1,20 @@
+name: 73 · pre-launch home burger replay — not started yet, marketing is not ours, no C1, no screening before a symptom
+covers: ["§9.2", "§3.9", "head review 20 Oct"]
+# Source: a real stranger chat on production, 19 Oct 16:07 (name removed). Before the fix Lay asked the screening
+# questions about marketing, praised ("เป็นส่วนสำคัญ", "แบ่งหน้าที่ชัดเจนดี") and offered AI Business Review 4,900 to a
+# business that had not started; the customer went silent. Real check: `--model real --only "73 ·"`.
+user: { id: U73, displayName: "ลูกค้าเบอร์เกอร์" }
+steps:
+  - follow: true
+    expect: { replies: 1, sender: lay }
+  - postback: MENU_START
+    expect: { replies_min: 1, sender: lay }
+  - user: "กำลังจะเริ่มทำธุรกิจขายburger homemade"
+    expect: { replies: 1, sender: lay, text_contains: ["ยังไม่ต้องใช้ระบบหรือจ้างเรา", "ทักกลับมาได้เลย"], text_not_contains: ["Business Review", "4,900", "แพ็ก", "กี่คน"] }
+  - user: "การตลาด"
+    expect: { replies: 1, sender: lay, text_contains: ["ไม่ใช่งานที่ LazyHardWork รับ"], text_not_contains: ["Business Review", "4,900", "กี่คน", "สำคัญ"] }
+  - user: "มี 3 คน\nตัวเราทำการตลาด ทำคลิป โฆษณา\nพี่สาว ทำเอกสารหลังบ้าน\nพี่ชายทำอาหาร"
+    model: { messages: [{ type: text, text: "ตอนนี้ยังไม่ต้องใช้ระบบครับ พอเริ่มขายแล้วงานเอกสารหรือออเดอร์เริ่มล้น ทักกลับมาได้เลยครับ", explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: [], kb_refs: [], intent: unknown }
+    expect: { replies: 1, sender: lay, text_not_contains: ["Business Review", "4,900", "แบ่งหน้าที่ชัดเจน", "สำคัญมาก", "อยู่ในเครื่องมือ", "กี่คน"] }
+  - user: "ยังไม่ได้เริ่มทำอะไรเลยค่ะ"
+    expect: { replies: 1, sender: lay, text_not_contains: ["Business Review", "4,900", "แพ็ก", "ผมจะดูงาน"] }

@@ -72,14 +72,16 @@ const MOS_AS_ME_RE = /(งานที่|ลูกค้าของ|ผลง�
 const MOS_STUDIO_RE = /(งานที่|ลูกค้าของ|ผลงานของ|โปรไฟล์(?:\s*Fastwork)?\s*ของ|ระบบ(?:งาน)?ที่)มอส|มอส(?=\s*(?:จะ\s*)?(?:สามารถ\s*)?(?:ช่วย(?:ธุรกิจ|ทำ|สร้าง|ได้)|สร้าง|ทดสอบ|ออกแบบ|ติดตั้ง|ตั้งค่า|ดูแลระบบ|ส่งมอบ|สรุปปริมาณ|แก้และเพิ่ม|เลือก|ไม่ส่ง|ไม่ลด|ทำบ่อย|ทำให้|ทำระบบ|ใช้ทุกวัน|รับทำ))/gu;
 // a message that is about a human step keeps "มอส"; studio work elsewhere becomes "เรา"
 const HUMAN_STEP_RE = /(?<!ถ)นัด|โทร|คุยกับมอส|คุยเอง|ราคาเป๊ะ|ราคาจริง|ใบเสนอราคา|งบ(?:ประมาณ|มี|เท่า|แค่|จำกัด|ไม่|ของ|\s|$)|ส่งเรื่อง|ส่งต่อ|ส่งให้มอส|มอสตอบ|มอสดูให้|ยืนยัน/u;
+// "ผมจะดูงานจริง" → "เราดูงานจริง": Lay does not do studio work (head review 20 Oct)
+const ME_WILL_STUDIO_RE = /ผม(?:จะ)?(?=\s*(?:ดูงาน|ส่งแผน|ทำแผน|วางแผน|ประเมิน|ทดสอบ|สอนใช้|ส่งมอบ|ดูแลระบบ|ติดตั้ง|ตั้งค่า|ออกแบบ|สร้าง|วางระบบ|ทำระบบ|ดูให้|ทำให้))/gu;
 function speakAsLay(t) {
-  let out = t.replace(MOS_AS_ME_RE, (m, pre) => (pre ? `${pre}เรา` : 'เรา'));
+  let out = t.replace(MOS_AS_ME_RE, (m, pre) => (pre ? `${pre}เรา` : 'เรา')).replace(ME_WILL_STUDIO_RE, 'เรา');
   if (!HUMAN_STEP_RE.test(out)) out = out.replace(MOS_STUDIO_RE, (m, pre) => (pre ? `${pre}เรา` : 'เรา'));
   return out;
 }
 // Empty praise before the point (head correction 19 Oct): "ล่องแก่งที่พัทลุงฟังดูน่าสนใจครับ", "การเทรดเป็นธุรกิจที่น่าสนใจครับ"
 function dropFiller(t) {
-  const n = t.replace(/^[^\n]{0,40}?(?:ฟังดู(?:น่าสนใจ|ดี)|เป็น(?:ธุรกิจ|งาน)ที่น่าสนใจ)(?:มาก)?(?:เลย)?(?:ครับ|นะครับ)?[ \t]*/u, '')
+  const n = t.replace(/^เข้าใจ(?:แล้ว)?ครับ[ \t]*/u, '').replace(/^[^\n]{0,40}?(?:ฟังดู(?:น่าสนใจ|ดี)|เป็น(?:ธุรกิจ|งาน)ที่น่าสนใจ)(?:มาก)?(?:เลย)?(?:ครับ|นะครับ)?[ \t]*/u, '')
     .replace(/(^|\s)[^\s]{0,40}?ฟังดู(?:น่าสนใจ|ดี)(?:มาก)?(?:เลย)?(?:ครับ|นะครับ)?[ \t]*/gu, '$1')
     .replace(/(^|\s)[^\s]{0,40}?เป็น(?:ธุรกิจ|งาน)ที่น่าสนใจ(?:มาก)?(?:ครับ)?[ \t]*/gu, '$1')
     .replace(/^[ \t]+/u, '');
@@ -237,6 +239,21 @@ function applyPolicy(input, { session = {}, pack = null, allow, userText } = {})
     if (r.messages.length !== before) fixed.push(`messages: ${before - r.messages.length} closer-only bubble(s) dropped`);
   }
 
+  // --- no paid offer for a lead that is not ready or not a fit (head review 20 Oct, pre-launch burger) ---
+  const bubbleTexts = (r.messages || []).filter((m) => m && m.type === 'text' && typeof m.text === 'string').map((m) => m.text);
+  if (session && (session.too_early || session.not_fit) && r.intent !== 'pricing' && bubbleTexts.some((t) => /Business Review|4,900|แพ็ก(?:เริ่มต้น|ลองก่อน|นี้)|ราคาเริ่มต้น/u.test(t))) {
+    violate('paid_offer_unfit', 'regenerate', 'the lead is pre-launch or out of scope: no package, price or AI Business Review — say when we would help and invite them back');
+  }
+  // --- screening questions (people / where the data lives / who maintains) only after a matched in-scope symptom ---
+  {
+    let named = false;
+    try { named = !!(userText && require('../flows/fit').symptomFromText(userText)); } catch { /* absent */ }
+    const confirmed = !!(session && session.draft && session.draft.confirmed) || named;
+    const SCREEN_RE = /กี่คน|อยู่ในเครื่องมือ(?:อะไร|ไหน)|เก็บไว้ที่ไหน|ใคร(?:เป็นคน)?ดูแล(?:ระบบ)?(?:ได้)?ไหม|ใครดูแลต่อ/u;
+    if (!confirmed && bubbleTexts.some((t) => SCREEN_RE.test(t))) {
+      violate('screening_before_symptom', 'regenerate', 'screening questions (how many people / where the data lives / who maintains) come only after the customer named a problem we solve; ask which work takes the most time instead');
+    }
+  }
   // --- symptom before card (head correction 19 Oct): no "ตรงกับงานที่เราทำ" until the customer named the problem ---
   let namedNow = false;
   try { namedNow = !!(userText && require('../flows/fit').symptomFromText(userText)); } catch { /* fit module absent */ }

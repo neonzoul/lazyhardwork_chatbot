@@ -193,7 +193,21 @@ async function runTurn(input, deps, opts = {}) {
         }
         // 8a. out of scope (head review 19 Oct): trading bots, strategies, indicators and backtests are not services.
         // Say so plainly, name the real services once, close politely; the lead becomes not_fit unless a card was matched.
+        // 8a0. a swear word: one calm line by code, no button, no sale, no question (D-26; the real model drifted into package
+        // details after a detail card, replay 20 Oct)
+        if (input.kind === 'text' && PROFANITY_RE.test(text)) return await plainTurn([PROFANITY_LINE], { intent: 'abuse', topics: ['banter'], lead: false });
         if (input.kind === 'text' && OUT_OF_SCOPE_RE.test(text)) return await outOfScopeTurn();
+        // 8a''. not started yet (head review 20 Oct, pre-launch burger): no system and no paid card is needed yet; say when we
+        // would help and invite them back. The lead becomes nurture.
+        if (input.kind === 'text' && TOO_EARLY_RE.test(text) && !s.draft?.confirmed) return await tooEarlyTurn();
+        // 8a'''. marketing work itself (content, clips, ads, page management, branding) is not ours: say so, one free tip, no card
+        if (input.kind === 'text' && MARKETING_RE.test(text) && !IN_SCOPE_HINT_RE.test(text)) return await marketingTurn();
+        // ...and while they have not started, telling us about the team or plans gets the same short line (the model kept
+        // praising and asking screening questions, replay 20 Oct); a named problem or one of the main questions still goes on
+        if (input.kind === 'text' && s.too_early && !s.draft?.confirmed && !topics.topicFromText(text) && !handoff.isAskHuman(text)) {
+            const fitMod = flows.fit || lazy('../flows/fit');
+            if (!fitMod?.symptomFromText?.(text)) return await tooEarlyTurn();
+        }
         // 8a'. a plain price question before any card is matched: the approved FAQ answer word for word (4,900 → 49,000)
         if (input.kind === 'text' && intentHint === 'pricing' && !s.draft?.card && [...text.trim()].length <= 30 && !/ค่าดูแล|รายเดือน|ลด|โปร|งบ/u.test(text)) {
             const r = await priceRangeTurn();
@@ -226,6 +240,7 @@ async function runTurn(input, deps, opts = {}) {
         if (s.draft?.card && !s.draft.tier) s.draft.tier = 'T1';
         try { endingsMod?.decorateResponse?.({ response, session: s, deps }); } catch (e) { deps.log.warn('endings.decorate_failed', { error: e?.message }); }
         fixA1Offer(response, s, deps, endingsMod);
+        dropUnfitOffers(response, s, endingsMod);
         s.last_kb_refs = response.kb_refs || [];
         s.last_intent = response.intent;
         if (response.intent === 'unknown' || response.intent === 'faq' && response.action === 'handoff_unknown') s.last_unknown_question = userText;
@@ -288,6 +303,30 @@ async function runTurn(input, deps, opts = {}) {
         await persist(input, s, sent, { role: 'lay', response });
         try { await upsertLead(s, {}); } catch (e) { deps.log.warn('lead.upsert_failed', { error: e?.message }); }
         return done(sent, null);
+    }
+
+    async function plainTurn(lines, { intent = 'capability', topics: tps = ['capability'], lead = true } = {}) {
+        const response = emptyResponse({ intent, topics: tps, messages: [{ type: 'text', text: lines.join('\n'), explain: false, template: null, alt: null, data: null }] });
+        session.unionTopics(s, response.topics);
+        const sent = await send(input, renderMessages(response, { deps, config, session: s }), [], senders.lay);
+        await persist(input, s, sent, { role: 'lay', response });
+        if (lead) { try { await upsertLead(s, {}); } catch (e) { deps.log.warn('lead.upsert_failed', { error: e?.message }); } }
+        return done(sent, null);
+    }
+
+    async function tooEarlyTurn() {
+        const n = s.too_early_replies || 0;
+        s.too_early = true;
+        s.too_early_replies = n + 1;
+        return plainTurn(n === 0 ? TOO_EARLY_LINES : [n === 1 ? TOO_EARLY_AGAIN : TOO_EARLY_LAST]);
+    }
+
+    async function marketingTurn() {
+        const again = !!s.marketing_asked;
+        s.marketing_asked = true;
+        s.out_of_scope = true;
+        if (!s.draft?.card) s.not_fit = true;
+        return plainTurn(again ? [MARKETING_AGAIN] : MARKETING_LINES);
     }
 
     async function fitChooserTurn() {
@@ -563,7 +602,36 @@ function shortenMosIntro(messages, sess) {
     if (introduced && sess) sess.mos_introduced = true;
     return messages;
 }
+const PROFANITY_RE = /เหี้ย|เชี่ย|สัส|ควย|\bfuck|\bshit/iu;
+const PROFANITY_LINE = 'ขอโทษครับ ถ้าที่ผมตอบไม่ตรงใจ ผมรอฟังก่อนนะครับ';
+const TOO_EARLY_RE = /กำลังจะ(?:เริ่ม|เปิด)|ยังไม่(?:ได้)?(?:เริ่ม|เปิด)|เพิ่งคิด(?:จะ)?|วางแผน(?:จะ)?(?:เปิด|เริ่ม)|ยังไม่มีลูกค้า|ยังไม่ได้ขาย|pre-?launch/iu;
+const TOO_EARLY_LINES = [
+    'ช่วงที่ยังไม่ได้เริ่มขาย ยังไม่ต้องใช้ระบบหรือจ้างเราครับ ตั้งใจกับสินค้าและลูกค้ากลุ่มแรกก่อนคุ้มกว่า',
+    'เราช่วยได้ตอนที่เริ่มขายแล้วและงานเริ่มล้น เช่น ออเดอร์หรือแชทเข้าจนตอบไม่ทัน ถึงตอนนั้นทักกลับมาได้เลยครับ',
+];
+const TOO_EARLY_LAST = 'รับทราบครับ ไว้เริ่มขายแล้วทักมาได้เลยครับ';
+const TOO_EARLY_AGAIN = 'ตอนนี้ยังไม่ต้องเริ่มอะไรกับเราครับ พอเริ่มขายแล้วออเดอร์หรือแชทเริ่มล้น ทักกลับมาได้เลยครับ';
+const MARKETING_RE = /การตลาด|มาร์เก็ตติ้ง|marketing|คอนเทนต์|content|ทำคลิป|ตัดต่อคลิป|ยิงแอด|ยิงโฆษณา|ทำโฆษณา|ดูแลเพจ|แอดมินเพจ|โซเชียลมีเดีย|social\s*media|สร้างแบรนด์|ทำแบรนด์|branding|ออกแบบโลโก้/iu;
+const IN_SCOPE_HINT_RE = /แชท|ตอบลูกค้า|ออเดอร์|ข้อมูล|คีย์|ซ้ำ|เอกสาร|สต็อก|ตาราง|ระบบ|ใบเสนอราคา|นัด/u;
+const MARKETING_LINES = [
+    'งานการตลาด เช่น ทำคอนเทนต์ ทำคลิป ยิงโฆษณา ดูแลเพจ หรือสร้างแบรนด์ ไม่ใช่งานที่ LazyHardWork รับครับ',
+    'เคล็ดลับเล็กๆ ช่วงเริ่ม เลือกช่องทางเดียวที่ลูกค้าอยู่มากที่สุดแล้วโพสต์ให้สม่ำเสมอก่อน ดีกว่ากระจายหลายช่องทางพร้อมกัน',
+    'ส่วนที่เราช่วยได้คืองานหลังบ้าน เช่น พอแชทหรือออเดอร์เริ่มล้นจนตอบไม่ทัน ทักมาได้เลยครับ',
+];
+const MARKETING_AGAIN = 'เรื่องการตลาดยังไม่ใช่งานที่เรารับครับ ถ้ามีงานหลังบ้าน เช่น แชทหรือออเดอร์ล้น ทักมาได้เลยครับ';
 const FIT_ASK = 'บอกได้ตรงขึ้นถ้ารู้ว่างานไหนกินเวลามากที่สุดครับ เลือกข้อที่ใกล้ที่สุด หรือพิมพ์เล่าสั้นๆ ก็ได้';
+// no paid card for a lead that is not ready (too early) or asked for something we do not do; C1 only when it fits
+function dropUnfitOffers(response, s, endingsMod) {
+    if (!response || !Array.isArray(response.messages)) return;
+    const unfit = (m) => {
+        if (!m || m.type !== 'card' || m.template !== 'offer') return false;
+        if (s.too_early || s.not_fit) return true;
+        let d = m.data; if (typeof d === 'string') { try { d = JSON.parse(d); } catch { return false; } }
+        return !!(d && d.card_id === 'C1' && endingsMod?.c1Fits && !endingsMod.c1Fits(s));
+    };
+    if (response.messages.some(unfit)) response.messages = response.messages.filter((m) => !unfit(m));
+    if (!response.messages.length) response.messages = [{ type: 'text', text: 'รับทราบครับ', explain: false, template: null, alt: null, data: null }];
+}
 const OOS_LINES = [
     'เรื่องบอทเทรด กลยุทธ์ อินดิเคเตอร์ หรือ backtest ไม่ใช่งานที่ LazyHardWork รับครับ บอกตรงๆ จะได้ไม่เสียเวลาพี่',
     'งานที่เราทำคือระบบหลังบ้านของธุรกิจ เช่น แชทบอทตอบลูกค้า ระบบงานภายใน หรือออโตเมชันงานซ้ำ ถ้าวันไหนมีงานแบบนี้ ทักมาได้เลยครับ',
