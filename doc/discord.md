@@ -47,6 +47,22 @@ await relay.start();   // no token → logs discord.relay_disabled and returns n
 Thread → customer lookup order: `store.relayThreads.byThread(id)` → a session with `discord_thread_id === id` → (thread owned by
 our bot under `#leads`) lead id parsed from the title with no userId: text then answers "เธรดนี้ไม่ได้ผูกกับลูกค้า".
 
+## Human Mode — Mos takes a chat (20 Oct 2026)
+
+- **Take:** the button **"Human Mode -⏸️Lay"** on every #leads post, `/take <L-… | U…>` typed in #leads (or `/take` inside a
+  lead thread), or `POST /admin/sessions/:userId/take`. The user's session goes to mode `human`: Lay sends nothing, with
+  **no timeout**. The lead thread is opened when the user has none (an existing thread for that user is reused).
+- **While in Human Mode:** every customer message, including the customer's own "เรียก Lay", is mirrored into the thread.
+  What Mos types in the thread reaches the customer as "มอส" and is logged; the mode stays `human`.
+- **Release:** only Mos, with the **"▶️Lay"** button, `/lay` or `@บอท resume`. Lay then says it is back.
+
+### Replies typed in LINE OA Manager are invisible to Lay
+
+LINE sends no webhook event for messages an operator types in OA Manager (doc/line-platform-notes.md). Lay never sees
+them and will keep answering the customer as if Mos had not spoken. Prefer the Discord thread: it is logged, the sender
+is "มอส", and Lay knows to stay quiet. If Mos does reply in OA Manager, take the chat first (Human Mode) so Lay stays
+silent. The id in an OA Manager chat URL is not the LINE userId; find the user by the lead in #leads.
+
 ## Fallback rules
 | situation | handoff / booking | kbGap / lead | relayToMos |
 |---|---|---|---|
