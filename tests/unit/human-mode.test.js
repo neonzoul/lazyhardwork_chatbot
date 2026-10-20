@@ -62,3 +62,10 @@ test('#leads posts carry the Human Mode button for that user', () => {
   assert.equal(row[0].components[0].custom_id, 'take:U0123456789abcdef0123456789abcdef');
   assert.equal(commands.takeButtonRow(null), undefined);
 });
+
+test('the sqlite sessions repo accepts every mode core/session knows (human included)', () => {
+  const { createStore } = require('../../src/store');
+  const store = createStore({ path: ':memory:', log: { info() {}, warn() {}, error() {} } });
+  const s = { user_id: 'Uhm', mode: 'human', mode_since: new Date().toISOString() };
+  return Promise.resolve(store.sessions.save(s)).then(() => store.sessions.get('Uhm')).then((got) => { assert.equal(got.mode, 'human'); });
+});

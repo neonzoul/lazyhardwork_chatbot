@@ -95,6 +95,12 @@ async function takeOver({ userId, deps, reason = 'take' }) {
     require('../core/session').setMode(s, 'human', now);
     s.taken_at = now.toISOString();
     let threadId = s.discord_thread_id || null;
+    // a thread already opened for this user (e.g. a take that failed after opening it) is reused, not duplicated
+    if (!threadId && deps.store.relayThreads && typeof deps.store.relayThreads.byUser === 'function') {
+        const known = await deps.store.relayThreads.byUser(userId);
+        if (known && known.discord_thread_id) threadId = String(known.discord_thread_id);
+    }
+    if (threadId) s.discord_thread_id = threadId;
     if (!threadId && deps.notifier && typeof deps.notifier.take === 'function') {
         const lead = deps.store.leads && deps.store.leads.byUser ? await deps.store.leads.byUser(userId) : null;
         const res = await deps.notifier.take({ session: s, lead, question: s.last_customer_text || null, reason });

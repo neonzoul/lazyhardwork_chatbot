@@ -9,7 +9,7 @@ const COLS = [
 ];
 const FIXED = new Set(COLS);
 
-const MODES = ['lay', 'quiet', 'mos_active', 'demo'];
+const MODES = ['lay', 'quiet', 'mos_active', 'demo', 'human']; // keep in step with core/session.js
 
 function defaultSession(userId) {
   return {
