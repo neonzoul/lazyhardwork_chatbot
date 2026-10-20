@@ -95,6 +95,12 @@ async function runTurn(input, deps, opts = {}) {
         if (text) s.last_customer_text = text;
         await deps.store.messages.append({ user_id: s.user_id, role: 'customer', kind: input.kind, text: text || data, created_at: now.toISOString(), payload: input.kind === 'postback' ? { data } : null });
 
+        // 4a. Human Mode (Mos took the chat): Lay never answers; every customer message goes to the lead thread. Only Mos
+        // releases it (▶️Lay / /lay / @บอท resume), so the customer's own "เรียก Lay" is relayed too.
+        if (s.mode === 'human') {
+            if (s.discord_thread_id) deps.notifier.relayToMos({ threadId: s.discord_thread_id, text: text || data }).catch(() => {});
+            await deps.store.sessions.save(s); return done([], null, { silent: true });
+        }
         // 4. เรียก Lay — from any mode
         if (quiet.isCallLay(input)) {
             // Inside a demo the demo module exits itself (it needs mode === 'demo' to write the exit line + symptom card).
@@ -351,8 +357,8 @@ async function runTurn(input, deps, opts = {}) {
     }
 
     async function relayFromMos(inp, sess) {
-        // A message Mos typed in the Discord thread: push as "มอส", mark mos_active.
-        session.setMode(sess, 'mos_active', now);
+        // A message Mos typed in the Discord thread: push as "มอส", mark mos_active (Human Mode stays human).
+        if (sess.mode !== 'human') session.setMode(sess, 'mos_active', now);
         sess.last_mos_at = now.toISOString();
         const sent = await send({ ...inp, replyToken: null }, [msg.text(inp.text)], [quiet.CALL_LAY_LABEL], senders.mos, { allowReply: false });
         await deps.store.messages.append({ user_id: sess.user_id, role: 'mos', kind: 'text', text: inp.text, sender_name: senders.mos.name, created_at: now.toISOString() });

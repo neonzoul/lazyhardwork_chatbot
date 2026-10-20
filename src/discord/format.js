@@ -7,6 +7,7 @@ const QUESTION_MAX = 300;
 const FIELD_MAX = 120;
 
 const KIND_LABEL = {
+    take: 'Human Mode — มอสคุยเอง (Lay หยุดตอบ)',
     handoff_human: 'คุยกับคน',
     handoff_scope: 'ราคาพิเศษ·นอกขอบเขต',
     handoff_unknown: 'คำถามที่ Lay ตอบไม่ได้',
@@ -26,7 +27,7 @@ const HOMEWORK_LABELS = [
 const HOW_TO_REPLY = [
     'วิธีตอบ',
     '• พิมพ์ข้อความธรรมดาในเธรดนี้ → ลูกค้าได้รับในนาม "มอส"',
-    '• ให้ Lay กลับมาดูแล: กดปุ่ม "ให้ Lay ดูแลต่อ" หรือพิมพ์ `@บอท resume` หรือ `/lay`',
+    '• ให้ Lay กลับมาดูแล: กดปุ่ม "▶️Lay" หรือพิมพ์ `@บอท resume` หรือ `/lay`',
     '• งานนัดคุย: `/approve` · `/propose พรุ่งนี้ บ่าย 13-17` · `/decline`',
 ].join('\n');
 

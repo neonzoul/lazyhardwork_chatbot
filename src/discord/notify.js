@@ -8,7 +8,7 @@
 // @discordjs/rest (bundled with discord.js) for the bot and global fetch for the webhook; 8 s per call.
 
 const fmt = require('./format');
-const { layButtonRow } = require('./commands');
+const { layButtonRow, takeButtonRow } = require('./commands');
 
 const CALL_TIMEOUT_MS = 8000;
 const AUTO_ARCHIVE_MINUTES = 1440; // 1 day
@@ -97,9 +97,9 @@ function createNotifier({ botToken, guildId, leadsChannelId, crmChannelId, leads
     }
 
     // One line to #leads; best effort.
-    async function postLine(content, event) {
+    async function postLine(content, event, components) {
         try {
-            if (botReady()) await t.postMessage({ channelId: leadsChannelId, content });
+            if (botReady()) await t.postMessage({ channelId: leadsChannelId, content, components });
             else await t.postWebhook({ url: leadsWebhook, content });
         } catch (err) {
             logger.warn(event || 'discord.line_failed', { error: err?.message });
@@ -122,7 +122,14 @@ function createNotifier({ botToken, guildId, leadsChannelId, crmChannelId, leads
             });
         },
         async kbGap({ question }) { await postLine(fmt.kbGapLine({ question }), 'discord.kbgap_failed'); },
-        async lead({ lead, reason }) { await postLine(fmt.leadLine({ lead, reason }), 'discord.lead_failed'); },
+        async lead({ lead, reason, userId }) { await postLine(fmt.leadLine({ lead, reason }), 'discord.lead_failed', takeButtonRow(userId || lead?.user_id)); },
+        async take({ session, lead, question, reason }) {
+            return openThread({
+                name: fmt.handoffThreadTitle({ lead, kind: 'take', session }),
+                content: fmt.handoffOpening({ kind: 'take', session, lead, question }),
+                session, lead, openedFor: reason || 'take',
+            });
+        },
         async relayToMos({ threadId, text }) {
             if (!threadId || !botReady()) return;
             try { await t.postMessage({ channelId: threadId, content: fmt.mirrorLine({ text }), components: layButtonRow() }); }

@@ -1,14 +1,16 @@
 // Thread commands Mos types in a #leads relay thread (design §6.2): /approve · /propose <text> · /decline · /lay.
 // parseCommand is pure. handleCommand is the reference mapping onto the pipeline; the relay calls it through `onCommand`.
 
-const COMMANDS = ['approve', 'propose', 'decline', 'lay'];
+const COMMANDS = ['approve', 'propose', 'decline', 'lay', 'take'];
 
 const strings = {
     ackApprove: '✅ ยืนยันนัดแล้ว ส่งการ์ดสีเขียวให้ลูกค้าแล้ว',
     ackPropose: (text) => `✅ ส่งช่วงเวลาใหม่ให้ลูกค้าแล้ว: ${text}`,
     ackDecline: '✅ ส่งข้อความปฏิเสธอย่างสุภาพให้ลูกค้าแล้ว',
     ackLay: '✅ ส่งต่อให้ Lay ดูแลต่อแล้ว',
-    unknown: (cmd) => `❌ ไม่รู้จักคำสั่ง /${cmd} · ใช้ได้: /approve · /propose <ช่วงเวลา> · /decline · /lay`,
+    ackTake: (threadId) => `⏸️ Human Mode: Lay หยุดตอบลูกค้าคนนี้แล้ว (ไม่มีหมดเวลา) ข้อความลูกค้าจะเข้าเธรด${threadId ? ` <#${threadId}>` : ''} · ปล่อยคืนด้วยปุ่ม ▶️Lay หรือ /lay`,
+    takeNoThread: '⚠️ Human Mode เปิดแล้ว แต่เปิดเธรดไม่สำเร็จ ข้อความลูกค้าจะยังไม่ถูกส่งเข้า Discord',
+    unknown: (cmd) => `❌ ไม่รู้จักคำสั่ง /${cmd} · ใช้ได้: /approve · /propose <ช่วงเวลา> · /decline · /lay · /take`,
     needArgs: '❌ /propose ต้องตามด้วยช่วงเวลา เช่น /propose พรุ่งนี้ 14:00 หรือ 16:00',
     noCustomer: '❌ เธรดนี้ไม่ได้ผูกกับลูกค้า (ไม่พบ user ของเธรด) — ตอบใน LINE OA Manager แทนครับ',
     notReady: (what) => `❌ ${what} ยังไม่พร้อมใช้งานในระบบ (รอโมดูล endings) — ตอบใน LINE OA Manager แทนครับ`,
@@ -47,7 +49,10 @@ function parseBotInstruction(content, botId) {
 }
 
 const LAY_BUTTON_ID = 'lay:release';
-const layButtonRow = () => [{ type: 1, components: [{ type: 2, style: 1, label: 'ให้ Lay ดูแลต่อ', custom_id: LAY_BUTTON_ID }] }];
+const layButtonRow = () => [{ type: 1, components: [{ type: 2, style: 1, label: '▶️Lay', custom_id: LAY_BUTTON_ID }] }];
+// On every #leads post (Mos, 20 Oct): take the chat — Human Mode for that user + the lead thread.
+const TAKE_BUTTON_PREFIX = 'take:';
+const takeButtonRow = (userId) => (userId ? [{ type: 1, components: [{ type: 2, style: 2, label: 'Human Mode -⏸️Lay', custom_id: `${TAKE_BUTTON_PREFIX}${userId}` }] }] : undefined);
 strings.mentionHelp = '❓ ไม่ได้ส่งถึงลูกค้า · สั่งบอทได้: `@บอท resume` (ให้ Lay ดูแลต่อ) · `@บอท approve` · `@บอท propose พรุ่งนี้ บ่าย` · `@บอท decline` · หรือกดปุ่ม "ให้ Lay ดูแลต่อ"';
 
 function lazy(path) {
@@ -81,6 +86,25 @@ async function releaseToLay({ userId, deps, config, runTurn }) {
     return { via: 'direct' };
 }
 
+// Human Mode (Mos, 20 Oct): Lay silent for this user with no timeout; the lead thread is opened when there is none, so
+// customer messages are relayed and Mos can answer as "มอส" from Discord. Released by /lay (mos_release).
+async function takeOver({ userId, deps, reason = 'take' }) {
+    const s = await deps.store.sessions.get(userId);
+    if (!s) throw new Error('no session for this user');
+    const now = deps.clock ? deps.clock.now() : new Date();
+    require('../core/session').setMode(s, 'human', now);
+    s.taken_at = now.toISOString();
+    let threadId = s.discord_thread_id || null;
+    if (!threadId && deps.notifier && typeof deps.notifier.take === 'function') {
+        const lead = deps.store.leads && deps.store.leads.byUser ? await deps.store.leads.byUser(userId) : null;
+        const res = await deps.notifier.take({ session: s, lead, question: s.last_customer_text || null, reason });
+        if (res && res.threadId) { threadId = res.threadId; s.discord_thread_id = threadId; }
+    }
+    await deps.store.sessions.save(s);
+    if (deps.store.events && deps.store.events.append) await deps.store.events.append({ kind: 'human_mode', user_id: userId, payload: { reason, threadId }, created_at: now.toISOString() }).catch(() => {});
+    return { threadId };
+}
+
 // Returns { ok, text } — the one-line ack the relay posts back into the thread.
 async function handleCommand({ command, args, threadId, userId, lead_id }, { deps, config, runTurn, endings } = {}) {
     if (!COMMANDS.includes(command)) return { ok: false, text: strings.unknown(command) };
@@ -89,6 +113,10 @@ async function handleCommand({ command, args, threadId, userId, lead_id }, { dep
         if (command === 'lay') {
             await releaseToLay({ userId, deps, config, runTurn });
             return { ok: true, text: strings.ackLay };
+        }
+        if (command === 'take') {
+            const r = await takeOver({ userId, deps });
+            return { ok: true, text: r.threadId ? strings.ackTake(r.threadId) : strings.takeNoThread, threadId: r.threadId };
         }
         if (command === 'propose' && !args) return { ok: false, text: strings.needArgs };
         const mod = endings || lazy('../flows/endings');
@@ -112,6 +140,7 @@ const slashDefinitions = [
     { name: 'propose', description: 'เสนอช่วงเวลาใหม่ให้ลูกค้า', options: [{ type: 3, name: 'window', description: 'ช่วงเวลา 2–3 ตัวเลือก', required: true }] },
     { name: 'decline', description: 'ปฏิเสธอย่างสุภาพ + ช่องทางติดต่อ' },
     { name: 'lay', description: 'ส่งต่อให้ Lay ดูแลต่อ' },
+    { name: 'take', description: 'Human Mode: Lay หยุดตอบลูกค้าคนนี้ (มอสคุยเอง)', options: [{ type: 3, name: 'lead', description: 'รหัสลีด L-… หรือ LINE userId (ในเธรดไม่ต้องใส่)', required: false }] },
 ];
 
-module.exports = { parseBotInstruction, layButtonRow, LAY_BUTTON_ID, COMMANDS, parseCommand, handleCommand, releaseToLay, slashDefinitions, strings };
+module.exports = { takeOver, takeButtonRow, TAKE_BUTTON_PREFIX, parseBotInstruction, layButtonRow, LAY_BUTTON_ID, COMMANDS, parseCommand, handleCommand, releaseToLay, slashDefinitions, strings };

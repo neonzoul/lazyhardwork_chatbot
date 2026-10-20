@@ -1,5 +1,6 @@
 // Session helpers — pure functions over the session row (shape: tests/fakes/store.js defaultSession).
-const MODES = ['lay', 'quiet', 'mos_active', 'demo'];
+// human = Mos took the chat (Human Mode, 20 Oct): Lay silent, no timeout, released only by Mos (▶️Lay / /lay)
+const MODES = ['lay', 'quiet', 'mos_active', 'demo', 'human'];
 const HOMEWORK_FIELDS = ['business', 'problem_verbatim', 'where_work_lives', 'team_size', 'maintainer', 'urgency', 'budget_frame', 'preferred_contact', 'came_from'];
 const DRAFT_FIELDS = ['symptom', 'card', 'tier', 'name'];
 

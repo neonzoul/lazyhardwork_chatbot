@@ -3,7 +3,8 @@
 //   GET  /admin/leads?since=<iso>            leads export (design §9) — includes contact; token-protected
 //   GET  /admin/sessions                      all sessions
 //   GET  /admin/sessions/:userId              session + last 30 messages
-//   POST /admin/sessions/:userId/mode {mode}  lay | quiet | mos_active | demo
+//   POST /admin/sessions/:userId/mode {mode}  lay | quiet | mos_active | demo | human
+//   POST /admin/sessions/:userId/take         Human Mode + open the lead thread in #leads
 //   GET  /admin/events?limit=                 debugging feed (default 100, max 1000)
 //   GET  /admin/llm/calls?since=&task=&limit= llm_calls rows, newest first (doc/llm.md §4)
 //   GET  /admin/llm/summary?days=7            day × task × model: calls, tokens, cost
@@ -12,7 +13,7 @@ const crypto = require('node:crypto');
 const express = require('express');
 const { exportLeads } = require('./leads/export');
 
-const MODES = ['lay', 'quiet', 'mos_active', 'demo'];
+const MODES = ['lay', 'quiet', 'mos_active', 'demo', 'human'];
 const MESSAGES_TAIL = 30;
 
 function safeEqual(a, b) {
@@ -41,7 +42,7 @@ const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).cat
  * @param {{ store: object, token?: string, clock?: {now(): Date}, log?: object }} deps
  *   token defaults to process.env.ADMIN_TOKEN read per request (so tests and restarts pick up changes).
  */
-function createAdminRouter({ store, token, clock, log, llm } = {}) {
+function createAdminRouter({ store, token, clock, log, llm, take } = {}) {
   if (!store) throw new Error('createAdminRouter: store is required');
   const nowDate = () => (clock && clock.now ? clock.now() : new Date());
   const getToken = () => (token !== undefined ? token : process.env.ADMIN_TOKEN);
@@ -81,6 +82,17 @@ function createAdminRouter({ store, token, clock, log, llm } = {}) {
     }
     if (log && log.info) log.info('admin.mode_change', { user_id: req.params.userId, from: session.mode, to: mode });
     res.json({ session: saved });
+  }));
+
+  // Human Mode for one user + the lead thread (same as the #leads button / /take). Body: {} — used when Mos took a chat
+  // in OA Manager, which the webhook never sees (20 Oct).
+  router.post('/admin/sessions/:userId/take', wrap(async (req, res) => {
+    if (typeof take !== 'function') return res.status(404).json({ error: 'take not available' });
+    const session = await store.sessions.get(req.params.userId);
+    if (!session) return res.status(404).json({ error: 'not found' });
+    const r = await take(req.params.userId);
+    const after = await store.sessions.get(req.params.userId);
+    res.json({ mode: after.mode, threadId: r.threadId || null });
   }));
 
   router.get('/admin/events', wrap(async (req, res) => {

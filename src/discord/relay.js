@@ -8,7 +8,7 @@
 //
 // `client` is injectable (an EventEmitter with user/login/destroy) so tests run without the gateway.
 
-const { parseCommand, parseBotInstruction, LAY_BUTTON_ID, slashDefinitions, strings } = require('./commands');
+const { parseCommand, parseBotInstruction, LAY_BUTTON_ID, TAKE_BUTTON_PREFIX, slashDefinitions, strings } = require('./commands');
 
 const LEAD_ID_RE = /^(L-[\w-]+)/;
 
@@ -47,6 +47,17 @@ function createRelay({ botToken, guildId, leadsChannelId, store, onMosMessage, o
         return null;
     }
 
+    // "/take" target: a LINE userId (U…) or a lead id (L-…)
+    async function resolveLead(ref) {
+        const r = String(ref || '').trim();
+        if (/^U[0-9a-f]{32}$/i.test(r)) return { userId: r, lead_id: null };
+        if (/^L-/i.test(r) && store && store.leads && typeof store.leads.get === 'function') {
+            const lead = await store.leads.get(r);
+            if (lead && lead.user_id) return { userId: lead.user_id, lead_id: lead.id };
+        }
+        return null;
+    }
+
     function inLeadsThread(channel) {
         if (!channel) return false;
         const isThread = typeof channel.isThread === 'function' ? channel.isThread() : !!channel.parentId;
@@ -62,6 +73,14 @@ function createRelay({ botToken, guildId, leadsChannelId, store, onMosMessage, o
             if (!message || message.author?.bot) return;
             if (c?.user?.id && message.author?.id === c.user.id) return;
             const channel = message.channel;
+            // "/take <L-… | U…>" typed in #leads itself (not a thread)
+            if (!inLeadsThread(channel) && String(channel?.id) === String(leadsChannelId)) {
+                const m = String(message.content || '').trim().match(/^\/take\s+(\S+)/i);
+                if (!m) return;
+                const who = await resolveLead(m[1]);
+                const res = onCommand && who ? await onCommand({ threadId: null, userId: who.userId, lead_id: who.lead_id, command: 'take', args: '' }) : { ok: false, text: strings.noCustomer };
+                return say(channel, (res && res.text) || '❌');
+            }
             if (!inLeadsThread(channel)) return;
             const threadId = String(channel.id);
             const content = String(message.content || '').trim();
@@ -101,6 +120,12 @@ function createRelay({ botToken, guildId, leadsChannelId, store, onMosMessage, o
 
     async function onInteraction(interaction) {
         try {
+            if (interaction?.isButton?.() && String(interaction.customId || '').startsWith(TAKE_BUTTON_PREFIX)) {
+                const userId = String(interaction.customId).slice(TAKE_BUTTON_PREFIX.length);
+                const res = onCommand ? await onCommand({ threadId: null, userId, lead_id: null, command: 'take', args: '' }) : { ok: false, text: strings.noCustomer };
+                logger.info('discord.command', { command: 'take', via: 'button', ok: !!res?.ok });
+                return interaction.reply({ content: (res && res.text) || '❌' });
+            }
             if (interaction?.isButton?.() && interaction.customId === LAY_BUTTON_ID) {
                 const ch = interaction.channel;
                 const who = inLeadsThread(ch) ? await lookup(String(ch.id), ch) : null;
@@ -112,6 +137,11 @@ function createRelay({ botToken, guildId, leadsChannelId, store, onMosMessage, o
             }
             if (!interaction?.isChatInputCommand?.()) return;
             const channel = interaction.channel;
+            if (interaction.commandName === 'take' && !inLeadsThread(channel)) {
+                const who = await resolveLead(interaction.options?.getString?.('lead') || '');
+                const res = onCommand && who ? await onCommand({ threadId: null, userId: who.userId, lead_id: who.lead_id, command: 'take', args: '' }) : { ok: false, text: strings.noCustomer };
+                return interaction.reply({ content: (res && res.text) || '❌' });
+            }
             if (!inLeadsThread(channel)) return interaction.reply({ content: 'ใช้คำสั่งนี้ในเธรดลูกค้าใน #leads เท่านั้น', ephemeral: true });
             const threadId = String(channel.id);
             const who = await lookup(threadId, channel);
