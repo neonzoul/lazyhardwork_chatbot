@@ -8,7 +8,7 @@
 //
 // `client` is injectable (an EventEmitter with user/login/destroy) so tests run without the gateway.
 
-const { parseCommand, parseBotInstruction, LAY_BUTTON_ID, TAKE_BUTTON_PREFIX, slashDefinitions, strings } = require('./commands');
+const { parseCommand, parseBotInstruction, LAY_BUTTON_ID, TAKE_BUTTON_PREFIX, FORGET_BUTTON_PREFIX, slashDefinitions, strings } = require('./commands');
 
 const LEAD_ID_RE = /^(L-[\w-]+)/;
 
@@ -64,8 +64,8 @@ function createRelay({ botToken, guildId, leadsChannelId, store, onMosMessage, o
         return isThread && String(channel.parentId) === String(leadsChannelId);
     }
 
-    async function say(channel, text) {
-        try { await channel.send(text); } catch (err) { logger.warn('discord.ack_failed', { channelId: channel?.id, error: err?.message }); }
+    async function say(channel, text, components) {
+        try { await channel.send(components ? { content: text, components } : text); } catch (err) { logger.warn('discord.ack_failed', { channelId: channel?.id, error: err?.message }); }
     }
 
     async function onMessage(message) {
@@ -96,7 +96,7 @@ function createRelay({ botToken, guildId, leadsChannelId, store, onMosMessage, o
                     ? await onCommand({ threadId, userId: who.userId, lead_id: who.lead_id, command: parsed.command, args: parsed.args })
                     : { ok: false, text: strings.notReady(`/${parsed.command}`) };
                 logger.info('discord.command', { threadId, command: parsed.command, via: parsed.via || 'slash-text', ok: !!res?.ok });
-                return say(channel, (res && res.text) || (res?.ok ? '✅' : '❌'));
+                return say(channel, (res && res.text) || (res?.ok ? '✅' : '❌'), res && res.components);
             }
             if (!who.userId) return say(channel, strings.noCustomer);
             // A command typed mid-sentence, or the help text pasted back, must never reach the customer.
@@ -120,6 +120,12 @@ function createRelay({ botToken, guildId, leadsChannelId, store, onMosMessage, o
 
     async function onInteraction(interaction) {
         try {
+            if (interaction?.isButton?.() && String(interaction.customId || '').startsWith(FORGET_BUTTON_PREFIX)) {
+                const userId = String(interaction.customId).slice(FORGET_BUTTON_PREFIX.length);
+                const res = onCommand ? await onCommand({ threadId: interaction.channel ? String(interaction.channel.id) : null, userId, lead_id: null, command: 'forget', args: 'confirmed' }) : { ok: false, text: strings.noCustomer };
+                logger.info('discord.command', { command: 'forget', via: 'button', ok: !!res?.ok });
+                return interaction.reply({ content: (res && res.text) || '❌' });
+            }
             if (interaction?.isButton?.() && String(interaction.customId || '').startsWith(TAKE_BUTTON_PREFIX)) {
                 const userId = String(interaction.customId).slice(TAKE_BUTTON_PREFIX.length);
                 const res = onCommand ? await onCommand({ threadId: null, userId, lead_id: null, command: 'take', args: '' }) : { ok: false, text: strings.noCustomer };
@@ -150,7 +156,7 @@ function createRelay({ botToken, guildId, leadsChannelId, store, onMosMessage, o
             const res = onCommand && who
                 ? await onCommand({ threadId, userId: who.userId, lead_id: who.lead_id, command, args })
                 : { ok: false, text: who ? strings.notReady(`/${command}`) : strings.noCustomer };
-            await interaction.reply({ content: (res && res.text) || '❌' });
+            await interaction.reply({ content: (res && res.text) || '❌', ...(res && res.components ? { components: res.components } : {}) });
         } catch (err) {
             logger.error('discord.interaction_failed', { error: err?.message });
         }

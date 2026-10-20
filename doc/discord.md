@@ -56,6 +56,12 @@ our bot under `#leads`) lead id parsed from the title with no userId: text then 
   What Mos types in the thread reaches the customer as "มอส" and is logged; the mode stays `human`.
 - **Release:** only Mos, with the **"▶️Lay"** button, `/lay` or `@บอท resume`. Lay then says it is back.
 
+### Reset and forget (in a lead thread)
+
+- `/reset` — Lay forgets what it knew about this customer and starts fresh; the transcript and lead stay. Lay answers again.
+- `/forget` — asks first; the red button erases the customer from Lay's database (details: doc/store.md). The thread is
+  not deleted by code; delete it by hand if wanted.
+
 ### Replies typed in LINE OA Manager are invisible to Lay
 
 LINE sends no webhook event for messages an operator types in OA Manager (doc/line-platform-notes.md). Lay never sees

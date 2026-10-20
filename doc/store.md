@@ -58,6 +58,19 @@ All timestamps are ISO-8601 TEXT (UTC). JSON columns are TEXT holding JSON. Bool
 Contact details (display name, LINE user id) live only here and later in the vault's `_agent/data/leads.yaml` —
 never in Discord or the growth ledger (design §5/§9).
 
+## Reset context and erase a user (20 Oct 2026)
+
+- **Reset** (`/reset` in the lead thread, or `POST /admin/sessions/:userId/reset`): `core/session.resetContext` clears what Lay
+  knows (draft, homework, topics, flags, demo, booking step), sets mode `lay` and stores `context_since`. The model history
+  (`core/turn.askModel`, `flows/demo`) ignores messages before it. Transcript, lead and events stay.
+- **Erase** (`/forget` then the confirm button, or `DELETE /admin/users/:userId` with `{"confirm": "<userId>"}`):
+  `store.forgetUser(userId)` deletes in one transaction from every table with a `user_id` (sessions, messages, leads,
+  bookings incl. bookings of the user's leads, kb_gaps, relay_threads, events, llm_calls) and outbox rows whose payload names
+  the user. One `user_deleted` event remains with a hashed reference and the counts, no personal data. A test fails if a new
+  table with `user_id` is not covered.
+- **Not erased by us:** messages already on the customer's phone, the chat in LINE OA Manager, the Discord thread (Mos deletes
+  it by hand), copies in vault files written by lead-sync (`_agent/data/leads.yaml`, growth-ledger), and Railway volume backups.
+
 ## Adding a migration
 
 1. Create `src/store/migrations/NNN-short-name.sql` with the next three-digit number (`002-…`). Plain SQL; several

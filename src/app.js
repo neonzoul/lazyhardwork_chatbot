@@ -80,7 +80,9 @@ function createApp({ overrides = {} } = {}) {
 
     const commandsMod = optional('./discord/commands');
     app.use(createAdminRouter({ store, token: config.adminToken, log, llm: { keyring, budget, statusLine: () => keyStatusLine(keyring, budget) },
-        take: commandsMod?.takeOver ? (userId) => commandsMod.takeOver({ userId, deps, reason: 'admin' }) : null }));
+        take: commandsMod?.takeOver ? (userId) => commandsMod.takeOver({ userId, deps, reason: 'admin' }) : null,
+        reset: commandsMod?.resetUser ? (userId) => commandsMod.resetUser({ userId, deps }) : null,
+        forget: commandsMod?.forgetUser ? (userId) => commandsMod.forgetUser({ userId, deps }) : null }));
 
     // Signature failures and other middleware errors: a quiet 401/500 JSON, never Express's HTML stack.
     // eslint-disable-next-line no-unused-vars

@@ -177,7 +177,7 @@ async function askShop({ shop, userText, sess, deps, config, now }) {
         : `คุณคือผู้ช่วย AI ของ ${shop.name_th} (ร้านตัวอย่าง) ตอบจากข้อมูลร้านเท่านั้น\n${shop.kb}`;
     const all = await deps.store.messages.recent(sess.user_id, HISTORY_N * 2);
     const history = all
-        .filter((m) => (m.role === 'customer' || m.role === 'demo_shop') && m.kind !== 'postback' && (!state.since || !m.created_at || m.created_at >= state.since))
+        .filter((m) => (m.role === 'customer' || m.role === 'demo_shop') && m.kind !== 'postback' && (!state.since || !m.created_at || m.created_at >= state.since) && (!sess.context_since || !m.created_at || m.created_at >= sess.context_since))
         .map((m) => ({ role: m.role, text: m.text }));
     if (history.length && history[history.length - 1].role === 'customer' && history[history.length - 1].text === userText) history.pop();
     const messages = prompt && prompt.buildMessages

@@ -52,6 +52,15 @@ function createFakeStore() {
       summary: async ({ days = 7, now } = {}) => summarise(llmCalls.filter((r) => r.ts >= sinceIso({ days, now }))),
       all: () => llmCalls,
     },
+    forgetUser: async (userId) => {
+      const counts = {};
+      const dropArr = (name, arr) => { const before = arr.length; for (let i = arr.length - 1; i >= 0; i -= 1) if (arr[i].user_id === userId) arr.splice(i, 1); counts[name] = before - arr.length; };
+      const dropMap = (name, map) => { let n = 0; for (const [k, v] of map) if (v.user_id === userId) { map.delete(k); n += 1; } counts[name] = n; };
+      dropMap('bookings', bookings); dropArr('messages', messages); dropMap('leads', leads); dropArr('kb_gaps', kbGaps);
+      dropArr('events', events); dropArr('llm_calls', llmCalls);
+      counts.sessions = sessions.delete(userId) ? 1 : 0;
+      return counts;
+    },
     _dump: () => ({ sessions: [...sessions.values()], messages, leads: [...leads.values()], bookings: [...bookings.values()], kbGaps, events, llmCalls }),
   };
 }

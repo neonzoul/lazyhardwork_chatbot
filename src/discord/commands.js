@@ -1,7 +1,7 @@
 // Thread commands Mos types in a #leads relay thread (design §6.2): /approve · /propose <text> · /decline · /lay.
 // parseCommand is pure. handleCommand is the reference mapping onto the pipeline; the relay calls it through `onCommand`.
 
-const COMMANDS = ['approve', 'propose', 'decline', 'lay', 'take'];
+const COMMANDS = ['approve', 'propose', 'decline', 'lay', 'take', 'reset', 'forget'];
 
 const strings = {
     ackApprove: '✅ ยืนยันนัดแล้ว ส่งการ์ดสีเขียวให้ลูกค้าแล้ว',
@@ -9,8 +9,11 @@ const strings = {
     ackDecline: '✅ ส่งข้อความปฏิเสธอย่างสุภาพให้ลูกค้าแล้ว',
     ackLay: '✅ ส่งต่อให้ Lay ดูแลต่อแล้ว',
     ackTake: (threadId) => `⏸️ Human Mode: Lay หยุดตอบลูกค้าคนนี้แล้ว (ไม่มีหมดเวลา) ข้อความลูกค้าจะเข้าเธรด${threadId ? ` <#${threadId}>` : ''} · ปล่อยคืนด้วยปุ่ม ▶️Lay หรือ /lay`,
+    ackReset: '🔄 ล้าง context แล้ว: Lay จะคุยกับลูกค้าคนนี้เหมือนเริ่มใหม่ (ประวัติแชทและลีดยังเก็บไว้) · Lay กลับมาตอบตามปกติ',
+    forgetAsk: '⚠️ จะลบข้อมูลทั้งหมดของลูกค้าคนนี้ออกจากระบบของ Lay (แชท ลีด นัด เหตุการณ์ บันทึกการเรียก AI) ย้อนกลับไม่ได้ · กดปุ่มด้านล่างเพื่อยืนยัน',
+    ackForget: (counts) => `🗑️ ลบข้อมูลลูกค้าคนนี้แล้ว: ${Object.entries(counts).filter(([, n]) => n).map(([k, n]) => `${k} ${n}`).join(' · ') || 'ไม่มีข้อมูลเหลือ'} · ที่ลบให้ไม่ได้: ข้อความในมือถือลูกค้าและใน OA Manager · เธรดนี้ลบเองได้ถ้าต้องการ`,
     takeNoThread: '⚠️ Human Mode เปิดแล้ว แต่เปิดเธรดไม่สำเร็จ ข้อความลูกค้าจะยังไม่ถูกส่งเข้า Discord',
-    unknown: (cmd) => `❌ ไม่รู้จักคำสั่ง /${cmd} · ใช้ได้: /approve · /propose <ช่วงเวลา> · /decline · /lay · /take`,
+    unknown: (cmd) => `❌ ไม่รู้จักคำสั่ง /${cmd} · ใช้ได้: /approve · /propose <ช่วงเวลา> · /decline · /lay · /take · /reset · /forget`,
     needArgs: '❌ /propose ต้องตามด้วยช่วงเวลา เช่น /propose พรุ่งนี้ 14:00 หรือ 16:00',
     noCustomer: '❌ เธรดนี้ไม่ได้ผูกกับลูกค้า (ไม่พบ user ของเธรด) — ตอบใน LINE OA Manager แทนครับ',
     notReady: (what) => `❌ ${what} ยังไม่พร้อมใช้งานในระบบ (รอโมดูล endings) — ตอบใน LINE OA Manager แทนครับ`,
@@ -52,6 +55,9 @@ const LAY_BUTTON_ID = 'lay:release';
 const layButtonRow = () => [{ type: 1, components: [{ type: 2, style: 1, label: '▶️Lay', custom_id: LAY_BUTTON_ID }] }];
 // On every #leads post (Mos, 20 Oct): take the chat — Human Mode for that user + the lead thread.
 const TAKE_BUTTON_PREFIX = 'take:';
+// /forget asks first; the button carries the user so a press elsewhere cannot erase someone else
+const FORGET_BUTTON_PREFIX = 'forget:';
+const forgetButtonRow = (userId) => [{ type: 1, components: [{ type: 2, style: 4, label: 'ยืนยันลบข้อมูลลูกค้าคนนี้', custom_id: `${FORGET_BUTTON_PREFIX}${userId}` }] }];
 const takeButtonRow = (userId) => (userId ? [{ type: 1, components: [{ type: 2, style: 2, label: 'Human Mode -⏸️Lay', custom_id: `${TAKE_BUTTON_PREFIX}${userId}` }] }] : undefined);
 strings.mentionHelp = '❓ ไม่ได้ส่งถึงลูกค้า · สั่งบอทได้: `@บอท resume` (ให้ Lay ดูแลต่อ) · `@บอท approve` · `@บอท propose พรุ่งนี้ บ่าย` · `@บอท decline` · หรือกดปุ่ม "ให้ Lay ดูแลต่อ"';
 
@@ -111,6 +117,28 @@ async function takeOver({ userId, deps, reason = 'take' }) {
     return { threadId };
 }
 
+// /reset: Lay starts fresh with this user (session cleared, history from now); transcript and lead are kept.
+async function resetUser({ userId, deps }) {
+    const s = await deps.store.sessions.get(userId);
+    if (!s) throw new Error('no session for this user');
+    const now = deps.clock ? deps.clock.now() : new Date();
+    require('../core/session').resetContext(s, now);
+    await deps.store.sessions.save(s);
+    if (deps.store.events && deps.store.events.append) await deps.store.events.append({ kind: 'context_reset', user_id: userId, payload: {}, created_at: now.toISOString() }).catch(() => {});
+    return { context_since: s.context_since };
+}
+
+// /forget (confirmed): erase the user from every table. The record left behind carries no personal data.
+async function forgetUser({ userId, deps }) {
+    if (!deps.store || typeof deps.store.forgetUser !== 'function') throw new Error('store cannot forget users');
+    const counts = await deps.store.forgetUser(userId);
+    const now = deps.clock ? deps.clock.now() : new Date();
+    const ref = require('crypto').createHash('sha256').update(String(userId)).digest('hex').slice(0, 12);
+    if (deps.store.events && deps.store.events.append) await deps.store.events.append({ kind: 'user_deleted', user_id: null, payload: { ref, counts }, created_at: now.toISOString() }).catch(() => {});
+    deps.log?.info?.('user.deleted', { ref, counts });
+    return { counts, ref };
+}
+
 // Returns { ok, text } — the one-line ack the relay posts back into the thread.
 async function handleCommand({ command, args, threadId, userId, lead_id }, { deps, config, runTurn, endings } = {}) {
     if (!COMMANDS.includes(command)) return { ok: false, text: strings.unknown(command) };
@@ -119,6 +147,15 @@ async function handleCommand({ command, args, threadId, userId, lead_id }, { dep
         if (command === 'lay') {
             await releaseToLay({ userId, deps, config, runTurn });
             return { ok: true, text: strings.ackLay };
+        }
+        if (command === 'reset') {
+            await resetUser({ userId, deps });
+            return { ok: true, text: strings.ackReset };
+        }
+        if (command === 'forget') {
+            if (args !== 'confirmed') return { ok: true, text: strings.forgetAsk, components: forgetButtonRow(userId) };
+            const r = await forgetUser({ userId, deps });
+            return { ok: true, text: strings.ackForget(r.counts) };
         }
         if (command === 'take') {
             const r = await takeOver({ userId, deps });
@@ -146,7 +183,9 @@ const slashDefinitions = [
     { name: 'propose', description: 'เสนอช่วงเวลาใหม่ให้ลูกค้า', options: [{ type: 3, name: 'window', description: 'ช่วงเวลา 2–3 ตัวเลือก', required: true }] },
     { name: 'decline', description: 'ปฏิเสธอย่างสุภาพ + ช่องทางติดต่อ' },
     { name: 'lay', description: 'ส่งต่อให้ Lay ดูแลต่อ' },
+    { name: 'reset', description: 'ล้าง context: Lay คุยกับลูกค้าคนนี้เหมือนเริ่มใหม่ (ประวัติยังเก็บ)' },
+    { name: 'forget', description: 'ลบข้อมูลทั้งหมดของลูกค้าคนนี้ (ถามยืนยันก่อน)' },
     { name: 'take', description: 'Human Mode: Lay หยุดตอบลูกค้าคนนี้ (มอสคุยเอง)', options: [{ type: 3, name: 'lead', description: 'รหัสลีด L-… หรือ LINE userId (ในเธรดไม่ต้องใส่)', required: false }] },
 ];
 
-module.exports = { takeOver, takeButtonRow, TAKE_BUTTON_PREFIX, parseBotInstruction, layButtonRow, LAY_BUTTON_ID, COMMANDS, parseCommand, handleCommand, releaseToLay, slashDefinitions, strings };
+module.exports = { resetUser, forgetUser, forgetButtonRow, FORGET_BUTTON_PREFIX, takeOver, takeButtonRow, TAKE_BUTTON_PREFIX, parseBotInstruction, layButtonRow, LAY_BUTTON_ID, COMMANDS, parseCommand, handleCommand, releaseToLay, slashDefinitions, strings };

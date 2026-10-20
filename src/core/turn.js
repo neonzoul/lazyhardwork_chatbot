@@ -409,7 +409,7 @@ async function runTurn(input, deps, opts = {}) {
         const prompt = d.brain || lazy('../brain/prompt');
         const policy = d.policy || lazy('./policy');
         const pack = d.pack || null;
-        const history = (await d.store.messages.recent(sess.user_id, 12)).filter((m) => m.role !== 'system').map((m) => ({ role: m.role, text: m.text }));
+        const history = (await d.store.messages.recent(sess.user_id, 12)).filter((m) => m.role !== 'system' && (!sess.context_since || !m.created_at || m.created_at >= sess.context_since)).map((m) => ({ role: m.role, text: m.text }));
         const kbSelection = selectSections(pack, { intentHint, draft: sess.draft, previousRefs: intentHint === 'tell_me_more' ? sess.last_kb_refs : [] });
         const system = prompt?.buildSystemPrompt
             ? prompt.buildSystemPrompt({ pack, session: sess, intentHint, kbSelection, now: at, config: cfg })

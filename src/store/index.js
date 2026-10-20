@@ -27,6 +27,26 @@ function createStore({ path, clock, log, busyTimeoutMs } = {}) {
     outbox: createOutboxRepo(db, opts),
     events: createEventsRepo(db, opts),
     llmCalls: createLlmCallsRepo(db, opts),
+    /**
+     * Erase everything about one LINE user (Mos, 20 Oct: /forget, PDPA erasure). One transaction over every table that
+     * holds the user: rows keyed by user_id, outbox rows whose payload names the user, bookings of the user's leads.
+     * Returns { table: rowsDeleted }.
+     */
+    forgetUser: async (userId) => {
+      if (!userId || typeof userId !== 'string') throw new Error('forgetUser: userId required');
+      const counts = {};
+      const run = (table, sql, params) => { counts[table] = (counts[table] || 0) + Number(db.prepare(sql).run(params).changes || 0); };
+      db.exec('BEGIN');
+      try {
+        run('bookings', 'DELETE FROM bookings WHERE user_id = $u OR lead_id IN (SELECT id FROM leads WHERE user_id = $u)', { $u: userId });
+        for (const table of ['messages', 'leads', 'kb_gaps', 'relay_threads', 'events', 'llm_calls', 'sessions']) {
+          run(table, `DELETE FROM ${table} WHERE user_id = $u`, { $u: userId });
+        }
+        run('outbox', 'DELETE FROM outbox WHERE instr(payload, $u) > 0', { $u: userId });
+        db.exec('COMMIT');
+      } catch (err) { db.exec('ROLLBACK'); throw err; }
+      return counts;
+    },
     /** Flush WAL to the main file (backup step). No-op for :memory:. */
     checkpoint: async () => { if (!closed) try { checkpoint(db); } catch { /* memory db */ } },
     close: async () => { if (!closed) { closed = true; db.close(); } },

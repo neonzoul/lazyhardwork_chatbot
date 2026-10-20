@@ -5,6 +5,8 @@
 //   GET  /admin/sessions/:userId              session + last 30 messages
 //   POST /admin/sessions/:userId/mode {mode}  lay | quiet | mos_active | demo | human
 //   POST /admin/sessions/:userId/take         Human Mode + open the lead thread in #leads
+//   POST /admin/sessions/:userId/reset        clear what Lay knows about the user; history starts now
+//   DELETE /admin/users/:userId {confirm}     erase the user from every table
 //   POST /admin/sessions/:userId/lead {nurture?, came_from?}  mark the lead from what Mos knows outside the chat
 //   GET  /admin/events?limit=                 debugging feed (default 100, max 1000)
 //   GET  /admin/llm/calls?since=&task=&limit= llm_calls rows, newest first (doc/llm.md §4)
@@ -43,7 +45,7 @@ const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).cat
  * @param {{ store: object, token?: string, clock?: {now(): Date}, log?: object }} deps
  *   token defaults to process.env.ADMIN_TOKEN read per request (so tests and restarts pick up changes).
  */
-function createAdminRouter({ store, token, clock, log, llm, take } = {}) {
+function createAdminRouter({ store, token, clock, log, llm, take, reset, forget } = {}) {
   if (!store) throw new Error('createAdminRouter: store is required');
   const nowDate = () => (clock && clock.now ? clock.now() : new Date());
   const getToken = () => (token !== undefined ? token : process.env.ADMIN_TOKEN);
@@ -110,6 +112,20 @@ function createAdminRouter({ store, token, clock, log, llm, take } = {}) {
     const lead = await store.leads.upsert(intake.buildLeadRow({ session, existing, now: clock && clock.now ? clock.now() : new Date() }));
     if (store.events && store.events.append) await store.events.append({ kind: 'admin_lead_update', user_id: req.params.userId, payload: { nurture: body.nurture === true, came_from: !!body.came_from } });
     res.json({ lead: { id: lead.id, status: lead.status, came_from: lead.homework && lead.homework.came_from } });
+  }));
+
+  // /reset: Lay starts fresh with this user; transcript and lead stay
+  router.post('/admin/sessions/:userId/reset', wrap(async (req, res) => {
+    if (typeof reset !== 'function') return res.status(404).json({ error: 'reset not available' });
+    if (!(await store.sessions.get(req.params.userId))) return res.status(404).json({ error: 'not found' });
+    res.json(await reset(req.params.userId));
+  }));
+
+  // erase one user everywhere; body must repeat the userId: {"confirm": "U…"}
+  router.delete('/admin/users/:userId', wrap(async (req, res) => {
+    if (typeof forget !== 'function') return res.status(404).json({ error: 'forget not available' });
+    if (!req.body || req.body.confirm !== req.params.userId) return res.status(400).json({ error: 'confirm must equal the userId' });
+    res.json(await forget(req.params.userId));
   }));
 
   router.get('/admin/events', wrap(async (req, res) => {
