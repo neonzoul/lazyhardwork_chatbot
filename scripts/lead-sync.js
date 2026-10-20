@@ -233,7 +233,7 @@ function leadsFields(lead, existing) {
     platform_source: 'line_oa',
     status: keep ? existing.status : higher(LEADS_RANK, existing?.status, proposed),
     next_action: keep ? existing.next_action : nextAction,
-    notes: `${problem ? `Customer's words: ${problem}.` : 'No problem statement yet.'}${window} Lead id ${lead.id}; transcript in the bot DB.`,
+    notes: `${problem ? `Customer's words: ${problem}.` : 'No problem statement yet.'}${lead.homework?.came_from ? ` Came from: ${lead.homework.came_from}.` : ''}${window} Lead id ${lead.id}; transcript in the bot DB.`,
   };
 }
 
