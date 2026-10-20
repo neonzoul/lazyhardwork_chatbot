@@ -7,7 +7,8 @@ const COLS = [
   'id', 'user_id', 'status', 'card_id', 'symptom', 'homework', 'customer_words_th', 'wave_group', 'source',
   'discord_thread_id', 'synced_at', 'created_at', 'updated_at',
 ];
-const STATUSES = ['new', 'qualified', 'booking_pending', 'booked', 'offer_shown', 'closed'];
+// keep in step with leads/intake.js (ladder + side statuses not_fit and nurture)
+const STATUSES = ['new', 'qualified', 'booking_pending', 'booked', 'offer_shown', 'closed', 'not_fit', 'nurture'];
 const ID_RE = /^L-\d{4}-\d{2}-\d{2}-[a-z_]+-[a-z0-9]{6}$/;
 
 const makeLeadId = (clock, source = 'line_oa') => `L-${dateStamp(clock)}-${source}-${shortId(6)}`;

@@ -13,6 +13,7 @@
 const { HOMEWORK_FIELDS } = require('../core/session');
 
 const STATUS_ORDER = ['new', 'qualified', 'booking_pending', 'booked', 'offer_shown', 'closed'];
+const SIDE_STATUSES = ['not_fit', 'nurture'];
 // side statuses (not on the ladder): not_fit = asked for something we do not do; nurture = not ready yet (pre-launch),
 // come back later (head review 20 Oct). nurture wins over not_fit; a booking in progress wins over both.
 const rank = (s) => { const i = STATUS_ORDER.indexOf(s); return i < 0 ? 0 : i; };
@@ -157,6 +158,6 @@ function leadSummaryTh(lead, { reason = 'first_field' } = {}) {
   return lines.join('\n');
 }
 
-module.exports = {
+module.exports = { STATUS_ORDER, SIDE_STATUSES,
   STATUS_ORDER, advanceStatus, buildLeadRow, qualify, waveGroup, wave_group: waveGroup, redactForDiscord, leadSummaryTh, NEXT_STEP_TH,
 };

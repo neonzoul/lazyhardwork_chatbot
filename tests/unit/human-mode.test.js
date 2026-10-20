@@ -69,3 +69,13 @@ test('the sqlite sessions repo accepts every mode core/session knows (human incl
   const s = { user_id: 'Uhm', mode: 'human', mode_since: new Date().toISOString() };
   return Promise.resolve(store.sessions.save(s)).then(() => store.sessions.get('Uhm')).then((got) => { assert.equal(got.mode, 'human'); });
 });
+
+test('the sqlite leads repo accepts every lead status intake can produce (not_fit and nurture included)', async () => {
+  const { createStore } = require('../../src/store');
+  const intake = require('../../src/leads/intake');
+  const store = createStore({ path: ':memory:', log: { info() {}, warn() {}, error() {} } });
+  for (const [i, status] of [...intake.STATUS_ORDER, ...intake.SIDE_STATUSES].entries()) {
+    const saved = await store.leads.upsert({ user_id: `Ust${i}`, status, homework: {} });
+    assert.equal(saved.status, status);
+  }
+});
