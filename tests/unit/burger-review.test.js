@@ -103,3 +103,31 @@ test('precedence (22 Oct): both signals in one message → one clarifying questi
   const s = await w.store.sessions.get('U1');
   assert.ok(!s.too_early && !s.operating);
 });
+
+test('GEO/SEO interest (22 Oct): honest "not open yet", lead stays on its ladder; only the tap records interest=geo', async () => {
+  const w = world();
+  await runTurn(w.input({ text: 'อยากให้ ChatGPT แนะนำร้านผมได้ไหมครับ' }), w.deps);
+  assert.equal(w.model.calls.length, 0);
+  assert.match(w.line.texts()[0], /ยังไม่ได้เปิดเป็นบริการ/);
+  let s = await w.store.sessions.get('U1');
+  assert.ok(!s.not_fit);
+  assert.equal(s.homework.interest, undefined, 'a curious ask is not counted');
+  assert.equal(s.homework.problem_verbatim, 'อยากให้ ChatGPT แนะนำร้านผมได้ไหมครับ');
+  await runTurn(w.input({ kind: 'postback', data: 'GEO_NOTE', text: '' }), w.deps);
+  s = await w.store.sessions.get('U1');
+  assert.equal(s.homework.interest, 'geo');
+  const lead = await w.store.leads.byUser('U1');
+  assert.equal(lead.homework.interest, 'geo');
+  assert.notEqual(lead.status, 'not_fit');
+  const { leadLine } = require('../../src/discord/format');
+  assert.match(leadLine({ lead, reason: 'status' }), /สนใจ: GEO \(ยังไม่มีบริการ\)/);
+});
+
+test('GEO regex does not catch our own services ("AI รู้จักงานผม" is A4; "AI แนะนำสินค้าให้ลูกค้า" is a chatbot)', async () => {
+  for (const t of ['อยากให้ AI รู้จักงานผม', 'ให้ AI แนะนำสินค้าให้ลูกค้าได้ไหม', 'ใช้ AI แล้วเจอปัญหาตอบผิด']) {
+    const w = world();
+    w.model.push(text('ได้ครับ'));
+    await runTurn(w.input({ text: t }), w.deps);
+    assert.doesNotMatch(w.line.texts().join('\n'), /ยังไม่ได้เปิดเป็นบริการ/, t);
+  }
+});

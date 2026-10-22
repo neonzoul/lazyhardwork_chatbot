@@ -117,6 +117,7 @@ function leadLine({ lead, reason } = {}) {
     if (lead && lead.card_id) bits.push(`การ์ด ${clip(scrub(lead.card_id), 24)}`);
     if (lead && lead.symptom) bits.push(`อาการ ${clip(scrub(lead.symptom), 40)}`);
     if (lead && lead.homework && lead.homework.business) bits.push(`ธุรกิจ ${clip(scrub(lead.homework.business), 40)}`);
+    if (lead && lead.homework && lead.homework.interest === 'geo') bits.push('สนใจ: GEO (ยังไม่มีบริการ)');
     return bits.join(' · ');
 }
 

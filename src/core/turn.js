@@ -182,6 +182,7 @@ async function runTurn(input, deps, opts = {}) {
             else if (data.startsWith('DETAIL_')) { return await detailsTurn(data.slice('DETAIL_'.length)); }
             // "อยากได้แบบนี้" on an example: that example's card, its offer and its next step — decided by code, no model
             // question from another card (head review 19 Oct).
+            else if (data === GEO_NOTE_PB || data === GEO_SKIP_PB) { return await geoNoteTurn(data === GEO_NOTE_PB); }
             else if (data.startsWith('WANT_') && fit?.chooseSymptom) { const sym = fit.chooseSymptom(s, data.slice('WANT_'.length)); if (sym) return await detailsTurn(sym.card); }
             else if (data === 'MENU_EXAMPLES' || data === 'MENU_PORTFOLIO') { const demo = flows.demo || lazy('../flows/demo'); if (demo?.onDemoPostback) return await demo.onDemoPostback({ data: 'DEMO_EXAMPLES', input, session: s, deps, config, send, persist, done, senders }); }
             else if (data.startsWith('MENU_')) { const t = MENU_TO_TEXT[data]; if (t) { userText = t; intentHint = topics.topicFromText(t) || 'unknown'; } }
@@ -218,6 +219,10 @@ async function runTurn(input, deps, opts = {}) {
         }
         if (input.kind === 'text' && tooEarlyNow && !operatingNow && !s.operating && !s.draft?.confirmed) return await tooEarlyTurn();
         // 8a'''. marketing work itself (content, clips, ads, page management, branding) is not ours: say so, one free tip, no card
+        // GEO / SEO interest (Head GTM 22 Oct, Mos's ruling): not a service yet but being prepared — honest "not open yet", one
+        // DIY line, offer to note the interest. Checked before the marketing refusal; never not_fit.
+        if (input.kind === 'text' && GEO_INTEREST_RE.test(text)) return await geoInterestTurn();
+        if (input.kind === 'text' && (text.trim() === GEO_NOTE_LABEL || text.trim() === GEO_SKIP_LABEL) && s.geo_asked) return await geoNoteTurn(text.trim() === GEO_NOTE_LABEL);
         if (input.kind === 'text' && MARKETING_RE.test(text) && !IN_SCOPE_HINT_RE.test(text)) return await marketingTurn();
         // ...and while they have not started, telling us about the team or plans gets the same short line (the model kept
         // praising and asking screening questions, replay 20 Oct); a named problem or one of the main questions still goes on
@@ -338,6 +343,27 @@ async function runTurn(input, deps, opts = {}) {
         await persist(input, s, sent, { role: 'lay', response });
         if (lead) { try { await upsertLead(s, {}); } catch (e) { deps.log.warn('lead.upsert_failed', { error: e?.message }); } }
         return done(sent, null);
+    }
+
+    async function geoInterestTurn() {
+        const again = !!s.geo_asked;
+        s.geo_asked = true;
+        // keep the wording demand uses (Head GTM): the customer's own ask, only if no problem was recorded yet
+        if (!s.homework?.problem_verbatim) s.homework = { ...(s.homework || {}), problem_verbatim: String(input.text || '').slice(0, 200) };
+        const response = emptyResponse({ intent: 'out_of_scope', topics: ['capability'], messages: [{ type: 'text', text: (again ? [GEO_AGAIN] : GEO_LINES).join('\n'), explain: false, template: null, alt: null, data: null }] });
+        session.unionTopics(s, response.topics);
+        const sent = await send(input, renderMessages(response, { deps, config, session: s }), GEO_QUICK, senders.lay);
+        await persist(input, s, sent, { role: 'lay', response });
+        return done(sent, null);
+    }
+
+    // The tap is the demand signal (Head GTM): only "จดไว้ให้หน่อย" records interest=geo; the ladder status is not touched.
+    async function geoNoteTurn(note) {
+        if (note) {
+            s.homework = { ...(s.homework || {}), interest: 'geo' };
+            try { await upsertLead(s, { reason: 'status' }); } catch (e) { deps.log.warn('lead.upsert_failed', { error: e?.message }); }
+        }
+        return plainTurn([note ? GEO_NOTED : 'รับทราบครับ'], { intent: 'out_of_scope', topics: ['capability'], lead: false });
     }
 
     async function clearTooEarly() {
@@ -650,6 +676,20 @@ const LAUNCH_QUESTION = 'ตอนนี้เปิดขายอยู่แ�
 const LAUNCH_QUICK = ['เปิดขายอยู่แล้ว', 'ยังไม่เปิด'];
 const LAUNCH_YES_RE = /เปิด(?:ขาย)?(?:อยู่)?แล้ว|ขายอยู่|เปิดอยู่|^\s*(?:ใช่|ครับ|ค่ะ|คะ|แล้ว)/u;
 const LAUNCH_NO_RE = /ยังไม่|^\s*ยัง|กำลังจะ/u;
+// Being found or recommended — on Google (SEO) or in AI answers (GEO). Not a service yet; interest is recorded on a tap.
+const GEO_INTEREST_RE = /(?:ChatGPT|แชทจีพีที|Gemini|เจมิไน|Perplexity|Claude|\bAI\b|เอไอ|Google\s*AI|AI\s*Overview)[^\n]{0,20}(?:แนะนำ(?:ร้าน|ธุรกิจ|แบรนด์|เรา|ผม)|ค้นเจอ|พูดถึงร้าน|อ้างอิง)|(?:แนะนำ|รู้จัก)[^\n]{0,12}(?:ร้าน|ธุรกิจ|แบรนด์|เรา)[^\n]{0,12}(?:ใน|ผ่าน|บน)\s*(?:ChatGPT|AI|เอไอ)|\bGEO\b|AI\s*search|ติดอันดับ[^\n]{0,15}(?:ChatGPT|AI|เอไอ)|\bSEO\b|ติดหน้าแรก\s*Google|ติดอันดับ[^\n]{0,10}Google/iu;
+const GEO_LINES = [
+    'เรื่องทำให้ร้านถูกค้นเจอหรือถูกแนะนำ ทั้งบน Google และใน AI อย่าง ChatGPT ตอนนี้ LazyHardWork ยังไม่ได้เปิดเป็นบริการครับ กำลังเตรียมอยู่ และทดลองกับเว็บของเราเองก่อน',
+    'ระหว่างนี้ทำเองได้ครับ เขียนหน้าเว็บหรือโปรไฟล์ร้านให้ตอบคำถามที่ลูกค้ามักถามให้ชัด เช่น อยู่ที่ไหน ขายอะไร ราคาประมาณเท่าไหร่ เปิดกี่โมง เพราะ AI มักหยิบข้อมูลที่เขียนชัดและตรงคำถามไปใช้',
+    'ถ้าอยากให้แจ้งตอนเปิดบริการนี้ ผมจดไว้ให้ได้ครับ',
+];
+const GEO_AGAIN = 'เรื่องให้ AI แนะนำร้าน ยังไม่ได้เปิดเป็นบริการครับ ถ้าอยากให้แจ้งตอนเปิด กดจดไว้ได้เลย';
+const GEO_NOTED = 'จดไว้แล้วครับ มีข่าวเรื่องบริการนี้เมื่อไหร่ เราจะแจ้งในแชทนี้ครับ';
+const GEO_NOTE_LABEL = 'จดไว้ให้หน่อย';
+const GEO_SKIP_LABEL = 'ไม่เป็นไร';
+const GEO_NOTE_PB = 'GEO_NOTE';
+const GEO_SKIP_PB = 'GEO_SKIP';
+const GEO_QUICK = [{ label: GEO_NOTE_LABEL, data: GEO_NOTE_PB }, { label: GEO_SKIP_LABEL, data: GEO_SKIP_PB }];
 const TOO_EARLY_RE = /กำลังจะ(?:เริ่ม|เปิด)|ยังไม่(?:ได้)?(?:เริ่ม|เปิด)|เพิ่งคิด(?:จะ)?|วางแผน(?:จะ)?(?:เปิด|เริ่ม)|ยังไม่มีลูกค้า|ยังไม่ได้ขาย|pre-?launch/iu;
 const TOO_EARLY_LINES = [
     'ช่วงที่ยังไม่ได้เริ่มขาย ยังไม่ต้องใช้ระบบหรือจ้างเราครับ ตั้งใจกับสินค้าและลูกค้ากลุ่มแรกก่อนคุ้มกว่า',
