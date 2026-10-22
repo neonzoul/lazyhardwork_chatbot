@@ -1,0 +1,14 @@
+name: 77 · Instagram is not offered now · LINE group chats need extra design and are priced separately (Mos 22 Oct)
+covers: ["§9.2", "Mos FAQ answers 22 Oct"]
+# Mos (first-hand to Head GTM, 22 Oct): Instagram "ยังไม่เปิดให้บริการ อยู่ในแผนที่จะเพิ่ม" — no date; group chats possible with
+# extra design, priced separately, standard packages are 1:1. Real check: `--model real --only "77 ·"`.
+user: { id: U77, displayName: "ทดสอบช่องทาง" }
+steps:
+  - follow: true
+    expect: { replies: 1, sender: lay }
+  - user: "ทำบอทบน Instagram ได้ไหมครับ"
+    model: { messages: [{ type: text, text: "บอทบน Instagram ยังไม่เปิดให้บริการครับ อยู่ในแผนที่จะเพิ่ม ตอนนี้ทำได้บน LINE OA Facebook และเว็บไซต์ครับ", explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: [capability], kb_refs: ["faq.instagram"], intent: faq }
+    expect: { replies_min: 1, sender: lay, text_contains: ["ยังไม่เปิดให้บริการ"], text_not_contains: ["6,000 บาทต่อช่องทาง (LINE OA / Facebook / Instagram"] }
+  - user: "แล้วใส่บอทในกลุ่มไลน์ได้ไหม"
+    model: { messages: [{ type: text, text: "ทำได้ครับ แต่ต้องออกแบบเพิ่ม เพราะในกลุ่มมีหลายคนคุยพร้อมกัน เลยคิดราคาแยกและคุยกันก่อนเริ่มงาน แพ็กปกติเป็นแชทหนึ่งต่อหนึ่งกับลูกค้าครับ", explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: [capability], kb_refs: ["faq.group-chat"], intent: faq }
+    expect: { replies_min: 1, sender: lay, text_contains: ["ออกแบบเพิ่ม"] }

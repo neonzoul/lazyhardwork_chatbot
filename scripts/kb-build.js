@@ -280,6 +280,19 @@ function check(label, cardValue, ledgerValue) {
   if (!ok) mismatches.push(`${label}: cards=${cardValue} ledger=${ledgerValue}`);
 }
 
+// A tier the ledger no longer carries (null / missing) was dropped on purpose — e.g. D-22 (22 Oct): A1 drops its ฿4,900
+// package while the cards file still lists it. The ledger is the source of truth for prices: the tier is left out of the
+// pack with a warning instead of failing the build. A real price disagreement still fails.
+const droppedTiers = [];
+for (const id of CARD_IDS) {
+  const card = parsed.cards[id];
+  card.packages = card.packages.filter((p) => {
+    const lp = ledgerPrice(id, p.tier);
+    if (lp === null || lp === undefined) { droppedTiers.push(`${id}.${p.tier} (${p.name})`); return false; }
+    return true;
+  });
+}
+for (const d of droppedTiers) console.warn(`kb-build: WARN ${d} is in the cards file but not in the ledger — left out of the pack`);
 for (const id of CARD_IDS) {
   const card = parsed.cards[id];
   for (const p of card.packages) check(`${id}.${p.tier} (${p.name})`, p.price, ledgerPrice(id, p.tier));
@@ -442,7 +455,7 @@ ${p.proof.line_th}
   const ladderTable = CARD_IDS.map((id) => {
     const tiers = TIER_ORDER.map((t) => {
       const v = ledgerPrice(id, t);
-      return v === undefined ? '—' : thb(v);
+      return v === undefined || v === null ? '—' : thb(v); // a dropped tier is never "0"
     });
     return `| ${id} | ${c[id].title} | ${tiers.join(' | ')} | ${c[id].t4 ? thb(c[id].t4.price) : '—'} |`;
   }).join('\n');
@@ -498,7 +511,8 @@ ${parsed.screening.map((s, i) => `${i + 1}. ${s}`).join('\n')}
       text += `ดูแลให้ฟรี ${ledger.ladders.care_monthly.free_months_after_delivery} เดือนแรก (แพ็ก ${TIER_NAMES.T3} ดูแลรวมนานกว่า ดูในแพ็ก) หลังจากนั้นค่าดูแล ราคาเริ่มต้น ${thb(n.careStandard)} บาท/เดือน แก้ เพิ่มความรู้ กันล่ม รายงานรายเดือน ไม่มีสัญญาผูกมัด ยกเลิกได้ทุกเดือน\n`;
     }
     if (n.addChannel !== null) {
-      text += `\n### offer.${id}.add-channel\n**${id} เพิ่มช่องทาง**\nเพิ่มช่องทาง (LINE OA / Facebook / Instagram / เว็บไซต์) ราคาเริ่มต้น ${thb(n.addChannel)} บาทต่อช่องทาง ถูกกว่าทำใหม่เพราะใช้สมองและคลังความรู้ชุดเดียวกัน แก้ที่เดียวเปลี่ยนครบทุกช่อง ${PRICE_SENTENCE}\n`;
+      // Instagram is not offered now (Mos 22 Oct: planned, no date) even though the card's add-on line lists it
+      text += `\n### offer.${id}.add-channel\n**${id} เพิ่มช่องทาง**\nเพิ่มช่องทาง (LINE OA / Facebook / เว็บไซต์) ราคาเริ่มต้น ${thb(n.addChannel)} บาทต่อช่องทาง ถูกกว่าทำใหม่เพราะใช้สมองและคลังความรู้ชุดเดียวกัน แก้ที่เดียวเปลี่ยนครบทุกช่อง ${PRICE_SENTENCE}\n`;
     }
     const other = n.lines.filter((l) => !/ค่าดูแลหลังหมดช่วงฟรี|ไม่เกิน [\d,]+ ข้อความ|เพิ่มช่องทาง:/.test(l));
     for (const l of other) {
