@@ -12,6 +12,14 @@ const { parseCommand, parseBotInstruction, LAY_BUTTON_ID, TAKE_BUTTON_PREFIX, FO
 
 const LEAD_ID_RE = /^(L-[\w-]+)/;
 
+// discord.js MessageType: 0 Default and 19 Reply are what a person types; every other type is a system notice.
+const USER_MESSAGE_TYPES = new Set([0, 19]);
+function isSystemMessage(message) {
+    if (message.system === true) return true;
+    if (message.type === undefined || message.type === null) return false;
+    return !USER_MESSAGE_TYPES.has(Number(message.type));
+}
+
 function createRelay({ botToken, guildId, leadsChannelId, store, onMosMessage, onCommand, log, client, registerCommands } = {}) {
     const logger = log || { info() {}, warn() {}, error() {} };
     let c = client || null;
@@ -72,6 +80,9 @@ function createRelay({ botToken, guildId, leadsChannelId, store, onMosMessage, o
         try {
             if (!message || message.author?.bot) return;
             if (c?.user?.id && message.author?.id === c.user.id) return;
+            // Only what Mos actually typed reaches the customer. Discord system messages (thread rename, pin, member added,
+            // thread created, …) carry Mos as author and the new name as content: a rename on 22 Oct reached LINE as "มอส".
+            if (isSystemMessage(message)) { logger.info('discord.system_message_ignored', { type: message.type }); return; }
             const channel = message.channel;
             // "/take <L-… | U…>" typed in #leads itself (not a thread)
             if (!inLeadsThread(channel) && String(channel?.id) === String(leadsChannelId)) {
@@ -197,4 +208,4 @@ function createRelay({ botToken, guildId, leadsChannelId, store, onMosMessage, o
     };
 }
 
-module.exports = { createRelay };
+module.exports = { createRelay, isSystemMessage };

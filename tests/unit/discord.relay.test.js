@@ -193,3 +193,19 @@ test('relay: the "ให้ Lay ดูแลต่อ" button runs /lay for the 
     assert.deepEqual(w.commands.map((c) => [c.command, c.userId]), [['lay', 'Uabc']]);
     assert.equal(replies[0], '✅ lay');
 });
+
+test('relay: Discord system messages never reach the customer (thread rename, pin, member added, thread created) — 22 Oct', async () => {
+    const store = { relayThreads: { byThread: async (id) => (id === 'T-1' ? { user_id: 'Uabc', lead_id: 'L-1' } : null) } };
+    const w = await world({ store });
+    const ch = thread();
+    // discord.js MessageType: 4 ChannelNameChange, 6 ChannelPinnedMessage, 7 UserJoin, 18 ThreadCreated, 21 ThreadStarterMessage
+    for (const type of [4, 6, 7, 18, 21]) await emit(w.client, { ...message(ch, 'Mos-L-2026-10-19-line_oa-290v71'), type });
+    await emit(w.client, { ...message(ch, 'Mos-L-2026-10-19-line_oa-290v71'), type: 0, system: true });
+    assert.deepEqual(w.relayed, [], 'nothing relayed to LINE');
+    assert.deepEqual(w.commands, []);
+    assert.equal(ch.sent.length, 0, 'no reply posted in the thread either');
+    // what Mos types (Default 0, Reply 19) still goes through
+    await emit(w.client, { ...message(ch, 'สวัสดีครับ'), type: 0 });
+    await emit(w.client, { ...message(ch, 'ตอบกลับครับ'), type: 19 });
+    assert.deepEqual(w.relayed.map((r) => r.text), ['สวัสดีครับ', 'ตอบกลับครับ']);
+});
