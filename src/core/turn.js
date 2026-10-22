@@ -272,6 +272,9 @@ async function runTurn(input, deps, opts = {}) {
             if (card) response.messages = [...(response.messages || []).filter((m) => m.type === 'text').slice(0, 1), { type: 'card', text: null, explain: false, template: card.template, alt: card.alt, data: card.data }];
         }
         dropUnfitOffers(response, s, endingsMod);
+        // the model answered a GEO ask the regex missed (Head GTM ruling 22 Oct) and offered the note button: the tap then
+        // records interest=geo exactly like the code branch
+        if ((response.quick_replies || []).some((q) => (typeof q === 'string' ? q : q && q.label) === GEO_NOTE_LABEL)) s.geo_asked = true;
         s.last_kb_refs = response.kb_refs || [];
         s.last_intent = response.intent;
         if (response.intent === 'unknown' || response.intent === 'faq' && response.action === 'handoff_unknown') s.last_unknown_question = userText;

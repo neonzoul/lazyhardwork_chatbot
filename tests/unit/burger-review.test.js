@@ -131,3 +131,13 @@ test('GEO regex does not catch our own services ("AI รู้จักงาน
     assert.doesNotMatch(w.line.texts().join('\n'), /ยังไม่ได้เปิดเป็นบริการ/, t);
   }
 });
+
+test('a GEO ask the regex misses: the model offers "จดไว้ให้หน่อย" and the tap records interest=geo (Head GTM 22 Oct)', async () => {
+  const w = world();
+  w.model.push(text('เรื่องนี้ LazyHardWork ยังไม่ได้เปิดเป็นบริการครับ กำลังเตรียมอยู่ และทดลองกับเว็บของเราเองก่อน ถ้าอยากให้แจ้งตอนเปิด ผมจดไว้ให้ได้ครับ', { intent: 'out_of_scope', quick_replies: ['จดไว้ให้หน่อย', 'ไม่เป็นไร'] }));
+  await runTurn(w.input({ text: 'อยากให้ ChatGPT รู้จักร้านเรา' }), w.deps);
+  assert.equal(w.model.calls.length, 1);
+  await runTurn(w.input({ text: 'จดไว้ให้หน่อย' }), w.deps);
+  assert.equal(w.model.calls.length, 1, 'the tap is handled by code');
+  assert.equal((await w.store.sessions.get('U1')).homework.interest, 'geo');
+});
