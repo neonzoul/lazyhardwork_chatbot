@@ -1,0 +1,16 @@
+name: 75 · one message says both "about to open" and "running / wants AI" — ask once, set nothing until the answer
+covers: ["§9.2", "Head GTM review 22 Oct (precedence rule)"]
+# Head GTM: don't guess either way. One clarifying question "ตอนนี้เปิดขายอยู่แล้วหรือยังครับ"; no too-early text, no flag.
+user: { id: U75, displayName: "ทดสอบสองสัญญาณ" }
+steps:
+  - follow: true
+    expect: { replies: 1, sender: lay }
+  - user: "กำลังจะเปิดโรงแรมอีกสาขา แต่ตอนนี้มีโรงแรมเปิดอยู่"
+    expect: { replies: 1, sender: lay, text_contains: ["ตอนนี้เปิดขายอยู่แล้วหรือยังครับ"], text_not_contains: ["ยังไม่ต้องใช้ระบบ", "ทักกลับมา"], quick_replies: ["เปิดขายอยู่แล้ว", "ยังไม่เปิด"] }
+  - user: "เปิดขายอยู่แล้ว"
+    model: { messages: [{ type: text, text: "งานไหนล้นที่สุดครับ เช่น ตอบแชทถามห้องว่างกับราคา คำถามแขกซ้ำๆ หรือเอกสารหลังบ้าน", explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: [fit], kb_refs: [], intent: fit, lead_updates: { business: "โรงแรม" } }
+    expect: { replies_min: 1, sender: lay, text_not_contains: ["ยังไม่ต้องใช้ระบบ", "ยังไม่ต้องเริ่มอะไรกับเรา"] }
+  - user: "กำลังจะเปิดร้าน อยากเอา AI ไปใช้"
+    expect: { replies: 1, sender: lay, text_contains: ["ตอนนี้เปิดขายอยู่แล้วหรือยังครับ"] }
+  - user: "ยังไม่เปิดครับ"
+    expect: { replies: 1, sender: lay, text_contains: ["ยังไม่ต้องใช้ระบบหรือจ้างเรา"] }

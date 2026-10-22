@@ -89,9 +89,12 @@ function errorText(err) {
 }
 
 // 402, or a 429/403 whose body talks about credits / limits ⇒ the key is spent (OpenRouter key limit or account credit).
+// 401 = the key itself is rejected (deleted, disabled, account gone: "User not found", 22 Oct 2026). It is as unusable as a
+// spent key: rotate, and with none left take the degraded path (question forwarded to Mos + critical alert), not the bare
+// error line.
 function isExhaustedError(err) {
   const status = err && err.status;
-  if (status === 402) return true;
+  if (status === 402 || status === 401) return true;
   if ((status === 429 || status === 403) && EXHAUSTED_RE.test(errorText(err))) return true;
   return false;
 }
@@ -99,6 +102,7 @@ function isExhaustedError(err) {
 function classifyProviderError(err) {
   const text = errorText(err);
   const status = err && err.status;
+  if (status === 401) return new ModelError('exhausted', `key rejected (401): ${(err && err.message) || status}`, { cause: err, status });
   if (isExhaustedError(err)) return new ModelError('exhausted', `key limit exhausted: ${(err && err.message) || status}`, { cause: err, status });
   if (/timeout|timed out|ETIMEDOUT|AbortError/i.test(text)) return new ModelError('timeout', `model call timed out: ${err && err.message}`, { cause: err, status });
   return new ModelError('provider', `model provider error: ${(err && err.message) || String(err)}`, { cause: err, status });

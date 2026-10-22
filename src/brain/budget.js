@@ -19,7 +19,8 @@ const FETCH_TIMEOUT_MS = 8000;
 
 const dayOf = (d) => d.toISOString().slice(0, 10);
 
-function createBudget({ keyring, clock, log, fetchImpl = globalThis.fetch, refreshMs = DEFAULT_REFRESH_MS, warnAt = 0.8, onWarn } = {}) {
+function createBudget({ keyring, clock, log, fetchImpl = globalThis.fetch, refreshMs = DEFAULT_REFRESH_MS, warnAt = 0.8, onWarn, onKeyRejected } = {}) {
+  const rejected = new Set();       // key_index currently rejected by OpenRouter (401) — alerted once until it works again
   const now = () => (clock && clock.now ? clock.now() : new Date());
   const logger = log || { info() {}, warn() {}, error() {} };
   let day = dayOf(now());
@@ -114,8 +115,17 @@ function createBudget({ keyring, clock, log, fetchImpl = globalThis.fetch, refre
           keyring.markExhausted(i, 'auth/key: limit_remaining <= 0', { limitReset: info.limit_reset, resetAt: info.resets_at });
         }
         results.push({ key_index: i, ok: true });
+        rejected.delete(i);
       } catch (err) {
         logger.warn('llm.budget_refresh_failed', { key_index: i, error: err?.message });
+        // a rejected key (401) is found here even with no customer traffic: mark it unusable and alert Mos once
+        if (/\b401\b/.test(String(err?.message || ''))) {
+          keyring.markExhausted(i, `auth/key 401: key rejected`, { limitReset: 'hourly' });
+          if (!rejected.has(i)) {
+            rejected.add(i);
+            if (onKeyRejected) { try { onKeyRejected({ key_index: i, error: String(err?.message || '').slice(0, 200) }); } catch (e) { logger.warn('llm.key_rejected_hook_failed', { error: e?.message }); } }
+          }
+        }
         results.push({ key_index: i, ok: false, error: err?.message });
       }
     }

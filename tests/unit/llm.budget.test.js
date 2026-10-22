@@ -138,3 +138,16 @@ test('keyStatusLine: limit, remaining, reset per key; never the key value', asyn
   keyring.markExhausted(0, '402');
   assert.match(keyStatusLine(keyring, budget), /keys: 0\/1 usable · key0 EXHAUSTED/);
 });
+
+test('a rejected key (401) found by the refresh is marked unusable and alerts once, even with no traffic (22 Oct)', async () => {
+  const { createKeyring } = require('../../src/brain/keys');
+  const { createBudget } = require('../../src/brain/budget');
+  const keyring = createKeyring({ keys: ['sk-or-v1-dead'] });
+  const alerts = [];
+  const fetchImpl = async () => ({ ok: false, status: 401, json: async () => ({ error: { message: 'User not found.' } }), text: async () => 'User not found.' });
+  const budget = createBudget({ keyring, fetchImpl, refreshMs: 0, onKeyRejected: (d) => alerts.push(d) });
+  await budget.refresh({ force: true });
+  await budget.refresh({ force: true });
+  assert.equal(keyring.status().exhausted, true);
+  assert.equal(alerts.length, 1, 'one alert, not one per refresh');
+});

@@ -6,7 +6,7 @@ const path = require('path');
 const { runTurn } = require('../../src/core/turn');
 const { createFakeLine } = require('../fakes/line');
 const { createFakeNotifier } = require('../fakes/notifier');
-const { createFakeModel } = require('../fakes/model');
+const { createFakeModel, text } = require('../fakes/model');
 const { createFakeClock } = require('../fakes/clock');
 const { createFakeStore } = require('../fakes/store');
 const { loadPack } = require('../../src/brain/kb');
@@ -80,4 +80,26 @@ test('pre-launch: telling us about the team gets the short line by code; each re
   const t = w.line.texts();
   assert.equal(t.length, 3);
   assert.ok(t[1].length < t[0].length && t[2].length < t[1].length);
+});
+
+test('case B (22 Oct): an operating business clears the too-early flag and the lead leaves nurture', async () => {
+  const w = world();
+  await runTurn(w.input({ text: 'กำลังจะเริ่มทำธุรกิจขายburger homemade' }), w.deps);
+  assert.equal((await w.store.leads.byUser('U1')).status, 'nurture');
+  w.model.push(text('งานไหนล้นที่สุดครับ เช่น ตอบแชทถามห้องว่างกับราคา คำถามแขกซ้ำๆ หรือเอกสารหลังบ้าน', { intent: 'fit', lead_updates: { business: 'โรงแรม' } }));
+  await runTurn(w.input({ text: 'ผมทำธุรกิจโรงแรม อยากเอา Ai ไปใช้ครับ' }), w.deps);
+  const s = await w.store.sessions.get('U1');
+  assert.equal(s.too_early, false);
+  assert.equal(s.homework.business, 'โรงแรม');
+  assert.notEqual((await w.store.leads.byUser('U1')).status, 'nurture');
+  assert.doesNotMatch(w.line.texts().join('\n'), /ยังไม่ต้องเริ่มอะไรกับเรา/);
+});
+
+test('precedence (22 Oct): both signals in one message → one clarifying question, nothing set', async () => {
+  const w = world();
+  await runTurn(w.input({ text: 'กำลังจะเปิดร้าน อยากเอา AI ไปใช้' }), w.deps);
+  assert.equal(w.model.calls.length, 0);
+  assert.deepEqual(w.line.texts(), ['ตอนนี้เปิดขายอยู่แล้วหรือยังครับ']);
+  const s = await w.store.sessions.get('U1');
+  assert.ok(!s.too_early && !s.operating);
 });

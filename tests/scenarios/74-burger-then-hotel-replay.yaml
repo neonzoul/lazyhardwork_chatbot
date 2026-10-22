@@ -1,0 +1,16 @@
+name: 74 · burger then hotel on one account — the too-early flag must not stick to an operating business (case B, 22 Oct)
+covers: ["§9.2", "§3.9", "Head GTM review 22 Oct"]
+# Source: Mos's own test on production, 20 Oct 16:15 and 16:26. Before the fix the hotel line got "ตอนนี้ยังไม่ต้องเริ่มอะไรกับเรา"
+# because the burger line had set the too-early flag on the same user. Real check: `--model real --only "74 ·"`.
+user: { id: U74, displayName: "ทดสอบโรงแรม" }
+steps:
+  - follow: true
+    expect: { replies: 1, sender: lay }
+  - user: "กำลังจะเริ่มทำธุรกิจขายburger homemade"
+    expect: { replies: 1, sender: lay, text_contains: ["ยังไม่ต้องใช้ระบบหรือจ้างเรา"] }
+  - user: "ผมทำธุรกิจโรงแรม อยากเอา Ai ไปใช้ครับ"
+    model: { messages: [{ type: text, text: "งานไหนล้นที่สุดครับ เช่น ตอบแชทถามห้องว่างกับราคา คำถามแขกซ้ำๆ หรือเอกสารหลังบ้าน", explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: [fit], kb_refs: [], intent: fit, lead_updates: { business: "โรงแรม" } }
+    expect: { replies: 2, card: choice, sender: lay, text_contains: ["ล้น"], text_not_contains: ["ยังไม่ต้องเริ่มอะไรกับเรา", "เริ่มขายแล้ว", "ทักกลับมา", "กี่คน", "อยู่ในเครื่องมือ"] }
+  - postback: FIT_chat_overload
+    model: { messages: [{ type: text, text: "แชทถามห้องว่างกับราคาซ้ำๆ แบบนี้ตรงกับงานที่เราทำบ่อยครับ บอทตอบคำถามเดิมๆ ให้จบ คนได้เวลาคืนไปดูแลแขก\nตอนนี้มีคนตอบแชทกี่คนครับ", explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: [fit], kb_refs: ["fit.chat-overload"], intent: fit }
+    expect: { replies_min: 1, sender: lay, text_not_contains: ["ยังไม่ต้องเริ่มอะไรกับเรา"] }

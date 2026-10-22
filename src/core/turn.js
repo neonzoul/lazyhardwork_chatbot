@@ -199,12 +199,29 @@ async function runTurn(input, deps, opts = {}) {
         if (input.kind === 'text' && OUT_OF_SCOPE_RE.test(text)) return await outOfScopeTurn();
         // 8a''. not started yet (head review 20 Oct, pre-launch burger): no system and no paid card is needed yet; say when we
         // would help and invite them back. The lead becomes nurture.
-        if (input.kind === 'text' && TOO_EARLY_RE.test(text) && !s.draft?.confirmed) return await tooEarlyTurn();
+        // Too-early vs operating (Head GTM review 22 Oct, case B: an operating hotel got the pre-launch answer because the flag
+        // from an earlier burger line stuck to the user):
+        //  · both signals in one message → one clarifying question, set nothing until the answer
+        //  · an operating signal alone → clear the too-early flag (the lead leaves nurture) and carry on to qualify
+        //  · the answer to the clarifying question decides
+        const tooEarlyNow = input.kind === 'text' && TOO_EARLY_RE.test(text);
+        const operatingNow = input.kind === 'text' && OPERATING_RE.test(text);
+        if (input.kind === 'text' && s.launch_question_open) {
+            s.launch_question_open = false;
+            if (LAUNCH_NO_RE.test(text)) return await tooEarlyTurn();
+            if (LAUNCH_YES_RE.test(text)) { await clearTooEarly(); s.operating = true; }
+        } else if (tooEarlyNow && operatingNow && !s.draft?.confirmed) {
+            return await launchQuestionTurn();
+        } else if (operatingNow) {
+            if (s.too_early) await clearTooEarly();
+            s.operating = true;
+        }
+        if (input.kind === 'text' && tooEarlyNow && !operatingNow && !s.operating && !s.draft?.confirmed) return await tooEarlyTurn();
         // 8a'''. marketing work itself (content, clips, ads, page management, branding) is not ours: say so, one free tip, no card
         if (input.kind === 'text' && MARKETING_RE.test(text) && !IN_SCOPE_HINT_RE.test(text)) return await marketingTurn();
         // ...and while they have not started, telling us about the team or plans gets the same short line (the model kept
         // praising and asking screening questions, replay 20 Oct); a named problem or one of the main questions still goes on
-        if (input.kind === 'text' && s.too_early && !s.draft?.confirmed && !topics.topicFromText(text) && !handoff.isAskHuman(text)) {
+        if (input.kind === 'text' && s.too_early && !operatingNow && !s.draft?.confirmed && !topics.topicFromText(text) && !handoff.isAskHuman(text)) {
             const fitMod = flows.fit || lazy('../flows/fit');
             if (!fitMod?.symptomFromText?.(text)) return await tooEarlyTurn();
         }
@@ -240,6 +257,15 @@ async function runTurn(input, deps, opts = {}) {
         if (s.draft?.card && !s.draft.tier) s.draft.tier = 'T1';
         try { endingsMod?.decorateResponse?.({ response, session: s, deps }); } catch (e) { deps.log.warn('endings.decorate_failed', { error: e?.message }); }
         fixA1Offer(response, s, deps, endingsMod);
+        // Qualify an operating business with no named problem (Head GTM review 22 Oct): the model asks which work floods them
+        // with 2–3 examples from their domain; code adds the symptom chooser. This is the SYMPTOM question, not a screening
+        // question — prompt rule "คำถามคัดกรอง … ถามได้เฉพาะหลังลูกค้าบอกปัญหา" is not violated. Do not "fix" it backwards.
+        const askedTopic = topics.topicFromText(text);
+        if (operatingNow && (!askedTopic || askedTopic === 'fit') && !s.draft?.confirmed && !(response.messages || []).some((m) => m.type === 'card')) {
+            const fitMod = flows.fit || lazy('../flows/fit');
+            const card = fitMod?.fitChoiceCard?.();
+            if (card) response.messages = [...(response.messages || []).filter((m) => m.type === 'text').slice(0, 1), { type: 'card', text: null, explain: false, template: card.template, alt: card.alt, data: card.data }];
+        }
         dropUnfitOffers(response, s, endingsMod);
         s.last_kb_refs = response.kb_refs || [];
         s.last_intent = response.intent;
@@ -311,6 +337,20 @@ async function runTurn(input, deps, opts = {}) {
         const sent = await send(input, renderMessages(response, { deps, config, session: s }), [], senders.lay);
         await persist(input, s, sent, { role: 'lay', response });
         if (lead) { try { await upsertLead(s, {}); } catch (e) { deps.log.warn('lead.upsert_failed', { error: e?.message }); } }
+        return done(sent, null);
+    }
+
+    async function clearTooEarly() {
+        s.too_early = false;
+        s.too_early_replies = 0;
+        try { await upsertLead(s, {}); } catch (e) { deps.log.warn('lead.upsert_failed', { error: e?.message }); }
+    }
+
+    async function launchQuestionTurn() {
+        s.launch_question_open = true;
+        const response = emptyResponse({ intent: 'fit', topics: [], messages: [{ type: 'text', text: LAUNCH_QUESTION, explain: false, template: null, alt: null, data: null }] });
+        const sent = await send(input, renderMessages(response, { deps, config, session: s }), LAUNCH_QUICK, senders.lay);
+        await persist(input, s, sent, { role: 'lay', response });
         return done(sent, null);
     }
 
@@ -604,6 +644,12 @@ function shortenMosIntro(messages, sess) {
 }
 const PROFANITY_RE = /เหี้ย|เชี่ย|สัส|ควย|\bfuck|\bshit/iu;
 const PROFANITY_LINE = 'ขอโทษครับ ถ้าที่ผมตอบไม่ตรงใจ ผมรอฟังก่อนนะครับ';
+// "running a business now" / "wants to use AI": a business already selling (not "จะ/เริ่ม/อยากทำธุรกิจ")
+const OPERATING_RE = /(?<!(?:จะ|เริ่ม|อยาก)\s*)ทำ(?:ธุรกิจ|กิจการ|ร้าน|บริษัท|โรงแรม|รีสอร์ท)|เปิด(?:ร้าน|กิจการ|ขาย|บริการ|โรงแรม)?(?:มา|อยู่|แล้ว)|ขายอยู่|(?<!ไม่)มีลูกค้า|ลูกค้า(?:ทัก|ถาม|เยอะ|ประจำ)|ออเดอร์(?:เข้า|เยอะ)|อยาก(?:เอา|ใช้|ให้)\s*(?:AI|เอไอ)|(?:เอา|ใช้)\s*(?:AI|เอไอ)\s*(?:มา|ไป)?(?:ใช้|ช่วย)/iu;
+const LAUNCH_QUESTION = 'ตอนนี้เปิดขายอยู่แล้วหรือยังครับ';
+const LAUNCH_QUICK = ['เปิดขายอยู่แล้ว', 'ยังไม่เปิด'];
+const LAUNCH_YES_RE = /เปิด(?:ขาย)?(?:อยู่)?แล้ว|ขายอยู่|เปิดอยู่|^\s*(?:ใช่|ครับ|ค่ะ|คะ|แล้ว)/u;
+const LAUNCH_NO_RE = /ยังไม่|^\s*ยัง|กำลังจะ/u;
 const TOO_EARLY_RE = /กำลังจะ(?:เริ่ม|เปิด)|ยังไม่(?:ได้)?(?:เริ่ม|เปิด)|เพิ่งคิด(?:จะ)?|วางแผน(?:จะ)?(?:เปิด|เริ่ม)|ยังไม่มีลูกค้า|ยังไม่ได้ขาย|pre-?launch/iu;
 const TOO_EARLY_LINES = [
     'ช่วงที่ยังไม่ได้เริ่มขาย ยังไม่ต้องใช้ระบบหรือจ้างเราครับ ตั้งใจกับสินค้าและลูกค้ากลุ่มแรกก่อนคุ้มกว่า',

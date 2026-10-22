@@ -32,7 +32,8 @@ function createApp({ overrides = {} } = {}) {
         keys: config.llm.openrouterKeys, log,
         onRecovered: (st) => alerts?.recovered?.({ kind: 'llm_exhausted', detail: { usable: st.usable, total: st.total } }).catch?.(() => {}),
     });
-    const budget = overrides.budget || createBudget({ keyring, log, onWarn: (w) => alerts?.warn?.(w) });
+    const budget = overrides.budget || createBudget({ keyring, log, onWarn: (w) => alerts?.warn?.(w),
+        onKeyRejected: (d) => alerts?.critical?.({ kind: 'llm_key_rejected', detail: { ...d, action: 'OpenRouter rejected the key (401). Create a new key, set OPENROUTER_API_KEY on Railway, redeploy.' } })?.catch?.(() => {}) });
     if (!alerts) {
         const alertsMod = optional('./discord/alerts');
         if (alertsMod?.createAlerts) {
