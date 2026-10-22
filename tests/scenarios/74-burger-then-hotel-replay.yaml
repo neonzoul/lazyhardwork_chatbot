@@ -10,7 +10,7 @@ steps:
     expect: { replies: 1, sender: lay, text_contains: ["ยังไม่ต้องใช้ระบบหรือจ้างเรา"] }
   - user: "ผมทำธุรกิจโรงแรม อยากเอา Ai ไปใช้ครับ"
     model: { messages: [{ type: text, text: "งานไหนล้นที่สุดครับ เช่น ตอบแชทถามห้องว่างกับราคา คำถามแขกซ้ำๆ หรือเอกสารหลังบ้าน", explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: [fit], kb_refs: [], intent: fit, lead_updates: { business: "โรงแรม" } }
-    expect: { replies: 2, card: choice, sender: lay, text_contains: ["งานไหน"], text_not_contains: ["ยังไม่ต้องเริ่มอะไรกับเรา", "เริ่มขายแล้ว", "ทักกลับมา", "กี่คน", "อยู่ในเครื่องมือ"] }
+    expect: { replies: 2, card: choice, sender: lay, text_contains: ["ห้อง"], text_not_contains: ["ยังไม่ต้องเริ่มอะไรกับเรา", "เริ่มขายแล้ว", "ทักกลับมา", "กี่คน", "อยู่ในเครื่องมือ"] }
   - postback: FIT_chat_overload
     model: { messages: [{ type: text, text: "แชทถามห้องว่างกับราคาซ้ำๆ แบบนี้ตรงกับงานที่เราทำบ่อยครับ บอทตอบคำถามเดิมๆ ให้จบ คนได้เวลาคืนไปดูแลแขก\nตอนนี้มีคนตอบแชทกี่คนครับ", explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: [fit], kb_refs: ["fit.chat-overload"], intent: fit }
-    expect: { replies_min: 1, sender: lay, text_not_contains: ["ยังไม่ต้องเริ่มอะไรกับเรา"] }
+    expect: { replies_min: 1, sender: lay, text_not_contains: ["ยังไม่ต้องเริ่มอะไรกับเรา", "สต็อก", "ค่าส่ง", "ปิดการขาย"] }   # hotel wording, not the shop few-shot (Head GTM 22 Oct)

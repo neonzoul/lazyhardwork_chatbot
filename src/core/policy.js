@@ -239,6 +239,15 @@ function applyPolicy(input, { session = {}, pack = null, allow, userText } = {})
     if (r.messages.length !== before) fixed.push(`messages: ${before - r.messages.length} closer-only bubble(s) dropped`);
   }
 
+  // --- speak the customer's domain (Head GTM 22 Oct): shop-only examples for a business that does not sell goods ---
+  {
+    const biz = session && session.homework && session.homework.business ? String(session.homework.business) : '';
+    const sellsGoods = /ร้าน|ขาย|ออนไลน์|shop|สินค้า|ค้าส่ง|ค้าปลีก|ออเดอร์|ส่งของ/iu.test(biz);
+    const shopOnly = /สต็อก|ค่าส่ง|ปิดการขาย/u;
+    if (biz && !sellsGoods && (r.messages || []).some((m) => m && m.type === 'text' && shopOnly.test(m.text || ''))) {
+      violate('off_domain_examples', 'regenerate', `examples must come from the customer's business (${biz.slice(0, 40)}), not a shop's stock/shipping/closing sales`);
+    }
+  }
   // --- no paid offer for a lead that is not ready or not a fit (head review 20 Oct, pre-launch burger) ---
   const bubbleTexts = (r.messages || []).filter((m) => m && m.type === 'text' && typeof m.text === 'string').map((m) => m.text);
   if (session && (session.too_early || session.not_fit) && r.intent !== 'pricing' && bubbleTexts.some((t) => /Business Review|4,900|แพ็ก(?:เริ่มต้น|ลองก่อน|นี้)|ราคาเริ่มต้น/u.test(t))) {

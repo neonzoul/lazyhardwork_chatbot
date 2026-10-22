@@ -135,6 +135,8 @@ function renderSession(session = {}, { intentHint } = {}) {
   if (draft.length) lines.push(`- draft (สิ่งที่ลูกค้าเลือกไว้): ${draft.map(([k, v]) => `${k}=${JSON.stringify(v)}`).join(', ')}`);
   const hw = filledFields(session.homework);
   lines.push(`- homework ที่รู้แล้ว: ${hw.length ? hw.map(([k, v]) => `${k}=${JSON.stringify(v)}`).join(', ') : 'ยังไม่มี'}`);
+  // Head GTM 22 Oct: after a symptom tap a hotel got the shop few-shot's "ราคา สต็อก ค่าส่ง … ปิดการขาย"
+  if (session.homework && session.homework.business) lines.push(`- ธุรกิจของลูกค้า: ${JSON.stringify(session.homework.business)} — ยกตัวอย่างงานและคำถามของลูกค้าจากธุรกิจนี้เท่านั้น ห้ามยืมตัวอย่างของร้านค้า (สต็อก ค่าส่ง ปิดการขาย) ถ้าธุรกิจนี้ไม่ได้ขายของส่ง`);
   if (draft.length || hw.length) lines.push('- ห้ามถามซ้ำสิ่งที่อยู่ใน draft หรือ homework ข้างบน เช่น รู้อาการแล้ว ห้ามถามว่าอยากให้ช่วยเรื่องไหน ให้ถามข้อที่ยังขาดข้อเดียวแทน');
   lines.push('- พูดคำว่า "ราคาเริ่มต้น" ครั้งเดียวต่อข้อความ');
   if (session.last_lay_question) lines.push(`- คำถามล่าสุดที่ Lay ถามไปแล้ว: "${String(session.last_lay_question).slice(0, 120)}" ห้ามถามซ้ำหรือถามแบบเดียวกัน ถ้าไม่มีคำถามใหม่ที่จำเป็น ไม่ต้องถาม`);

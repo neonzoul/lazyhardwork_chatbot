@@ -141,3 +141,11 @@ test('a GEO ask the regex misses: the model offers "จดไว้ให้ห�
   assert.equal(w.model.calls.length, 1, 'the tap is handled by code');
   assert.equal((await w.store.sessions.get('U1')).homework.interest, 'geo');
 });
+
+test('a hotel never gets the shop few-shot wording (สต็อก ค่าส่ง ปิดการขาย); a shop still may (Head GTM 22 Oct)', () => {
+  const mk = (x) => ({ messages: [{ type: 'text', text: x, explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: ['fit'], kb_refs: [], intent: 'fit', lead_updates: {}, action: null });
+  const shopy = 'แชทเข้าเยอะตอบไม่ทัน บอทรับคำถามเดิมๆ อย่างราคา สต็อก ค่าส่ง ไปตอบให้จบ';
+  assert.ok(policy.applyPolicy(mk(shopy), { session: { homework: { business: 'ธุรกิจโรงแรม' } } }).violations.some((v) => v.rule === 'off_domain_examples'));
+  assert.ok(!policy.applyPolicy(mk(shopy), { session: { homework: { business: 'ร้านขายเสื้อผ้าออนไลน์' } } }).violations.some((v) => v.rule === 'off_domain_examples'));
+  assert.ok(!policy.applyPolicy(mk('แชทถามห้องว่างกับราคาห้องซ้ำๆ บอทตอบให้จบ'), { session: { homework: { business: 'ธุรกิจโรงแรม' } } }).violations.some((v) => v.rule === 'off_domain_examples'));
+});
