@@ -110,7 +110,16 @@ function dedupePriceSentence(t) {
 
 // Style-only rules: when the model breaks only these twice, the reply is repaired by code instead of sending the
 // "system error" line — that line is for real failures (honesty). Banned content is never salvaged.
-const STYLE_RULES = new Set(['prose_list', 'too_long', 'emoji', 'markdown']);
+// two_questions is style-only: regenerate once, and if the second answer still asks two, it goes out (salvaged, logged) —
+// never blocked (Head GTM 22 Oct)
+const STYLE_RULES = new Set(['prose_list', 'too_long', 'emoji', 'markdown', 'two_questions']);
+// One question per bubble: split into clauses at ครับ/ค่ะ + space, และ, a question mark or a line break, and count the
+// clauses that ask (ไหม · กี่ · อะไร · ยังไง · หรือเปล่า · ?). "มีคนตอบแชทกี่คนครับ และแชทเข้าวันละกี่ข้อความครับ" → 2.
+const QUESTION_MARK_RE = /ไหม|กี่|อะไร|ยังไง|อย่างไร|หรือเปล่า|หรือยัง|[?？]/u;
+function countQuestionClauses(text) {
+  return String(text || '').split(/(?:ครับ|ค่ะ|คะ)\s+|\s+และ\s*|\s*[?？]\s*|\n+/u)
+    .map((c) => c.trim()).filter((c) => c && QUESTION_MARK_RE.test(c)).length;
+}
 function isStyleOnly(violations) { return violations.length > 0 && violations.every((v) => v.severity === 'fix' || STYLE_RULES.has(v.rule)); }
 function splitLong(text, max = 220) {
   const parts = [];
@@ -239,13 +248,23 @@ function applyPolicy(input, { session = {}, pack = null, allow, userText } = {})
     if (r.messages.length !== before) fixed.push(`messages: ${before - r.messages.length} closer-only bubble(s) dropped`);
   }
 
+  // --- one question per bubble (Head GTM 22 Oct) ---
+  (r.messages || []).forEach((m, i) => {
+    if (m && m.type === 'text' && countQuestionClauses(m.text) >= 2) violate('two_questions', 'regenerate', 'ask ONE question per message — keep the most useful one', i);
+  });
   // --- speak the customer's domain (Head GTM 22 Oct): shop-only examples for a business that does not sell goods ---
   {
     const biz = session && session.homework && session.homework.business ? String(session.homework.business) : '';
     const sellsGoods = /ร้าน|ขาย|ออนไลน์|shop|สินค้า|ค้าส่ง|ค้าปลีก|ออเดอร์|ส่งของ/iu.test(biz);
     const shopOnly = /สต็อก|ค่าส่ง|ปิดการขาย/u;
-    if (biz && !sellsGoods && (r.messages || []).some((m) => m && m.type === 'text' && shopOnly.test(m.text || ''))) {
-      violate('off_domain_examples', 'regenerate', `examples must come from the customer's business (${biz.slice(0, 40)}), not a shop's stock/shipping/closing sales`);
+    // fixed in place, never blocked: a reply replaced by "รับทราบครับ" is worse than a shop word (real-model run 22 Oct)
+    if (biz && !sellsGoods) {
+      (r.messages || []).forEach((m, i) => {
+        if (!m || m.type !== 'text' || !shopOnly.test(m.text || '')) return;
+        m.text = m.text.replace(/ไป\s*ปิดการขาย/gu, 'ไปดูแลลูกค้า').replace(/ปิดการขาย/gu, 'ดูแลลูกค้า')
+          .replace(/[ \t]*(?:สต็อก(?:สินค้า)?|ค่าส่ง)(?=[ \t]|$)/gu, '').replace(/[ \t]{2,}/gu, ' ');
+        fixed.push(`messages[${i}]: shop-only examples removed for ${biz.slice(0, 40)}`);
+      });
     }
   }
   // --- no paid offer for a lead that is not ready or not a fit (head review 20 Oct, pre-launch burger) ---
@@ -343,4 +362,4 @@ function fallbackReply({ reason = 'error', config } = {}) {
   return response;
 }
 
-module.exports = { speakAsLay, dropFiller, mergeShortPair, dropCertainty, OUT_OF_SCOPE_RE, salvage, isStyleOnly, stripClosers, STYLE_RULES, applyPolicy, fallbackReply, strings, PRICE_RE, PRICE_REF_RE, BENEFITS_CAVEAT_RE, QUICK_REPLY_MAX, QUICK_REPLY_LABEL_MAX };
+module.exports = { countQuestionClauses, speakAsLay, dropFiller, mergeShortPair, dropCertainty, OUT_OF_SCOPE_RE, salvage, isStyleOnly, stripClosers, STYLE_RULES, applyPolicy, fallbackReply, strings, PRICE_RE, PRICE_REF_RE, BENEFITS_CAVEAT_RE, QUICK_REPLY_MAX, QUICK_REPLY_LABEL_MAX };

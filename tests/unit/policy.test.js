@@ -203,3 +203,17 @@ test('18 Oct: a closing question similar to the last one Lay asked is dropped; a
   assert.doesNotMatch(said(applyPolicy(mk('ตอนนี้พี่สนใจบริการไหนอยู่ครับ จะได้เล่าให้ตรงจุด'), { session })), /สนใจบริการไหน/);
   assert.match(said(applyPolicy(mk('ตอนนี้ร้านพี่มีคนตอบแชทกี่คนครับ'), { session })), /มีคนตอบแชทกี่คน/);
 });
+
+test('one question per bubble (Head GTM 22 Oct): "กี่คน และ … กี่ข้อความ" is two; one question with an example list is one', () => {
+  const { countQuestionClauses, applyPolicy, isStyleOnly } = require('../../src/core/policy');
+  assert.equal(countQuestionClauses('ตอนนี้มีคนตอบแชทกี่คนครับ และแชทเข้ามาเฉลี่ยวันละกี่ข้อความครับ'), 2);
+  assert.equal(countQuestionClauses('มีคนตอบแชทกี่คน และแชทเข้าวันละกี่ข้อความ'), 2);
+  assert.equal(countQuestionClauses('ตอนนี้ของพี่เป็นธุรกิจอะไรครับ จะได้เล่าให้ตรงงาน'), 1);
+  assert.equal(countQuestionClauses('งานไหนกินเวลามากที่สุดครับ เช่น ตอบลูกค้าถามห้องว่างกับราคา จองห้อง หรือเอกสารหลังบ้าน'), 0);
+  assert.equal(countQuestionClauses('แชทบอทตอบลูกค้า 24 ชม. ครับ\nตอนนี้มีคนตอบแชทกี่คนครับ'), 1);
+  const r = { messages: [{ type: 'text', text: 'ตอนนี้มีคนตอบแชทกี่คนครับ และแชทเข้ามาเฉลี่ยวันละกี่ข้อความครับ', explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: [], kb_refs: [], intent: 'fit', lead_updates: {}, action: null };
+  const out = applyPolicy(r, { session: { draft: { confirmed: true } } }); // a matched symptom: the screening question itself is allowed
+  assert.equal(out.severity, 'regenerate');
+  assert.deepEqual(out.violations.map((v) => v.rule), ['two_questions']);
+  assert.ok(isStyleOnly(out.violations), 'style-only: a second miss is salvaged and sent, never blocked');
+});

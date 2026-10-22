@@ -145,7 +145,10 @@ test('a GEO ask the regex misses: the model offers "จดไว้ให้ห�
 test('a hotel never gets the shop few-shot wording (สต็อก ค่าส่ง ปิดการขาย); a shop still may (Head GTM 22 Oct)', () => {
   const mk = (x) => ({ messages: [{ type: 'text', text: x, explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: ['fit'], kb_refs: [], intent: 'fit', lead_updates: {}, action: null });
   const shopy = 'แชทเข้าเยอะตอบไม่ทัน บอทรับคำถามเดิมๆ อย่างราคา สต็อก ค่าส่ง ไปตอบให้จบ';
-  assert.ok(policy.applyPolicy(mk(shopy), { session: { homework: { business: 'ธุรกิจโรงแรม' } } }).violations.some((v) => v.rule === 'off_domain_examples'));
-  assert.ok(!policy.applyPolicy(mk(shopy), { session: { homework: { business: 'ร้านขายเสื้อผ้าออนไลน์' } } }).violations.some((v) => v.rule === 'off_domain_examples'));
-  assert.ok(!policy.applyPolicy(mk('แชทถามห้องว่างกับราคาห้องซ้ำๆ บอทตอบให้จบ'), { session: { homework: { business: 'ธุรกิจโรงแรม' } } }).violations.some((v) => v.rule === 'off_domain_examples'));
+  const hotel = policy.applyPolicy(mk(shopy + ' แอดมินได้เวลาคืนไปปิดการขาย'), { session: { homework: { business: 'ธุรกิจโรงแรม' } } });
+  assert.equal(hotel.severity, 'fix', 'fixed in place, never blocked or regenerated');
+  assert.doesNotMatch(hotel.response.messages[0].text, /สต็อก|ค่าส่ง|ปิดการขาย/);
+  assert.match(hotel.response.messages[0].text, /ดูแลลูกค้า/);
+  const shop = policy.applyPolicy(mk(shopy), { session: { homework: { business: 'ร้านขายเสื้อผ้าออนไลน์' } } });
+  assert.match(shop.response.messages[0].text, /สต็อก/, 'a shop keeps its own wording');
 });
