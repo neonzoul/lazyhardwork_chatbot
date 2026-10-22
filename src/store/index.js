@@ -47,6 +47,12 @@ function createStore({ path, clock, log, busyTimeoutMs } = {}) {
       } catch (err) { db.exec('ROLLBACK'); throw err; }
       return counts;
     },
+    /** Write a consistent, compacted copy of the whole database to `destPath` while the app keeps running. */
+    snapshot: async (destPath) => {
+      if (!destPath || typeof destPath !== 'string') throw new Error('snapshot: destPath required');
+      db.exec(`VACUUM INTO '${destPath.replace(/'/g, "''")}'`);
+      return destPath;
+    },
     /** Flush WAL to the main file (backup step). No-op for :memory:. */
     checkpoint: async () => { if (!closed) try { checkpoint(db); } catch { /* memory db */ } },
     close: async () => { if (!closed) { closed = true; db.close(); } },

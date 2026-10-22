@@ -1,91 +1,136 @@
-# Deploy runbook — Lay v2 on Railway
+# Deploy runbook — Lay v2 (as it is on 22 Oct 2026)
 
-**Status (2026-10-17): nothing is created yet.** The Railway CLI on the build machine is not logged in (D-18), so
-these steps are for Mos, or for an agent after `railway login`. Until then the local app serves the test OA
-through an ngrok tunnel. `main` (v1) stays live on its existing Railway service until the Tuesday cut-over.
+Who reads this: any agent or Mos deploying, checking, backing up or moving Lay. Secrets never appear here or in chat;
+read and set them with tools that do not print values.
 
-## 0. Prerequisites
+## 0. Where Lay runs
 
-- **OpenAI credit** on the account behind `OPENAI_API_KEY` — without it every turn is the fallback reply. Check
-  before the first smoke test, not after.
-- The **test LINE channel** credentials (`LINE_CHANNEL_*` in `.env`, D-14) and the production ones (`LINE_PROD_*`).
-- Discord bot created with **Message Content Intent** on, invited to the guild with View Channel · Send Messages ·
-  Create Public Threads · Send Messages in Threads · Read Message History in `#leads` (D-17, `doc/discord.md`).
-- `knowledge/` built and committed on `v2` (`npm run kb:build -- --project-dir …`); `npm test` and
-  `npm run scenarios` green.
+| What | Where |
+|---|---|
+| Production | Railway project "LazyHardWork LineOA Chatbot", environment `production`, service `lazyhardwork_chatbot`, domain `lazyhardworkchatbot-production.up.railway.app`, volume `lazyhardwork_chatbot-volume` at `/data` |
+| Production LINE OA | `@638bnoee` ("LazyHardWork \|Studio"); webhook `https://<domain>/webhook`; OA Manager set to manual chat |
+| Test LINE OA | "[Test] LazyHardWork" — runs from a local app behind the ngrok tunnel (§7) |
+| Code | `github.com/neonzoul/lazyhardwork_chatbot`. `main` = what production deploys. `v2` = integration branch |
+| Discord | one bot (`agent.layline.lazyhardwork`) in the LhW server: `#leads` threads, `#crm` alerts |
+| LLM | OpenRouter (`OPENROUTER_API_KEY`, optional `_2`, `_3`) — doc/llm.md |
 
-## 1. Create the staging service (test channel)
+## 1. Release path and gates
 
-1. Railway → the existing project → **New service → GitHub repo** `neonzoul/lazyhardwork_chatbot`, branch **`v2`**.
-   Name it `lay-v2`. Node is auto-detected; start command is `npm start` (`engines >= 22.13`, `node:sqlite`).
-2. **Volume**: service → Volumes → add, mount path **`/data`**. One instance only — SQLite is not shared across
-   replicas. Without the volume the DB dies on every deploy (`doc/store.md`).
-3. **Variables** (service → Variables). S = secret.
+1. Work lands on `v2`, never on `main` without Mos's go for that change.
+2. Gates before `main`, in this order:
+   - `npm test` and `npm run scenarios` green locally, CI green on `v2`.
+   - Real-model replay of the replay scenarios (70–77 today):
+     `node tests/run-scenarios.js --model real --only "7"` with a working key. Scenario 70 step 12 is a known,
+     accepted failure ("แล้วจะให้มัยเรียกว่าอะไร").
+   - Mos tests the change on the test OA from his own LINE (§7).
+   - Mos's go, in his own words.
+3. `main` is fast-forwarded to `v2` (`git push origin v2:main`) and Railway builds it (§3).
 
-| Variable | Value for staging | |
+## 2. Production variables (names only)
+
+| Name | Notes |
+|---|---|
+| `LINE_CHANNEL_SECRET`, `LINE_CHANNEL_ACCESS_TOKEN` | the production channel (`@638bnoee`) |
+| `OPENROUTER_API_KEY` (+ `_2`, `_3`) | rotation order; a 401 or a spent key falls through to the next |
+| `ADMIN_TOKEN` | bearer token for `/admin/*` (sessions, leads, events, backup, take, reset, forget) |
+| `PUBLIC_BASE_URL` | `https://<domain>`; icons and images are served from it |
+| `DB_PATH` | `/data/lay.sqlite` (on the volume) |
+| `DISCORD_BOT_TOKEN`, `DISCORD_GUILD_ID`, `DISCORD_LEADS_CHANNEL_ID`, `DISCORD_CRM_CHANNEL_ID` | relay + alerts |
+| `DISCORD_LEADS_WEBHOOK`, `DISCORD_CRM_WEBHOOK` | fallback when the bot cannot post |
+| `MOS_LINE_USER_ID`, `CONTACT_PHONE`, `FASTWORK_URL`, `BUSINESS_HOURS_START/END` | facts Lay uses |
+| `EXAMPLES_IMAGES_READY` | unset until real example images replace the placeholders (doc/demo.md) |
+
+Railway applies a variable change **only with the next deployment**. Setting a variable is not enough: check §4.
+
+## 3. Deploying on Railway
+
+- A push to `main` triggers a build (Nixpacks, Node 22). Watch `railway deployment list` or the dashboard.
+- **No deployment appeared?** Railway's GitHub trigger can fail (22 Oct). An empty commit through `v2` → `main`
+  re-triggers; if that fails too, `railway up --detach` from a clean checkout of the same commit
+  (`git worktree add .worktrees/deploy <sha>` then `railway up .worktrees/deploy --path-as-root --detach`).
+- **"Limited Access — Deploys have been paused due to an upstream issue"** in the dashboard, or `railway up` answering
+  "Deploys have been paused temporarily": a Railway platform incident (status.railway.com). Nothing to do on our
+  side; production keeps running the last deployment. Deploy when the banner is gone.
+- The Railway CLI login expires; `railway whoami` → "Unauthorized" means Mos runs `railway login` in the app's
+  terminal and confirms in the browser.
+- The Dockerfile is kept in `deploy/` on purpose: a root `Dockerfile` would switch Railway to a Docker build on the next
+  deploy. Move it only after a verified Docker build (§5).
+
+## 4. After every deploy
+
+1. `GET /health` → `status: ok` and the expected `pack` timestamp.
+2. `GET /admin/llm/status` (token) → the running key's label (`sk-or-v1…xxxx`) is the NEW one and not exhausted.
+   The 10-minute key check logs `llm.budget_refresh_failed … 401` while a key is rejected.
+3. Logs: `app.started` with `relay: true`, then `discord.relay_ready`.
+4. Smoke (synthetic user; LINE rejects its pushes, which the script expects):
+   `node scripts/smoke-webhook.js --base https://<domain> --secret <LINE secret> --token <ADMIN_TOKEN> --wait-text 20000 --wait-postback 16000`
+   → 24 PASS. Then delete the synthetic user: `DELETE /admin/users/<Usmoke-…>` with `{"confirm": "<Usmoke-…>"}`.
+5. Rich Menu only when it changed: `node scripts/setup-rich-menu.js --channel prod --yes-prod` with
+   `PUBLIC_BASE_URL` set to the production domain.
+
+## 5. Docker image (any host)
+
+- `docker build -f deploy/Dockerfile -t lay-v2 .` from the repo root (Node 22 slim, runtime files only, runs as `node`,
+  database on `/data`, `/health` health check).
+- Run: `docker run -d --name lay -p 8080:8080 --env-file lay.env -v lay-data:/data lay-v2`.
+- Status 22 Oct: written but **not yet built** — Docker was not running on the dev machine. Build and run it once
+  (health 200, smoke 24/24 against it) before any host relies on it.
+
+## 6. Moving off Railway in about an hour (VPS: Hetzner or DigitalOcean)
+
+Files: `deploy/vps/` — `docker-compose.yml` (Lay + Caddy for automatic HTTPS, optional static website),
+`Caddyfile`, `lay.env.example`, `backup.sh`.
+
+1. Server: Ubuntu LTS, Docker + compose plugin, firewall open only 22/80/443, SSH keys only. A Singapore region is the
+   closest to Thai customers.
+2. `git clone` the repo to `/opt/lay`, `cp deploy/vps/lay.env.example deploy/vps/lay.env`, fill it on the server.
+3. DNS: an A record for the bot host (e.g. `lay.<domain>`) → the server IP. Set `PUBLIC_BASE_URL` to it.
+4. Restore the newest backup into the volume before the first start (§8 restore), then
+   `LAY_DOMAIN=lay.<domain> docker compose -f deploy/vps/docker-compose.yml up -d --build`.
+5. Check `https://lay.<domain>/health`.
+6. **Discord: one process at a time.** The same bot in two places races for buttons and thread messages. Stop or
+   suspend the Railway service (or remove its `DISCORD_BOT_TOKEN`) before the VPS starts with the token.
+7. Point the production LINE webhook at the VPS (LINE Developers console, or
+   `node scripts/set-webhook.js https://lay.<domain>/webhook` with the production token) and verify (LINE test → 200).
+8. Run §4 checks against the VPS. Keep Railway stopped, not deleted, for a week as the way back.
+9. On the VPS, cron `deploy/vps/backup.sh` nightly; set `LAY_BACKUP_REMOTE` (an rclone remote) so a copy leaves the box.
+
+## 7. Test OA (Mos's tests, no production touch)
+
+- Run v2 locally with the test channel credentials from `.env`, the OpenRouter key from Railway injected into the process
+  only, a fresh `DB_PATH`, and **`DISCORD_BOT_TOKEN` empty** (production holds the bot; lead posts still reach `#leads`
+  through the webhook, without buttons).
+- Tunnel: `npx ngrok http 3100` (fixed domain on this account), then
+  `node -r dotenv/config scripts/set-webhook.js https://<tunnel>/webhook` (test channel token from `.env`).
+- Smoke against the tunnel with long waits (`--wait-text 50000 --wait-postback 50000`): LINE's rejection of synthetic
+  users is slow from a local machine and overlapping turns give false FAILs.
+
+## 8. Backups
+
+- Route: `GET /admin/backup` (token) streams a consistent snapshot (`VACUUM INTO`) of the whole database. It contains
+  customer data.
+- Off-host copy: `npm run backup` (= `node scripts/backup-db.js`) downloads it, checks `integrity_check` and the core
+  tables, names it `lay-YYYY-MM-DD.sqlite` (Bangkok date), keeps the newest 14, exits non-zero on any failure.
+  Options `--base-url`, `--out` (or `LAY_BACKUP_DIR`), `--keep`. Never store backups in git or the vault.
+- Daily on Mos's Windows machine (Task Scheduler, a user task — runs only while the machine is on):
+  `schtasks /Create /SC DAILY /ST 03:00 /TN "LazyHardWork\Lay daily backup" /TR "cmd /c cd /d <repo> && node scripts/backup-db.js --out <backup dir> >> <backup dir>\backup.log 2>&1"`
+- On a VPS: `deploy/vps/backup.sh` (§6 step 9).
+- Restore: stop the app, copy the backup over `DB_PATH`, delete stale `-wal`/`-shm`, start. On Docker:
+  `docker compose cp lay-YYYY-MM-DD.sqlite lay:/data/lay.sqlite` with the service stopped (`docker compose stop lay`).
+- The route ships with `main` ≥ the commit that added it; until production runs it, the script gets 404.
+
+## 9. Rollback
+
+- Railway: redeploy the previous successful deployment from the dashboard, or `git push --force-with-lease origin <good-sha>:main`
+  (Mos's go; the next build is that commit).
+- Variables: put the old value back and redeploy.
+- VPS: `git checkout <good-sha>` in `/opt/lay`, `docker compose up -d --build`.
+
+## 10. Incidents we have seen (and what to do)
+
+| Date | What | Do |
 |---|---|---|
-| `LINE_CHANNEL_SECRET` / `LINE_CHANNEL_ACCESS_TOKEN` | the **test** channel | S |
-| `LINE_PROD_CHANNEL_SECRET` / `LINE_PROD_CHANNEL_ACCESS_TOKEN` | production channel (used by `setup-rich-menu --channel prod`; the app itself reads `LINE_CHANNEL_*`) | S |
-| `LINE_TEST_CHANNEL_ID`, `LINE_TEST_BOT_BASIC_ID`, `MOS_LINE_USER_ID` | from the Developers Console / logs | |
-| `OPENAI_API_KEY` | key with credit; model is in `src/agents.config.js` | S |
-| `DISCORD_BOT_TOKEN` | relay bot | S |
-| `DISCORD_GUILD_ID`, `DISCORD_LEADS_CHANNEL_ID`, `DISCORD_CRM_CHANNEL_ID` | ids | |
-| `DISCORD_LEADS_WEBHOOK`, `DISCORD_CRM_WEBHOOK` | webhook fallback when the bot cannot open a thread | S |
-| `PUBLIC_BASE_URL` | `https://<railway domain>` (no trailing slash) — step 4 | |
-| `LAY_ICON_URL`, `MOS_ICON_URL` | `${PUBLIC_BASE_URL}/assets/lay-icon.png`, `…/mos-icon.png` (may be omitted: config derives them) | |
-| `DB_PATH` | `/data/lay.sqlite` | |
-| `ADMIN_TOKEN` | long random string (bearer for `/admin/*`) | S |
-| `CONTACT_PHONE`, `CONTACT_PHONE_DISPLAY`, `FASTWORK_URL` | profile values; default display `095 569 1674 (มอส)` | |
-| `BUSINESS_HOURS_START` / `END` | `13` / `22` | |
-| `QUIET_WINDOW_MINUTES`, `DEBOUNCE_MS`, `KNOWLEDGE_DIR` | optional (defaults 30, 6500, `knowledge`) | |
-| `DISCORD_REGISTER_COMMANDS` | optional `1` to register guild slash commands on start | |
-
-`PORT` is injected by Railway — do not set it. `CONTACT_EMAIL` and `ADMIN_SECRET` are v1-only; leave them unset.
-
-4. **Domain**: Settings → Networking → Generate Domain. Put it in `PUBLIC_BASE_URL` (and the icon URLs if set),
-   redeploy. Icons must resolve as public HTTPS PNG 1:1 ≤ 1 MB: open `https://<domain>/assets/lay-icon.png`.
-5. **Webhook** (test channel): locally, with the test token in `.env`,
-   `node scripts/set-webhook.js https://<domain>/webhook` — it sets the endpoint and runs LINE's test call.
-   In OA Manager for the test OA: Webhooks **on**, Greeting **off**, Auto-response **off**; turn on Webhook
-   redelivery in the Developers Console.
-6. **Rich Menu** (test channel): `node scripts/setup-rich-menu.js --dry-run`, then `node scripts/setup-rich-menu.js`
-   (creates `lay-default` + `lay-demo`, sets the default). After any image change: `--recreate`.
-
-## 2. Smoke checks (staging)
-
-1. `GET https://<domain>/health` → `{"status":"ok","version":"2.0.0-dev","pack":"<built_at>"}` — `pack: null`
-   means `knowledge/` is missing from the deploy.
-2. On the test OA send **สวัสดี** → opening with 3 quick replies from `Lay · ผู้ช่วย AI` (LINE appends "from <OA>").
-3. Tap **each Rich Menu tile**: ทำอะไรได้บ้าง · เหมาะกับงานผมไหม (symptom card) · ขอดูตัวอย่าง (carousel) · เริ่มยังไง ·
-   คุยกับมอส (thread appears in `#leads`, Lay goes quiet) · เรียก Lay (Lay returns).
-4. In the `#leads` thread type a line → arrives on LINE as **มอส**; `/lay` → Lay back.
-5. Railway logs: `app.started` with `relay: true`; no `model.fallback` lines. `GET /admin/events` with the token.
-
-## 3. Tuesday cut-over (2026-10-20, after Mos's go)
-
-1. Freeze: `npm test` + `npm run scenarios` green on `v2`; FAQ approved and `kb:build` re-run if it changed.
-2. Merge `v2 → main` (fast-forward or merge commit; this is the first push to `main` since the freeze).
-3. Production LINE channel: either switch the `lay-v2` service's `LINE_CHANNEL_SECRET` / `LINE_CHANNEL_ACCESS_TOKEN`
-   to the `LINE_PROD_*` values, or create a second service `lay-v2-prod` from `main` with the same variable set,
-   its own volume and domain, and the production values in `LINE_CHANNEL_*`. Option two keeps staging alive.
-4. Rich Menu on production: `node scripts/setup-rich-menu.js --channel prod --yes-prod`.
-5. Point the production channel's webhook at the v2 URL: with the prod token in `LINE_CHANNEL_ACCESS_TOKEN`
-   (temporarily, locally) `node scripts/set-webhook.js https://<prod v2 domain>/webhook`. OA Manager: Greeting and
-   Auto-response off.
-6. Confirm with **one message** from Mos's own LINE: opening arrives from Lay, `app.started` in the logs, the
-   message row shows up under `GET /admin/sessions/<MOS_LINE_USER_ID>`.
-7. **Keep the v1 service running for 24 h** (do not delete, do not change its variables).
-8. Next morning: `node scripts/lead-sync.js --vault <root> --dry-run` to see the first leads; then without `--dry-run`.
-
-## 4. Rollback
-
-Point the production webhook back at the v1 service URL (`set-webhook.js https://<v1 domain>/webhook`). Nothing
-else is needed: v1 keeps its own state, v2's SQLite stays on its volume for diagnosis. Rich Menu: v1's menu was made
-in its own tool; if the v2 default menu must go, delete it via the API (`--recreate` logic in `src/line/richmenu.js`)
-or set the v1 menu as default again.
-
-## 5. Day-to-day after cut-over
-
-- Push to the deployed branch = redeploy; migrations run on boot (`doc/store.md`).
-- Knowledge change: edit the vault → `npm run kb:build -- --project-dir …` → commit `knowledge/` → push.
-- Backup: `store.checkpoint()` then copy `/data/lay.sqlite` (`doc/store.md` §Backup).
+| 22 Oct | OpenRouter rejected the key (401 "User not found"); every model turn got the error line; no alert (fixed on v2: one `@here` "llm_key_rejected") | New key on Railway → redeploy (§3) → §4 step 2 |
+| 22 Oct | Railway platform outage, deploys paused | Wait for the banner to clear; production keeps running |
+| 22 Oct | A Discord thread rename reached LINE as "มอส" (fixed: system messages are never relayed) | Deploy `main` ≥ aa57b8f; until then, don't rename lead threads |
+| 20 Oct | Mos replied in LINE OA Manager; Lay could not see it | Take the chat first (Human Mode: "Human Mode -⏸️Lay" on the #leads post, `/take`, or `POST /admin/sessions/:userId/take`) |

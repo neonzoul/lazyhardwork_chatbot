@@ -1,0 +1,15 @@
+node_modules
+.env
+.env.*
+!.env.example
+data
+backups
+.worktrees
+.git
+tests
+doc
+deploy
+*.log
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm

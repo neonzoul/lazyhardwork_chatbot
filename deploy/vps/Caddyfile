@@ -1,0 +1,15 @@
+# Caddy: automatic HTTPS for both hosts. LAY_DOMAIN and SITE_DOMAIN come from docker-compose (environment).
+# LINE requires an HTTPS webhook with a valid certificate — Caddy gets it from Let's Encrypt on first request.
+
+{$LAY_DOMAIN} {
+	encode gzip
+	reverse_proxy lay:8080
+}
+
+# The website (static build in ./site). Remove this block if the site is hosted elsewhere (e.g. Cloudflare Pages).
+{$SITE_DOMAIN} {
+	encode gzip zstd
+	root * /srv/site
+	file_server
+	try_files {path} {path}/ /index.html
+}

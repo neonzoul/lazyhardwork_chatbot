@@ -1,0 +1,40 @@
+# Lay v2 on one VPS (Hetzner / DigitalOcean), next to the LazyHardWork website. doc/deploy.md §6.
+#   cd deploy/vps && cp lay.env.example lay.env   # fill in on the server only, never commit
+#   docker compose up -d --build
+# Caddy terminates HTTPS (automatic certificates) and routes by hostname; the bot is not exposed directly.
+services:
+  lay:
+    build:
+      context: ../..
+      dockerfile: deploy/Dockerfile
+    env_file: lay.env
+    environment:
+      PORT: "8080"
+      DB_PATH: /data/lay.sqlite
+    volumes:
+      - lay-data:/data
+    restart: unless-stopped
+    expose:
+      - "8080"
+
+  caddy:
+    image: caddy:2
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      LAY_DOMAIN: ${LAY_DOMAIN:?set LAY_DOMAIN, e.g. lay.example.com}
+      SITE_DOMAIN: ${SITE_DOMAIN:-}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./site:/srv/site:ro          # the website's static build (Astro `dist/`), if it lives here too
+      - caddy-data:/data
+      - caddy-config:/config
+    restart: unless-stopped
+    depends_on:
+      - lay
+
+volumes:
+  lay-data:
+  caddy-data:
+  caddy-config:
