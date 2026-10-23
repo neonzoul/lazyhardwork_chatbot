@@ -1,0 +1,19 @@
+# Factory baseline (D-37): weekly updates, opened against v2 (main = production; Railway deploys every push to main).
+# Dependabot reads this file from the default branch, so it starts working after the next v2 → main release.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    target-branch: v2
+    schedule: { interval: weekly, day: monday }
+    open-pull-requests-limit: 3
+    groups:
+      npm-minor-patch:
+        update-types: [minor, patch]
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: v2
+    schedule: { interval: weekly, day: monday }
+    groups:
+      actions:
+        patterns: ["*"]
