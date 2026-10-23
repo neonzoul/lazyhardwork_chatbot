@@ -127,6 +127,8 @@ function decorateResponse({ response, session, deps }) {
     // no paid card before there is a business running, or for a request we do not do (head review 20 Oct)
     if (session.too_early || session.not_fit) return false;
     if (session.draft.card === 'C1' && !c1Fits(session)) return false;
+    // the reply says hiring us is not worth it yet: no package card under it (Head GTM ruling R2, 23 Oct, flower shop)
+    if ((response.messages || []).some((m) => m && m.type === 'text' && /ยังไม่ต้องจ้าง|ไม่คุ้ม(?:ที่จะ)?จ้าง|อาจไม่คุ้ม/u.test(m.text || ''))) return false;
     const ready = homework.readyForEnding(session) || ['fit', 'howtostart', 'pricing'].includes(response.intent);
     if (!ready) return false;
     if ((response.messages || []).some((m) => m.type === 'card')) { if ((response.messages || []).some((m) => m.type === 'card' && m.template === 'offer')) session.offer_shown = true; return false; }

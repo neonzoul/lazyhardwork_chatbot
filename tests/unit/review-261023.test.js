@@ -73,10 +73,10 @@ test('R2: asking for a discount still hands off', async () => {
   assert.match(w.line.texts().join('\n'), /ตัดสินใจแทนมอส/);
 });
 
-test('R3: the GEO answer offers the free talk and the note; R4: a typed demo ask opens the shop picker by code', async () => {
+test('R3 (D-39): the GEO answer offers the Review and the free talk; R4: a typed demo ask opens the shop picker by code', async () => {
   const w = world();
   await runTurn(w.input({ text: 'อยากให้ ChatGPT แนะนำร้านผม รับทำไหม' }), w.deps);
-  assert.match(w.line.texts().join('\n'), /นัดคุยฟรี 30 นาที/);
+  assert.match(w.line.texts().join('\n'), /คุยฟรี 30 นาทีก่อนก็ได้ครับ/);
   const d = world();
   await runTurn(d.input({ text: 'ขอลองเป็นลูกค้าร้านตัวอย่างก่อนค่ะ' }), d.deps);
   assert.equal(d.model.calls.length, 0);

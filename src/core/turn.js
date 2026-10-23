@@ -183,6 +183,7 @@ async function runTurn(input, deps, opts = {}) {
             // "อยากได้แบบนี้" on an example: that example's card, its offer and its next step — decided by code, no model
             // question from another card (head review 19 Oct).
             else if (data === GEO_NOTE_PB || data === GEO_SKIP_PB) { return await geoNoteTurn(data === GEO_NOTE_PB); }
+            else if (data === GEO_TALK_PB) { return await geoTalkTurn(); }
             else if (data.startsWith('WANT_') && fit?.chooseSymptom) { const sym = fit.chooseSymptom(s, data.slice('WANT_'.length)); if (sym) return await detailsTurn(sym.card); }
             else if (data === 'MENU_EXAMPLES' || data === 'MENU_PORTFOLIO') { const demo = flows.demo || lazy('../flows/demo'); if (demo?.onDemoPostback) return await demo.onDemoPostback({ data: 'DEMO_EXAMPLES', input, session: s, deps, config, send, persist, done, senders }); }
             else if (data.startsWith('MENU_')) { const t = MENU_TO_TEXT[data]; if (t) { userText = t; intentHint = topics.topicFromText(t) || 'unknown'; } }
@@ -223,6 +224,7 @@ async function runTurn(input, deps, opts = {}) {
         // DIY line, offer to note the interest. Checked before the marketing refusal; never not_fit.
         if (input.kind === 'text' && GEO_INTEREST_RE.test(text)) return await geoInterestTurn();
         if (input.kind === 'text' && (text.trim() === GEO_NOTE_LABEL || text.trim() === GEO_SKIP_LABEL) && s.geo_asked) return await geoNoteTurn(text.trim() === GEO_NOTE_LABEL);
+        if (input.kind === 'text' && text.trim() === GEO_TALK_LABEL && s.geo_asked) return await geoTalkTurn();
         // a guarantee question gets a fixed honest line (Head GTM ruling R1, 23 Oct): the model's answer kept tripping the
         // banned-guarantee rule and ended in "รับทราบครับ"
         if (input.kind === 'text' && GUARANTEE_ASK_RE.test(text)) {
@@ -371,13 +373,20 @@ async function runTurn(input, deps, opts = {}) {
         return done(sent, null);
     }
 
-    // The tap is the demand signal (Head GTM): only "จดไว้ให้หน่อย" records interest=geo; the ladder status is not touched.
+    // Either positive tap is the demand signal (Head GTM, D-39): interest=geo; status follows the normal ladder.
     async function geoNoteTurn(note) {
         if (note) {
             s.homework = { ...(s.homework || {}), interest: 'geo' };
             try { await upsertLead(s, { reason: 'status' }); } catch (e) { deps.log.warn('lead.upsert_failed', { error: e?.message }); }
         }
-        return plainTurn([note ? GEO_NOTED : 'รับทราบครับ'], { intent: 'out_of_scope', topics: ['capability'], lead: false });
+        return plainTurn([note ? GEO_NOTED : 'รับทราบครับ'], { intent: note ? 'pricing' : 'out_of_scope', topics: ['capability'], lead: false });
+    }
+    // "คุยฟรีก่อน": interest=geo, then the normal booking entry (the free 30-minute talk)
+    async function geoTalkTurn() {
+        s.homework = { ...(s.homework || {}), interest: 'geo' };
+        const endingsMod = deps.flows?.endings || lazy('../flows/endings');
+        if (endingsMod?.onModelAction) return await endingsMod.onModelAction({ action: 'booking_start', response: null, input, session: s, deps, config, send, persist, done, senders, doHandoff, upsertLead });
+        return await geoNoteTurn(true);
     }
 
     async function clearTooEarly() {
@@ -692,23 +701,26 @@ const LAUNCH_QUICK = ['เปิดขายอยู่แล้ว', 'ยั�
 const LAUNCH_YES_RE = /เปิด(?:ขาย)?(?:อยู่)?แล้ว|ขายอยู่|เปิดอยู่|^\s*(?:ใช่|ครับ|ค่ะ|คะ|แล้ว)/u;
 const LAUNCH_NO_RE = /ยังไม่|^\s*ยัง|กำลังจะ/u;
 // Being found or recommended — on Google (SEO) or in AI answers (GEO). Not a service yet; interest is recorded on a tap.
-const GEO_INTEREST_RE = /(?:ChatGPT|แชทจีพีที|Gemini|เจมิไน|Perplexity|Claude|\bAI\b|เอไอ|Google\s*AI|AI\s*Overview)[^\n]{0,20}(?:แนะนำ(?:ร้าน|ธุรกิจ|แบรนด์|เรา|ผม)|ค้นเจอ|พูดถึงร้าน|อ้างอิง)|(?:แนะนำ|รู้จัก)[^\n]{0,12}(?:ร้าน|ธุรกิจ|แบรนด์|เรา)[^\n]{0,12}(?:ใน|ผ่าน|บน)\s*(?:ChatGPT|AI|เอไอ)|\bGEO\b|AI\s*search|ติดอันดับ[^\n]{0,15}(?:ChatGPT|AI|เอไอ)|\bSEO\b|ติดหน้าแรก\s*Google|ติดอันดับ[^\n]{0,10}Google/iu;
+const GEO_INTEREST_RE = /(?:ChatGPT|แชทจีพีที|Gemini|เจมิไน|Perplexity|Claude|\bAI\b|เอไอ|Google\s*AI|AI\s*Overview)[^\n]{0,20}(?:แนะนำ(?:ร้าน|ธุรกิจ|แบรนด์|เรา|ผม)|ค้นเจอ|พูดถึงร้าน|อ้างอิง)|(?:แนะนำ|รู้จัก)[^\n]{0,12}(?:ร้าน|ธุรกิจ|แบรนด์|เรา)[^\n]{0,12}(?:ใน|ผ่าน|บน)\s*(?:ChatGPT|AI|เอไอ)|(?:ChatGPT|แชทจีพีที|Gemini|\bAI\b|เอไอ)[^\n]{0,60}(?:มีชื่อ(?:ร้าน|ที่พัก|เรา|ผม)?|ชื่อ(?:ร้าน|ที่พัก)[^\n]{0,15})\s*ขึ้น(?:มา)?|\bGEO\b|AI\s*search|ติดอันดับ[^\n]{0,15}(?:ChatGPT|AI|เอไอ)|\bSEO\b|ติดหน้าแรก\s*Google|ติดอันดับ[^\n]{0,10}Google/iu;
 const GEO_LINES = [
-    'เรื่องทำให้ร้านถูกค้นเจอหรือถูกแนะนำ ทั้งบน Google และใน AI อย่าง ChatGPT ตอนนี้ LazyHardWork ยังไม่ได้เปิดเป็นบริการครับ กำลังเตรียมอยู่ และทดลองกับเว็บของเราเองก่อน',
+    'เรื่องให้ร้านถูกค้นเจอหรือถูกแนะนำ ทั้งบน Google และใน AI อย่าง ChatGPT — AI Business Review ฿4,900 ของเราตรวจเรื่องนี้ให้ได้ครับ: ข้อมูลร้านตรงกันทุกช่องทางไหม หน้าไหนตอบคำถามลูกค้าได้ อะไรทำเองได้ อะไรควรจ้าง และจะดูผลยังไง',
     'ระหว่างนี้ทำเองได้ครับ เขียนหน้าเว็บหรือโปรไฟล์ร้านให้ตอบคำถามที่ลูกค้ามักถามให้ชัด เช่น อยู่ที่ไหน ขายอะไร ราคาประมาณเท่าไหร่ เปิดกี่โมง เพราะ AI มักหยิบข้อมูลที่เขียนชัดและตรงคำถามไปใช้',
-    'ถ้าอยากคุยก่อน นัดคุยฟรี 30 นาทีได้ เราจะบอกตรงๆ ว่าส่วนไหนทำเองได้ หรือถ้าอยากให้แจ้งตอนเปิดบริการนี้ ผมจดไว้ให้ได้ครับ',
+    'ไม่มีใครรับประกันได้ว่า AI จะแนะนำร้านไหนนะครับ เราก็ไม่รับประกัน และเราไม่รับทำเว็บเป็นบริการ ถ้าสนใจ Review ทักต่อได้เลย หรือคุยฟรี 30 นาทีก่อนก็ได้ครับ',
 ];
 const GUARANTEE_ASK_RE = /รับประกัน|การันตี|guarantee|รับรองผล|(?:รับรอง|สัญญา)(?:ได้)?(?:ไหม|มั้ย)?ว่า/iu;
 const GUARANTEE_GEO = 'ไม่มีใครรับประกันได้ว่า AI จะแนะนำร้านไหนครับ รวมถึงเราด้วย ที่ทำได้คือทำให้ข้อมูลร้านชัด ตรงกันทุกที่ และตอบคำถามที่ลูกค้าถามจริง ซึ่งเพิ่มโอกาส แต่ไม่ใช่คำสัญญา';
 const GUARANTEE_GENERAL = 'เราไม่รับประกันผลลัพธ์เป็นตัวเลขครับ สิ่งที่รับประกันได้คือขอบเขตงานที่ตกลงกัน และแก้จนใช้ได้ตามที่ตกลง';
 const DEMO_TRY_RE = /^\s*(?:ขอ)?ลอง(?:เป็น)?ลูกค้า(?:ของ)?ร้านตัวอย่าง|^\s*(?:ขอ)?ลอง(?:คุยกับ)?(?:บอท)?ร้านตัวอย่าง/u;
-const GEO_AGAIN = 'เรื่องให้ AI แนะนำร้าน ยังไม่ได้เปิดเป็นบริการครับ ถ้าอยากให้แจ้งตอนเปิด กดจดไว้ได้เลย';
-const GEO_NOTED = 'จดไว้แล้วครับ มีข่าวเรื่องบริการนี้เมื่อไหร่ เราจะแจ้งในแชทนี้ครับ';
-const GEO_NOTE_LABEL = 'จดไว้ให้หน่อย';
+const GEO_AGAIN = 'เรื่องให้ร้านถูกค้นเจอ AI Business Review ฿4,900 ตรวจให้ได้ครับ ถ้าสนใจ Review ทักต่อได้เลย หรือคุยฟรี 30 นาทีก่อนก็ได้ครับ';
+// after "สนใจ Review": the Review needs to know where the shop's information lives (scenario 81 pass condition, §5)
+const GEO_NOTED = 'ได้ครับ ตอนนี้ข้อมูลร้านอยู่ช่องทางไหนบ้างครับ เช่น Facebook, Google Maps, เว็บจองที่พัก หรือยังไม่มีเว็บ';
+const GEO_NOTE_LABEL = 'สนใจ Review';
+const GEO_TALK_LABEL = 'คุยฟรีก่อน';
+const GEO_TALK_PB = 'GEO_TALK';
 const GEO_SKIP_LABEL = 'ไม่เป็นไร';
 const GEO_NOTE_PB = 'GEO_NOTE';
 const GEO_SKIP_PB = 'GEO_SKIP';
-const GEO_QUICK = [{ label: GEO_NOTE_LABEL, data: GEO_NOTE_PB }, 'นัดคุยกับมอส', { label: GEO_SKIP_LABEL, data: GEO_SKIP_PB }];
+const GEO_QUICK = [{ label: GEO_NOTE_LABEL, data: GEO_NOTE_PB }, { label: GEO_TALK_LABEL, data: GEO_TALK_PB }, { label: GEO_SKIP_LABEL, data: GEO_SKIP_PB }];
 const TOO_EARLY_RE = /กำลังจะ(?:เริ่ม|เปิด)|ยังไม่(?:ได้)?(?:เริ่ม|เปิด)|เพิ่งคิด(?:จะ)?|วางแผน(?:จะ)?(?:เปิด|เริ่ม)|ยังไม่มีลูกค้า|ยังไม่ได้ขาย|pre-?launch/iu;
 const TOO_EARLY_LINES = [
     'ช่วงที่ยังไม่ได้เริ่มขาย ยังไม่ต้องใช้ระบบหรือจ้างเราครับ ตั้งใจกับสินค้าและลูกค้ากลุ่มแรกก่อนคุ้มกว่า',

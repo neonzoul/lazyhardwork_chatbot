@@ -104,11 +104,12 @@ test('precedence (22 Oct): both signals in one message → one clarifying questi
   assert.ok(!s.too_early && !s.operating);
 });
 
-test('GEO/SEO interest (22 Oct): honest "not open yet", lead stays on its ladder; only the tap records interest=geo', async () => {
+test('GEO/SEO interest (D-39 path a): the Review checks findability, both disclaimers; only a positive tap records interest=geo', async () => {
   const w = world();
   await runTurn(w.input({ text: 'อยากให้ ChatGPT แนะนำร้านผมได้ไหมครับ' }), w.deps);
   assert.equal(w.model.calls.length, 0);
-  assert.match(w.line.texts()[0], /ยังไม่ได้เปิดเป็นบริการ/);
+  assert.match(w.line.texts()[0], /AI Business Review ฿4,900 ของเราตรวจเรื่องนี้ให้ได้/);
+  assert.match(w.line.texts()[0], /เราก็ไม่รับประกัน และเราไม่รับทำเว็บเป็นบริการ/);
   let s = await w.store.sessions.get('U1');
   assert.ok(!s.not_fit);
   assert.equal(s.homework.interest, undefined, 'a curious ask is not counted');
@@ -120,7 +121,9 @@ test('GEO/SEO interest (22 Oct): honest "not open yet", lead stays on its ladder
   assert.equal(lead.homework.interest, 'geo');
   assert.notEqual(lead.status, 'not_fit');
   const { leadLine } = require('../../src/discord/format');
-  assert.match(leadLine({ lead, reason: 'status' }), /สนใจ: GEO \(ยังไม่มีบริการ\)/);
+  assert.match(leadLine({ lead, reason: 'status' }), /สนใจ: GEO \(ให้ AI แนะนำร้าน\)/);
+  await runTurn(w.input({ kind: 'postback', data: 'GEO_TALK', text: '' }), w.deps);
+  assert.match(w.line.texts().join('\n'), /30 นาที/);
 });
 
 test('GEO regex does not catch our own services ("AI รู้จักงานผม" is A4; "AI แนะนำสินค้าให้ลูกค้า" is a chatbot)', async () => {
@@ -128,16 +131,16 @@ test('GEO regex does not catch our own services ("AI รู้จักงาน
     const w = world();
     w.model.push(text('ได้ครับ'));
     await runTurn(w.input({ text: t }), w.deps);
-    assert.doesNotMatch(w.line.texts().join('\n'), /ยังไม่ได้เปิดเป็นบริการ/, t);
+    assert.doesNotMatch(w.line.texts().join('\n'), /ตรวจเรื่องนี้ให้ได้/, t);
   }
 });
 
-test('a GEO ask the regex misses: the model offers "จดไว้ให้หน่อย" and the tap records interest=geo (Head GTM 22 Oct)', async () => {
+test('a GEO ask the regex misses: the model offers "สนใจ Review" and the tap records interest=geo (Head GTM 22 Oct, D-39)', async () => {
   const w = world();
-  w.model.push(text('เรื่องนี้ LazyHardWork ยังไม่ได้เปิดเป็นบริการครับ กำลังเตรียมอยู่ และทดลองกับเว็บของเราเองก่อน ถ้าอยากให้แจ้งตอนเปิด ผมจดไว้ให้ได้ครับ', { intent: 'out_of_scope', quick_replies: ['จดไว้ให้หน่อย', 'ไม่เป็นไร'] }));
+  w.model.push(text('เรื่องนี้ LazyHardWork ยังไม่ได้เปิดเป็นบริการครับ กำลังเตรียมอยู่ และทดลองกับเว็บของเราเองก่อน ถ้าอยากให้แจ้งตอนเปิด ผมจดไว้ให้ได้ครับ', { intent: 'out_of_scope', quick_replies: ['สนใจ Review', 'คุยฟรีก่อน', 'ไม่เป็นไร'] }));
   await runTurn(w.input({ text: 'อยากให้ ChatGPT รู้จักร้านเรา' }), w.deps);
   assert.equal(w.model.calls.length, 1);
-  await runTurn(w.input({ text: 'จดไว้ให้หน่อย' }), w.deps);
+  await runTurn(w.input({ text: 'สนใจ Review' }), w.deps);
   assert.equal(w.model.calls.length, 1, 'the tap is handled by code');
   assert.equal((await w.store.sessions.get('U1')).homework.interest, 'geo');
 });

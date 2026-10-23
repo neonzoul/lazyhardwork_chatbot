@@ -1,16 +1,17 @@
-name: 76 · GEO / SEO interest — not a service yet, one DIY line, the tap records interest=geo, never not_fit
-covers: ["§9.2", "§3.9", "Head GTM review 22 Oct (GEO branch)"]
-# Mos's ruling 22 Oct: no GEO service card yet; we are preparing it. Count demand only on the "จดไว้ให้หน่อย" tap.
+name: 76 · GEO / SEO interest — the Review checks findability (D-39 path a), both disclaimers, a positive tap records interest=geo, never not_fit
+covers: ["§9.2", "§3.9", "Head GTM review 22 Oct (GEO branch)", "D-39 (GEO path a, copy-geo-a-2026-10-23.md §5)"]
+# Mos's ruling D-39 (23 Oct): AI Business Review also checks AI findability; no chatbot or internal system for it.
+# Demand counts on either positive tap ("สนใจ Review", "คุยฟรีก่อน").
 user: { id: U76, displayName: "ทดสอบ GEO" }
 steps:
   - follow: true
     expect: { replies: 1, sender: lay }
   - user: "อยากให้ ChatGPT แนะนำร้านผมได้ไหมครับ"
-    expect: { replies: 1, sender: lay, text_contains: ["ยังไม่ได้เปิดเป็นบริการ", "ทั้งบน Google และใน AI", "ผมจดไว้ให้ได้ครับ"], text_not_contains: ["ไม่ใช่งานที่ LazyHardWork รับ", "4,900", "แพ็ก"], quick_replies: ["จดไว้ให้หน่อย", "นัดคุยกับมอส", "ไม่เป็นไร"] }
+    expect: { replies: 1, sender: lay, text_contains: ["AI Business Review ฿4,900 ของเราตรวจเรื่องนี้ให้ได้", "ทั้งบน Google และใน AI", "เราก็ไม่รับประกัน", "ไม่รับทำเว็บเป็นบริการ", "คุยฟรี 30 นาที"], text_not_contains: ["ไม่ใช่งานที่ LazyHardWork รับ", "แชทบอท", "ระบบงานภายใน"], quick_replies: ["สนใจ Review", "คุยฟรีก่อน", "ไม่เป็นไร"] }
   - postback: GEO_NOTE
-    expect: { replies: 1, sender: lay, text_contains: ["จดไว้แล้วครับ", "เราจะแจ้งในแชทนี้"] }
+    expect: { replies: 1, sender: lay, text_contains: ["ช่องทางไหนบ้าง", "Google Maps"] }
   - user: "แล้วทำ SEO ด้วยได้ไหม"
-    expect: { replies: 1, sender: lay, text_contains: ["ยังไม่ได้เปิดเป็นบริการ"], quick_replies: ["จดไว้ให้หน่อย", "นัดคุยกับมอส", "ไม่เป็นไร"] }
+    expect: { replies: 1, sender: lay, text_contains: ["Review"], quick_replies: ["สนใจ Review", "คุยฟรีก่อน", "ไม่เป็นไร"] }
   - postback: GEO_SKIP
     expect: { replies: 1, sender: lay, text_contains: ["รับทราบครับ"] }
   - user: "ยิงแอดเฟซบุ๊กให้ได้ไหม"
