@@ -3,7 +3,7 @@
 // the turn needs is on the returned object; everything that goes wrong is a thrown error with a `kind` so core/turn
 // can pick the fallback and log one event.
 //
-//   createModel({ task = 'lay.reply', keys?, keyring?, tracker?, log?, client?, model?, maxTokens?, temperature?, timeoutMs? })
+//   createModel({ task = 'lay.reply', keys?, keyring?, tracker?, health?, log?, client?, model?, maxTokens?, temperature?, timeoutMs? })
 //     → { respond({ system, messages, schema, meta }) → Promise<response>, config, keyring }
 //
 //   respond: one call with response_format json_schema when the task is structured (strict when the schema allows it —
@@ -147,6 +147,7 @@ function createModel(opts = {}) {
   };
   const log = opts.log || null;
   const tracker = opts.tracker || null;
+  const health = opts.health || null;   // /health model status (Issue #5)
 
   let keyring = opts.keyring || null;
   if (!keyring) {
@@ -187,10 +188,12 @@ function createModel(opts = {}) {
       if (config.structured && schema) body.response_format = { type: 'json_schema', json_schema: providerSchema(schema, log) };
       completion = await clientFor(key).chat.completions.create(body, { timeout: config.timeoutMs });
     } catch (err) {
+      if (health) { try { health.error(err); } catch { /* never */ } }
       const e = err instanceof ModelError ? err : classifyProviderError(err);
       track({ ...base, prompt_tokens: 0, completion_tokens: 0, cached_tokens: 0, total_tokens: 0, cost_usd: 0, latency_ms: Date.now() - started, outcome: e.kind === 'exhausted' ? 'exhausted' : 'error', error: e.message.slice(0, 300), request_id: null });
       throw e;
     }
+    if (health) { try { health.ok(); } catch { /* never */ } }   // the key and the provider answered
     const latencyMs = Date.now() - started;
     const u = completion && completion.usage;
     const tokens = { prompt_tokens: (u && u.prompt_tokens) || 0, completion_tokens: (u && u.completion_tokens) || 0, cached_tokens: (u && u.prompt_tokens_details && u.prompt_tokens_details.cached_tokens) || 0, total_tokens: (u && u.total_tokens) || 0, cost_usd: (u && Number.isFinite(u.cost)) ? u.cost : 0 };

@@ -10,6 +10,7 @@ const { createModel } = require('./brain/respond');
 const { createKeyring } = require('./brain/keys');
 const { createBudget, createTracker, keyStatusLine } = require('./brain/budget');
 const { loadPack } = require('./brain/kb');
+const { createLlmHealth } = require('./brain/health');
 const { createDeps, consoleLog } = require('./core/deps');
 const { createEventHandler, runTurn } = require('./core/turn');
 const { createSenders } = require('./identity/sender');
@@ -32,8 +33,10 @@ function createApp({ overrides = {} } = {}) {
         keys: config.llm.openrouterKeys, log,
         onRecovered: (st) => alerts?.recovered?.({ kind: 'llm_exhausted', detail: { usable: st.usable, total: st.total } }).catch?.(() => {}),
     });
+    // model-call status on /health (Issue #5): an outside monitor sees a rejected or spent key
+    const llmHealth = overrides.llmHealth || createLlmHealth({ keys: () => keyring?.size || 0 });
     const budget = overrides.budget || createBudget({ keyring, log, onWarn: (w) => alerts?.warn?.(w),
-        onKeyRejected: (d) => alerts?.critical?.({ kind: 'llm_key_rejected', detail: { ...d, action: 'OpenRouter rejected the key (401). Create a new key, set OPENROUTER_API_KEY on Railway, redeploy.' } })?.catch?.(() => {}) });
+        onKeyRejected: (d) => { llmHealth.error({ status: 401, message: 'key rejected' }); return alerts?.critical?.({ kind: 'llm_key_rejected', detail: { ...d, action: 'OpenRouter rejected the key (401). Create a new key, set OPENROUTER_API_KEY on Railway, redeploy.' } })?.catch?.(() => {}); } });
     if (!alerts) {
         const alertsMod = optional('./discord/alerts');
         if (alertsMod?.createAlerts) {
@@ -41,7 +44,7 @@ function createApp({ overrides = {} } = {}) {
         }
     }
     const tracker = overrides.tracker || createTracker({ store, budget, log });
-    const model = overrides.model || createModel({ task: 'lay.reply', keyring, tracker, log });
+    const model = overrides.model || createModel({ task: 'lay.reply', keyring, tracker, health: llmHealth, log });
 
     // Notifier: Discord module when merged, else the legacy webhook poster adapted to the interface.
     let notifier = overrides.notifier;
@@ -68,7 +71,7 @@ function createApp({ overrides = {} } = {}) {
     const handleEvent = createEventHandler(deps);
 
     const app = express();
-    app.get('/health', (_, res) => res.json({ status: 'ok', version: require('../package.json').version, pack: pack.manifest?.built_at || null }));
+    app.get('/health', (_, res) => res.json({ status: 'ok', version: require('../package.json').version, pack: pack.manifest?.built_at || null, llm: llmHealth.snapshot() }));
     app.use('/assets', express.static(path.join(__dirname, '..', 'public', 'assets'), { maxAge: '1d' }));
     app.use('/richmenu', express.static(path.join(__dirname, '..', 'public', 'richmenu'), { maxAge: '1d' }));
 
