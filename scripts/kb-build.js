@@ -379,7 +379,10 @@ function checkExamples(text) {
   }
   return body.trim();
 }
-const examplesBody = checkExamples(examplesText);
+// The demo-shops card has one line for both shops; the model copied it onto both items of a two-shop list (real-model
+// run 23 Oct, skincare). One line per shop, until the source cards file is fixed (Head GTM ruling R4, 23 Oct).
+const DEMO_SHOP_LINES = 'cafe_line: ลองสั่งกาแฟกับร้านกาแฟตัวอย่าง\nclinic_line: ลองจองคิวกับคลินิกตัวอย่าง';
+const examplesBody = checkExamples(examplesText).replace(/(### examples\.carousel\.demo-shops\n(?:[^\n]*\n)*?line: [^\n]*)/u, `$1\n${DEMO_SHOP_LINES}`);
 
 // ---------------------------------------------------------------------------------------------
 // Writers

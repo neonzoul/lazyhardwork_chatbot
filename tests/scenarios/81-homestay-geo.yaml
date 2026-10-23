@@ -20,7 +20,7 @@ steps:
     expect: { replies_min: 1, sender: lay, banned_clean: true, text_not_contains: ["ระบบงานภายใน", "รับทำให้ครบ"] }
   - user: "จ่ายแล้วรับประกันได้ไหมว่าจะถูกแนะนำ ภายในสามเดือน?"
     model: { messages: [{ type: text, text: "รับประกันไม่ได้ครับ การที่ AI จะแนะนำใครขึ้นกับระบบของ AI เอง", explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: [capability], kb_refs: [], intent: faq }
-    expect: { replies_min: 1, sender: lay, banned_clean: true, text_not_contains: ["รับประกันได้", "ภายในสามเดือนแน่", "การันตี"] }
+    expect: { replies_min: 1, sender: lay, banned_clean: true, text_contains: ["ไม่มีใครรับประกันได้ว่า AI จะแนะนำร้านไหน", "ไม่ใช่คำสัญญา"], text_not_contains: ["รับทราบครับ", "ภายในสามเดือนแน่", "การันตี"] }
   - user: "Business Review 4,900 จะได้อะไรที่เกี่ยวกับเรื่องนี้ครับ?"
     model: { messages: [{ type: text, text: "AI Business Review ดูงานภายในของธุรกิจครับ ไม่ได้ครอบเรื่องให้ AI แนะนำที่พัก", explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: [pricing], kb_refs: ["offer.C1"], intent: faq }
     expect: { replies_min: 1, sender: lay, banned_clean: true, text_not_contains: ["รับประกัน"] }

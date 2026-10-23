@@ -59,7 +59,7 @@ function clone(x) { return JSON.parse(JSON.stringify(x)); }
 // --- voice repairs found in the first-tester replay (2026-10-18) — mechanical, so they never cost a regenerate ---
 // A trailing "if you have anything else, just tell me" sentence is the v2 cousin of v1's "ยินดีช่วยเสมอ".
 const CLOSER_RE = /\s*(?:ถ้า|หาก)\s*(?:พี่|คุณ)?\s*(?:มี|ต้องการ|สนใจ|อยาก)[^\n]{0,110}?(?:บอก|ถาม|สอบถาม|ทัก|แจ้ง)(?:มา)?\s*ได้(?:เลย|ตลอด|เสมอ)?\s*(?:นะ)?\s*(?:ครับ|คะ|ค่ะ)?\s*[!.]?\s*$/u;
-const CLOSER_2_RE = /\s*(?:ผมอยู่ที่นี่เพื่อช่วย[^\n]{0,20}|ยินดีช่วย[^\n]{0,20}|ถามมาเถอะ[^\n]{0,60}|(?:พี่)?อยากรู้อะไร[^\n]{0,20}(?:ถาม|บอก)(?:มา)?\s*ได้(?:เลย)?(?:นะ)?(?:ครับ)?|มีอะไรให้ช่วย(?:อีก|เพิ่มเติม)ไหม(?:ครับ)?|(?:พี่)?อยากให้ผมช่วยอะไร(?:เพิ่มเติม|อีก)?ไหม(?:ครับ)?)\s*[!.?]?\s*$/u;
+const CLOSER_2_RE = /\s*(?:ผมอยู่ที่นี่เพื่อช่วย[^\n]{0,20}|ยินดีช่วย[^\n]{0,20}|ถามมาเถอะ[^\n]{0,60}|(?:พี่)?อยากรู้อะไร[^\n]{0,20}(?:ถาม|บอก)(?:มา)?\s*ได้(?:เลย)?(?:นะ)?(?:ครับ)?|มีอะไรให้ช่วย(?:อีก|เพิ่มเติม)ไหม(?:ครับ)?|(?:ตอนนี้)?(?:มี|ยังมี)คำถาม(?:เพิ่มเติม)?(?:อะไร)?(?:อีก)?(?:ไหม|มั้ย|หรือเปล่า)(?:ครับ)?|(?:พี่)?อยากให้ผมช่วยอะไร(?:เพิ่มเติม|อีก)?ไหม(?:ครับ)?)\s*[!.?]?\s*$/u;
 function stripClosers(t) {
   let out = t;
   for (let i = 0; i < 2; i++) { const n = out.replace(CLOSER_RE, '').replace(CLOSER_2_RE, ''); if (n === out) break; out = n; }
@@ -68,7 +68,7 @@ function stripClosers(t) {
 }
 // Naming rule (head correction 19 Oct 15:20): studio work is "เรา", Lay itself is "ผม", "มอส" only at human steps
 // (the 30-min call, firm quote / budget, handoff, Mos replying). "ผม" or "มอส" doing studio work becomes "เรา".
-const MOS_AS_ME_RE = /(งานที่|ลูกค้าของ|ผลงานของ|โปรไฟล์(?:\s*Fastwork)?\s*ของ)ผม|ผม(?=\s*(?:จะ\s*)?(?:ตั้งค่า|ติดตั้ง|สร้างระบบ|สร้างบอท|สร้างคลัง|ออกแบบ|วางระบบ|ทำระบบ|ดูแลระบบ|รับทำ|ทำบ่อย|ทำให้ลูกค้า))/gu;
+const MOS_AS_ME_RE = /(งานที่|ลูกค้าของ|ผลงานของ|โปรไฟล์(?:\s*Fastwork)?\s*ของ|ต่อหน้า)ผม|ผม(?=\s*(?:จะ\s*)?(?:ตั้งค่า|ติดตั้ง|สร้างระบบ|สร้างบอท|สร้างคลัง|ออกแบบ|วางระบบ|ทำระบบ|ดูแลระบบ|รับทำ|ทำบ่อย|ทำให้ลูกค้า))/gu;
 const MOS_STUDIO_RE = /(งานที่|ลูกค้าของ|ผลงานของ|โปรไฟล์(?:\s*Fastwork)?\s*ของ|ระบบ(?:งาน)?ที่)มอส|มอส(?=\s*(?:จะ\s*)?(?:สามารถ\s*)?(?:ช่วย(?:ธุรกิจ|ทำ|สร้าง|ได้)|สร้าง|ทดสอบ|ออกแบบ|ติดตั้ง|ตั้งค่า|ดูแลระบบ|ส่งมอบ|สรุปปริมาณ|แก้และเพิ่ม|เลือก|ไม่ส่ง|ไม่ลด|ทำบ่อย|ทำให้|ทำระบบ|ใช้ทุกวัน|รับทำ))/gu;
 // a message that is about a human step keeps "มอส"; studio work elsewhere becomes "เรา"
 const HUMAN_STEP_RE = /(?<!ถ)นัด|โทร|คุยกับมอส|คุยเอง|ราคาเป๊ะ|ราคาจริง|ใบเสนอราคา|งบ(?:ประมาณ|มี|เท่า|แค่|จำกัด|ไม่|ของ|\s|$)|ส่งเรื่อง|ส่งต่อ|ส่งให้มอส|มอสตอบ|มอสดูให้|ยืนยัน/u;
@@ -278,8 +278,24 @@ function applyPolicy(input, { session = {}, pack = null, allow, userText } = {})
     try { named = !!(userText && require('../flows/fit').symptomFromText(userText)); } catch { /* absent */ }
     const confirmed = !!(session && session.draft && session.draft.confirmed) || named;
     const SCREEN_RE = /กี่คน|อยู่ในเครื่องมือ(?:อะไร|ไหน)|เก็บไว้ที่ไหน|ใคร(?:เป็นคน)?ดูแล(?:ระบบ)?(?:ได้)?ไหม|ใครดูแลต่อ/u;
+    // removed in place, never blocked: two blocked rounds ended in "รับทราบครับ" for a customer who had named the
+    // problem in their own words (real-model run 23 Oct, bakery). Only when nothing else is left is it regenerated.
     if (!confirmed && bubbleTexts.some((t) => SCREEN_RE.test(t))) {
-      violate('screening_before_symptom', 'regenerate', 'screening questions (how many people / where the data lives / who maintains) come only after the customer named a problem we solve; ask which work takes the most time instead');
+      const dropScreening = (t) => t.split('\n').map((line) => (SCREEN_RE.test(line)
+        ? line.split(/(?<=(?:ครับ|ค่ะ|คะ|[?？]))\s+/u).filter((c) => !SCREEN_RE.test(c)).join(' ')
+        : line)).filter((line) => line.trim()).join('\n').trim();
+      const kept = [];
+      (r.messages || []).forEach((m) => {
+        if (!m || m.type !== 'text' || typeof m.text !== 'string' || !SCREEN_RE.test(m.text)) { kept.push(m); return; }
+        const n = dropScreening(m.text);
+        if (n) kept.push({ ...m, text: n });
+      });
+      if (kept.some((m) => m && m.type === 'text')) {
+        r.messages = kept;
+        fixed.push('screening question before a named problem removed');
+      } else {
+        violate('screening_before_symptom', 'regenerate', 'screening questions (how many people / where the data lives / who maintains) come only after the customer named a problem we solve; ask which work takes the most time instead');
+      }
     }
   }
   // --- symptom before card (head correction 19 Oct): no "ตรงกับงานที่เราทำ" until the customer named the problem ---

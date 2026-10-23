@@ -223,6 +223,17 @@ async function runTurn(input, deps, opts = {}) {
         // DIY line, offer to note the interest. Checked before the marketing refusal; never not_fit.
         if (input.kind === 'text' && GEO_INTEREST_RE.test(text)) return await geoInterestTurn();
         if (input.kind === 'text' && (text.trim() === GEO_NOTE_LABEL || text.trim() === GEO_SKIP_LABEL) && s.geo_asked) return await geoNoteTurn(text.trim() === GEO_NOTE_LABEL);
+        // a guarantee question gets a fixed honest line (Head GTM ruling R1, 23 Oct): the model's answer kept tripping the
+        // banned-guarantee rule and ended in "รับทราบครับ"
+        if (input.kind === 'text' && GUARANTEE_ASK_RE.test(text)) {
+            const aboutBeingFound = s.geo_asked || GEO_INTEREST_RE.test(text) || /แนะนำ|ค้นเจอ|ติดอันดับ|ChatGPT|Google/iu.test(text);
+            return await plainTurn([aboutBeingFound ? GUARANTEE_GEO : GUARANTEE_GENERAL], { intent: 'capability', topics: ['capability'], lead: false });
+        }
+        // "ขอลองเป็นลูกค้าร้านตัวอย่าง" typed: the shop picker by code (the model wrote a two-item list with one line twice)
+        if (input.kind === 'text' && DEMO_TRY_RE.test(text) && s.mode !== 'demo') {
+            const demo = flows.demo || lazy('../flows/demo');
+            if (demo?.onDemoPostback) return await demo.onDemoPostback({ data: 'DEMO_PICK', input, session: s, deps, config, send, persist, done, senders });
+        }
         if (input.kind === 'text' && MARKETING_RE.test(text) && !IN_SCOPE_HINT_RE.test(text)) return await marketingTurn();
         // ...and while they have not started, telling us about the team or plans gets the same short line (the model kept
         // praising and asking screening questions, replay 20 Oct); a named problem or one of the main questions still goes on
@@ -510,7 +521,8 @@ async function runTurn(input, deps, opts = {}) {
             // (brief §2 row "อยากได้คนขาย"; replay 18 Oct on gpt-4.1-mini silenced Lay for the rest of the chat).
             // Allowed: special price / discount / firm quote, and help applying for a subsidy (brief §5.7).
             const HELP_APPLY_RE = /ช่วย\s*(?:ยื่น|สมัคร|ทำเรื่อง|กรอก)|ยื่นขอ|ทำเรื่องขอ/u;
-            if (response && response.action === 'handoff_scope' && !['special_price', 'benefits'].includes(response.intent) && !handoff.isSpecialPrice(userText) && !HELP_APPLY_RE.test(userText || '') && !handoff.isAskHuman(userText)) {
+            // A stated budget is not a handoff (Head GTM ruling 23 Oct, flower shop): only the customer's own words count.
+            if (response && response.action === 'handoff_scope' && response.intent !== 'benefits' && !handoff.isSpecialPrice(userText) && !HELP_APPLY_RE.test(userText || '') && !handoff.isAskHuman(userText)) {
                 d.log.info('model.handoff_ignored', { intent: response.intent, action: 'handoff_scope' });
                 response = { ...response, action: null };
             }
@@ -684,15 +696,19 @@ const GEO_INTEREST_RE = /(?:ChatGPT|แชทจีพีที|Gemini|เจม
 const GEO_LINES = [
     'เรื่องทำให้ร้านถูกค้นเจอหรือถูกแนะนำ ทั้งบน Google และใน AI อย่าง ChatGPT ตอนนี้ LazyHardWork ยังไม่ได้เปิดเป็นบริการครับ กำลังเตรียมอยู่ และทดลองกับเว็บของเราเองก่อน',
     'ระหว่างนี้ทำเองได้ครับ เขียนหน้าเว็บหรือโปรไฟล์ร้านให้ตอบคำถามที่ลูกค้ามักถามให้ชัด เช่น อยู่ที่ไหน ขายอะไร ราคาประมาณเท่าไหร่ เปิดกี่โมง เพราะ AI มักหยิบข้อมูลที่เขียนชัดและตรงคำถามไปใช้',
-    'ถ้าอยากให้แจ้งตอนเปิดบริการนี้ ผมจดไว้ให้ได้ครับ',
+    'ถ้าอยากคุยก่อน นัดคุยฟรี 30 นาทีได้ เราจะบอกตรงๆ ว่าส่วนไหนทำเองได้ หรือถ้าอยากให้แจ้งตอนเปิดบริการนี้ ผมจดไว้ให้ได้ครับ',
 ];
+const GUARANTEE_ASK_RE = /รับประกัน|การันตี|guarantee|รับรองผล|(?:รับรอง|สัญญา)(?:ได้)?(?:ไหม|มั้ย)?ว่า/iu;
+const GUARANTEE_GEO = 'ไม่มีใครรับประกันได้ว่า AI จะแนะนำร้านไหนครับ รวมถึงเราด้วย ที่ทำได้คือทำให้ข้อมูลร้านชัด ตรงกันทุกที่ และตอบคำถามที่ลูกค้าถามจริง ซึ่งเพิ่มโอกาส แต่ไม่ใช่คำสัญญา';
+const GUARANTEE_GENERAL = 'เราไม่รับประกันผลลัพธ์เป็นตัวเลขครับ สิ่งที่รับประกันได้คือขอบเขตงานที่ตกลงกัน และแก้จนใช้ได้ตามที่ตกลง';
+const DEMO_TRY_RE = /^\s*(?:ขอ)?ลอง(?:เป็น)?ลูกค้า(?:ของ)?ร้านตัวอย่าง|^\s*(?:ขอ)?ลอง(?:คุยกับ)?(?:บอท)?ร้านตัวอย่าง/u;
 const GEO_AGAIN = 'เรื่องให้ AI แนะนำร้าน ยังไม่ได้เปิดเป็นบริการครับ ถ้าอยากให้แจ้งตอนเปิด กดจดไว้ได้เลย';
 const GEO_NOTED = 'จดไว้แล้วครับ มีข่าวเรื่องบริการนี้เมื่อไหร่ เราจะแจ้งในแชทนี้ครับ';
 const GEO_NOTE_LABEL = 'จดไว้ให้หน่อย';
 const GEO_SKIP_LABEL = 'ไม่เป็นไร';
 const GEO_NOTE_PB = 'GEO_NOTE';
 const GEO_SKIP_PB = 'GEO_SKIP';
-const GEO_QUICK = [{ label: GEO_NOTE_LABEL, data: GEO_NOTE_PB }, { label: GEO_SKIP_LABEL, data: GEO_SKIP_PB }];
+const GEO_QUICK = [{ label: GEO_NOTE_LABEL, data: GEO_NOTE_PB }, 'นัดคุยกับมอส', { label: GEO_SKIP_LABEL, data: GEO_SKIP_PB }];
 const TOO_EARLY_RE = /กำลังจะ(?:เริ่ม|เปิด)|ยังไม่(?:ได้)?(?:เริ่ม|เปิด)|เพิ่งคิด(?:จะ)?|วางแผน(?:จะ)?(?:เปิด|เริ่ม)|ยังไม่มีลูกค้า|ยังไม่ได้ขาย|pre-?launch/iu;
 const TOO_EARLY_LINES = [
     'ช่วงที่ยังไม่ได้เริ่มขาย ยังไม่ต้องใช้ระบบหรือจ้างเราครับ ตั้งใจกับสินค้าและลูกค้ากลุ่มแรกก่อนคุ้มกว่า',

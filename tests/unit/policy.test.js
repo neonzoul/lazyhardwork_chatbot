@@ -199,7 +199,8 @@ test('18 Oct: a closing question similar to the last one Lay asked is dropped; a
   const t = (x) => ({ type: 'text', text: x, explain: false, template: null, alt: null, data: null });
   const mk = (q) => ({ messages: [t('แชทบอทตอบลูกค้า 24 ชม. ครับ'), t(q)], quick_replies: [], topics: [], kb_refs: [], intent: 'capability', lead_updates: {}, action: null });
   const said = (r) => r.response.messages.map((m) => m.text).join('\n'); // two short bubbles are merged into one (19 Oct)
-  const session = { last_lay_question: 'ตอนนี้พี่สนใจบริการไหนเป็นพิเศษครับ' };
+  // a confirmed symptom: the screening question below is allowed, so only the repeat rule is under test
+  const session = { last_lay_question: 'ตอนนี้พี่สนใจบริการไหนเป็นพิเศษครับ', draft: { confirmed: 'chat_overload' } };
   assert.doesNotMatch(said(applyPolicy(mk('ตอนนี้พี่สนใจบริการไหนอยู่ครับ จะได้เล่าให้ตรงจุด'), { session })), /สนใจบริการไหน/);
   assert.match(said(applyPolicy(mk('ตอนนี้ร้านพี่มีคนตอบแชทกี่คนครับ'), { session })), /มีคนตอบแชทกี่คน/);
 });
