@@ -169,3 +169,11 @@ test('round 2 / 82: "use LINE free auto-reply first" counts as not worth it — 
   assert.doesNotMatch(s2, /ถูกค้นเจอ/);
   assert.deepEqual(s.response.quick_replies, ['ไม่เป็นไร']);
 });
+
+test('round 2 / 82: "ถ้ายังไม่จ้าง…" (do-it-yourself ask) gets no code-added offer card', () => {
+  const endings = require('../../src/flows/endings');
+  const response = mkR(['ถ้ายังไม่จ้าง เริ่มจากข้อความตอบอัตโนมัติของ LINE ได้ครับ'], [], 'howtostart');
+  const session = { draft: { card: 'A2', confirmed: 'chat_overload' }, homework: { business: 'ร้านดอกไม้' }, topics_covered: [] };
+  assert.equal(endings.decorateResponse({ response, session, deps: {} }), false);
+  assert.equal(response.messages.filter((m) => m.type === 'card').length, 0);
+});
