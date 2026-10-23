@@ -137,7 +137,7 @@ test('GEO regex does not catch our own services ("AI รู้จักงาน
 
 test('a GEO ask the regex misses: the model offers "สนใจ Review" and the tap records interest=geo (Head GTM 22 Oct, D-39)', async () => {
   const w = world();
-  w.model.push(text('เรื่องนี้ LazyHardWork ยังไม่ได้เปิดเป็นบริการครับ กำลังเตรียมอยู่ และทดลองกับเว็บของเราเองก่อน ถ้าอยากให้แจ้งตอนเปิด ผมจดไว้ให้ได้ครับ', { intent: 'out_of_scope', quick_replies: ['สนใจ Review', 'คุยฟรีก่อน', 'ไม่เป็นไร'] }));
+  w.model.push(text('เรื่องให้ร้านถูกค้นเจอใน AI ทาง AI Business Review ตรวจให้ได้ครับ ไม่มีใครรับประกันได้ และเราไม่รับทำเว็บเป็นบริการ', { intent: 'out_of_scope', quick_replies: ['สนใจ Review', 'คุยฟรีก่อน', 'ไม่เป็นไร'] }));
   await runTurn(w.input({ text: 'อยากให้ ChatGPT รู้จักร้านเรา' }), w.deps);
   assert.equal(w.model.calls.length, 1);
   await runTurn(w.input({ text: 'สนใจ Review' }), w.deps);

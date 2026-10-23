@@ -90,3 +90,11 @@ test('R2: "not worth hiring us yet" drops a package card in the same reply', () 
   const p = policy.applyPolicy(r, { session: {}, userText: 'วันธรรมดาคนทักประมาณห้าคน' });
   assert.equal(p.response.messages.filter((m) => m.type === 'card').length, 0);
 });
+
+test('D-39: the GEO buttons are dropped for a lead who did not ask about being found', () => {
+  const mk = (x) => ({ messages: [{ type: 'text', text: x, explain: false, template: null, alt: null, data: null }], quick_replies: ['สนใจ Review', 'คุยฟรีก่อน', 'ไม่เป็นไร'], topics: [], kb_refs: [], intent: 'fit', lead_updates: {}, action: null });
+  const shop = policy.applyPolicy(mk('เมื่อแชทเริ่มล้น ค่อยกลับมาคุยเรื่องบอทได้ครับ'), { session: {} });
+  assert.deepEqual(shop.response.quick_replies, ['ไม่เป็นไร']);
+  const geo = policy.applyPolicy(mk('เรื่องให้ร้านถูกค้นเจอ Review ตรวจให้ได้ครับ'), { session: {} });
+  assert.equal(geo.response.quick_replies.length, 3);
+});

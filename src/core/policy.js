@@ -200,6 +200,15 @@ function applyPolicy(input, { session = {}, pack = null, allow, userText } = {})
     if (kept.length > QUICK_REPLY_MAX) { fixed.push(`quick_replies: list cut from ${kept.length} to ${QUICK_REPLY_MAX}`); kept.length = QUICK_REPLY_MAX; }
     r.quick_replies = kept;
   } else { r.quick_replies = []; fixed.push('quick_replies: reset to []'); }
+  // the GEO buttons belong to a findability ask only (real-model run 23 Oct: the flower shop got "สนใจ Review")
+  {
+    const GEO_BUTTONS = new Set(['สนใจ Review', 'คุยฟรีก่อน']);
+    const aboutFindability = (r.messages || []).some((m) => m && m.type === 'text' && /ถูกค้นเจอ|ค้นเจอ|แนะนำร้าน|ถูกแนะนำ|ChatGPT|Google/iu.test(m.text || ''));
+    if (!(session && session.geo_asked) && !aboutFindability && r.quick_replies.some((q) => GEO_BUTTONS.has(q))) {
+      r.quick_replies = r.quick_replies.filter((q) => !GEO_BUTTONS.has(q));
+      fixed.push('quick_replies: GEO buttons dropped for a lead who did not ask about being found');
+    }
+  }
 
   // --- kb_refs: drop ids the pack does not know (hallucination tripwire) ---
   const entries = sectionEntries(pack);
