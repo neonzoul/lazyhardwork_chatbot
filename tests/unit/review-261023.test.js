@@ -187,3 +187,19 @@ test('round 2 / 82: "wait until chats grow" also counts — the 15,000 sentence 
   assert.match(said, /รอให้แชทเข้ามากกว่านี้ก่อน/);
   assert.equal(p.response.messages.filter((m) => m.type === 'card').length, 0);
 });
+
+test('#demo-a2-shop with a named shop (website #23 texts) enters that shop directly; no shop named → the picker', async () => {
+  for (const [t, key] of [['ขอดูตัวอย่าง ร้านกาแฟ #demo-a2-shop', 'cafe'], ['ขอดูตัวอย่าง คลินิก #demo-a2-shop', 'clinic']]) {
+    const w = world();
+    await runTurn(w.input({ text: t }), w.deps);
+    const s = await w.store.sessions.get('U1');
+    assert.equal(s.mode, 'demo', t);
+    assert.equal(s.demo_shop, key, t);
+    assert.equal(s.lead_source, 'web-demo-a2-shop');
+    assert.equal(w.model.calls.length, 0);
+  }
+  const w = world();
+  await runTurn(w.input({ text: 'มาจากเว็บ ลองบอทร้านตัวอย่าง #demo-a2-shop' }), w.deps);
+  assert.notEqual((await w.store.sessions.get('U1')).mode, 'demo');
+  assert.match(JSON.stringify(w.line.sent), /ร้านกาแฟตัวอย่าง/);
+});

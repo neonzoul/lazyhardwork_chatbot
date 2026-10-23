@@ -103,9 +103,10 @@ async function runTurn(input, deps, opts = {}) {
         s.last_customer_at = now.toISOString();
         if (text) s.last_customer_text = text;
         await deps.store.messages.append({ user_id: s.user_id, role: 'customer', kind: input.kind, text: text || data, created_at: now.toISOString(), payload: input.kind === 'postback' ? { data } : null });
-        // the sample-shop CTA goes straight to the shop picker
+        // the sample-shop CTA: a text that names the shop ("ขอดูตัวอย่าง ร้านกาแฟ") enters that shop; otherwise the picker
         if (demoTag === 'a2-shop' && s.mode !== 'demo') {
             const demo = deps.flows?.demo || lazy('../flows/demo');
+            if (demo?.onModelAction && demo.shopFromText?.(text)) return await demo.onModelAction({ action: 'demo_enter', response: null, input, session: s, deps, config, send, persist, done, senders });
             if (demo?.onDemoPostback) return await demo.onDemoPostback({ data: 'DEMO_PICK', input, session: s, deps, config, send, persist, done, senders });
         }
 
