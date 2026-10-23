@@ -55,6 +55,15 @@ async function runTurn(input, deps, opts = {}) {
         const shops = deps.pack?.demoShops || {};
         sender = senders.forSession(s, shops);
 
+        // 0. a website CTA prefills "#demo-<id>" (Head GTM 23 Oct, Issue #2): the first message names the page the lead came
+        // from (lead.source web-demo-<id>); the token never reaches the model, the opening check or the transcript
+        let demoTag = null;
+        if (input.kind === 'text' && !s.last_customer_at && DEMO_TAG_RE.test(input.text || '')) {
+            demoTag = String(input.text).match(DEMO_TAG_RE)[1].toLowerCase();
+            s.lead_source = `web-demo-${demoTag}`;
+            input = { ...input, text: String(input.text).replace(DEMO_TAG_RE, ' ').replace(/[ \t]{2,}/gu, ' ').trim() || 'สวัสดีครับ' };
+        }
+
         // 1. lazy quiet-window expiry
         const resumed = quiet.resumeIfIdle(s, now, { windowMinutes: config.quiet.windowMinutes });
 
@@ -94,6 +103,11 @@ async function runTurn(input, deps, opts = {}) {
         s.last_customer_at = now.toISOString();
         if (text) s.last_customer_text = text;
         await deps.store.messages.append({ user_id: s.user_id, role: 'customer', kind: input.kind, text: text || data, created_at: now.toISOString(), payload: input.kind === 'postback' ? { data } : null });
+        // the sample-shop CTA goes straight to the shop picker
+        if (demoTag === 'a2-shop' && s.mode !== 'demo') {
+            const demo = deps.flows?.demo || lazy('../flows/demo');
+            if (demo?.onDemoPostback) return await demo.onDemoPostback({ data: 'DEMO_PICK', input, session: s, deps, config, send, persist, done, senders });
+        }
 
         // 4a. Human Mode (Mos took the chat): Lay never answers; every customer message goes to the lead thread. Only Mos
         // releases it (▶️Lay / /lay / @บอท resume), so the customer's own "เรียก Lay" is relayed too.
@@ -707,6 +721,8 @@ const GEO_LINES = [
     'ระหว่างนี้ทำเองได้ครับ เขียนหน้าเว็บหรือโปรไฟล์ร้านให้ตอบคำถามที่ลูกค้ามักถามให้ชัด เช่น อยู่ที่ไหน ขายอะไร ราคาประมาณเท่าไหร่ เปิดกี่โมง เพราะ AI มักหยิบข้อมูลที่เขียนชัดและตรงคำถามไปใช้',
     'ไม่มีใครรับประกันได้ว่า AI จะแนะนำร้านไหนนะครับ เราก็ไม่รับประกัน และเราไม่รับทำเว็บเป็นบริการ ถ้าสนใจ Review ทักต่อได้เลย หรือคุยฟรี 30 นาทีก่อนก็ได้ครับ',
 ];
+// website CTA tokens (Head GTM 23 Oct): a4 · c1 · a2 · a2-shop · a1 · a3
+const DEMO_TAG_RE = /#demo-(a2-shop|a[1-4]|c1)(?![\w-])/iu;
 const GUARANTEE_ASK_RE = /รับประกัน|การันตี|guarantee|รับรองผล|(?:รับรอง|สัญญา)(?:ได้)?(?:ไหม|มั้ย)?ว่า/iu;
 const GUARANTEE_GEO = 'ไม่มีใครรับประกันได้ว่า AI จะแนะนำร้านไหนครับ รวมถึงเราด้วย ที่ทำได้คือทำให้ข้อมูลร้านชัด ตรงกันทุกที่ และตอบคำถามที่ลูกค้าถามจริง ซึ่งเพิ่มโอกาส แต่ไม่ใช่คำสัญญา';
 const GUARANTEE_GENERAL = 'เราไม่รับประกันผลลัพธ์เป็นตัวเลขครับ สิ่งที่รับประกันได้คือขอบเขตงานที่ตกลงกัน และแก้จนใช้ได้ตามที่ตกลง';

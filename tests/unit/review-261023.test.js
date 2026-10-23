@@ -98,3 +98,31 @@ test('D-39: the GEO buttons are dropped for a lead who did not ask about being f
   const geo = policy.applyPolicy(mk('เรื่องให้ร้านถูกค้นเจอ Review ตรวจให้ได้ครับ'), { session: {} });
   assert.equal(geo.response.quick_replies.length, 3);
 });
+
+test('#demo-<id> on the first message: lead.source web-demo-<id>, the token is stripped before the model (Issue #2)', async () => {
+  const w = world();
+  w.model.push(text('ได้ครับ งาน AI Workspace ช่วยให้ AI อ่านไฟล์จริงของคุณครับ', { intent: 'capability' }));
+  await runTurn(w.input({ text: 'สนใจตั้งค่า AI Workspace ครับ #demo-a4' }), w.deps);
+  const req = JSON.stringify(w.model.calls[0] || {});
+  assert.doesNotMatch(req, /#demo-a4/);
+  const msgs = await w.store.messages.recent('U1', 20);
+  assert.ok(msgs.length > 0);
+  assert.ok(!JSON.stringify(msgs).includes('#demo-'));
+  const s = await w.store.sessions.get('U1');
+  assert.equal(s.lead_source, 'web-demo-a4');
+  const row = intake.buildLeadRow({ session: s, now: new Date() });
+  assert.equal(row.source, 'web-demo-a4');
+});
+
+test('#demo-a2-shop opens the sample-shop picker by code; a token after the first message is ignored', async () => {
+  const w = world();
+  await runTurn(w.input({ text: 'อยากลองบอทร้านตัวอย่าง #demo-a2-shop' }), w.deps);
+  assert.equal(w.model.calls.length, 0);
+  assert.match(JSON.stringify(w.line.sent), /ร้านกาแฟตัวอย่าง/);
+  assert.equal((await w.store.sessions.get('U1')).lead_source, 'web-demo-a2-shop');
+  const v = world();
+  v.model.push(text('ได้ครับ'), text('ได้ครับ'));
+  await runTurn(v.input({ text: 'แชทเข้าเยอะตอบไม่ทัน' }), v.deps);
+  await runTurn(v.input({ text: 'ดูเพิ่ม #demo-c1' }), v.deps);
+  assert.equal((await v.store.sessions.get('U1')).lead_source, undefined);
+});

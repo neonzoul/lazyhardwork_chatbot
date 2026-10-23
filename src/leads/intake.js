@@ -43,7 +43,7 @@ function buildLeadRow({ session, existing = null, now, status = null }) {
     homework,
     customer_words_th: words,
     wave_group: waveGroup({ homework }) || existing?.wave_group || null,
-    source: existing?.source || 'line_oa',
+    source: existing?.source || session.lead_source || 'line_oa',
     display_name: session.display_name || existing?.display_name || null,
     created_at: existing?.created_at || at,
     updated_at: at,
