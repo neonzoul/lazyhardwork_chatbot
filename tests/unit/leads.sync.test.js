@@ -171,8 +171,9 @@ function assertSynced(v, before) {
   assert.ok(leadsText.includes('# new | contacted | qualifying | interested | converted | lost'));
 
   // index.yaml: only the last_updated line moved
-  const idxBefore = before.indexText.split('\n');
-  const idxAfter = v.read('index').split('\n');
+  // the real index may use CRLF line endings (Windows checkout): compare lines without the \r
+  const idxBefore = before.indexText.split(/\r?\n/);
+  const idxAfter = v.read('index').split(/\r?\n/);
   assert.equal(idxAfter.length, idxBefore.length);
   const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
   const diff = idxAfter.map((l, i) => [l, idxBefore[i]]).filter(([a, b]) => a !== b);

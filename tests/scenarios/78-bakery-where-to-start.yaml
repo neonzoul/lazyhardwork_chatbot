@@ -1,0 +1,22 @@
+name: 78 · bakery, custom cakes — knows AI could help, not where to start (GPT review scenario 1)
+covers: ["§9.2", "GPT review 23 Oct #1"]
+# Source: GPT review adopted by Head GTM 23 Oct (review-gpt-website-and-lay-scenarios-2026-10-23.md, "5 scenario ทดสอบใน LINE OA").
+# Scripted replies keep `npm run scenarios` deterministic; the acceptance check is `--model real --only "<n> ·"` scored 0–2 × 5.
+# Pass when: asks about the work that slips and the current process; proposes a small start with a way to measure it;
+# does not rush the full system.
+user: { id: U78, displayName: "ร้านเค้ก" }
+steps:
+  - follow: true
+    expect: { replies: 1, sender: lay }
+  - user: "มาจากเว็บครับ ร้านผมทำเค้กตามสั่ง ใช้ ChatGPT เขียนโพสต์อยู่ แต่เรื่องงานในร้านยังวุ่นเหมือนเดิม ไม่รู้ว่าควรเริ่มเอา AI มาช่วยตรงไหน"
+    model: { messages: [{ type: text, text: "งานไหนในร้านกินเวลามากที่สุดครับ เช่น ตามรายละเอียดเค้กจากแชท จดวันรับ หรือเช็กว่าใครทำถึงไหน", explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: [fit], kb_refs: [], intent: fit, lead_updates: { business: "ร้านเค้กตามสั่ง" } }
+    expect: { replies_min: 1, sender: lay, banned_clean: true, text_not_contains: ["49,000", "แน่นอน", "การตลาด เช่น ทำคอนเทนต์"] }
+  - user: "ส่วนใหญ่เสียเวลาตามรายละเอียดลูกค้า แล้วก็ถามกันเองว่าใครทำถึงไหน"
+    model: { messages: [{ type: text, text: "รายละเอียดกระจายในแชทกับสมุด แล้วต้องถามกันเองว่าใครทำถึงไหน ตอนนี้ออเดอร์เค้กเข้ามาทางไหนบ้างครับ", explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: [fit], kb_refs: [], intent: fit }
+    expect: { replies_min: 1, sender: lay, banned_clean: true, text_not_contains: ["49,000 บาทเลย"] }
+  - user: "ไม่อยากเปลี่ยนทุกอย่างครับ พนักงานไม่ถนัดคอม"
+    model: { messages: [{ type: text, text: "ไม่ต้องเปลี่ยนทุกอย่างครับ เริ่มจากจุดเดียวที่หลุดบ่อยก่อนได้ ทีมยังใช้ LINE เหมือนเดิม", explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: [fit], kb_refs: [], intent: fit }
+    expect: { replies_min: 1, sender: lay, banned_clean: true }
+  - user: "ต้องทำระบบสี่หมื่นเก้าเลยไหม หรือเริ่มเล็กกว่านั้นได้?"
+    model: { messages: [{ type: text, text: "เริ่มเล็กกว่านั้นได้ครับ", explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: [pricing], kb_refs: ["offer.overview"], intent: pricing }
+    expect: { replies_min: 1, sender: lay, banned_clean: true, text_not_contains: ["ต้องทำระบบสี่หมื่นเก้า"] }

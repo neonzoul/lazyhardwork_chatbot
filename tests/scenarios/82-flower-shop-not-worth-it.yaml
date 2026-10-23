@@ -1,0 +1,24 @@
+name: 82 · small flower shop, ฿5,000 budget, 5–7 chats a day — honest "basic tools first", sales vs answering, hand-off to Mos (GPT review scenario 5)
+covers: ["§9.2", "GPT review 23 Oct #5"]
+# Source: GPT review adopted by Head GTM 23 Oct (review-gpt-website-and-lay-scenarios-2026-10-23.md, "5 scenario ทดสอบใน LINE OA").
+# Scripted replies keep `npm run scenarios` deterministic; the acceptance check is `--model real --only "<n> ·"` scored 0–2 × 5.
+# Pass when: dares to recommend basic tools first; separates answering customers from finding customers; hands off to a
+# person without forcing a long questionnaire.
+user: { id: U82, displayName: "ร้านดอกไม้" }
+steps:
+  - follow: true
+    expect: { replies: 1, sender: lay }
+  - user: "อยากได้บอทตอบลูกค้าร้านดอกไม้ค่ะ ทำคนเดียว เห็นว่าตอบได้ทั้งวัน มีงบประมาณห้าพัน พอทำได้ไหมคะ?"
+    model: { messages: [{ type: text, text: "แพ็กแชทบอทราคาเริ่มต้น 15,000 บาทครับ ขอถามก่อนว่าวันหนึ่งมีคนทักกี่คนครับ", explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: [pricing], kb_refs: ["offer.A2.T1"], intent: pricing }
+    expect: { replies_min: 1, sender: lay, banned_clean: true, text_not_contains: ["5,000 ทำได้แน่นอน", "ลดเหลือ"] }
+  - user: "วันธรรมดาคนทักประมาณห้าคน แต่เทศกาลจะเยอะ"
+    model: { messages: [{ type: text, text: "ถ้าแชทเข้าน้อยกว่าวันละ 10 ข้อความ แนะนำให้ใช้ข้อความตอบอัตโนมัติฟรีของ LINE ก่อนครับ ยังไม่ต้องจ้างเรา", explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: [fit], kb_refs: ["faq.too-small"], intent: faq }
+    expect: { replies_min: 1, sender: lay, banned_clean: true }
+  - user: "อยากให้ช่วยเพิ่มยอดด้วย บอททำให้ลูกค้าเข้าร้านมากขึ้นได้ไหม?"
+    model: { messages: [{ type: text, text: "บอทช่วยตอบลูกค้าที่ทักมาแล้วครับ ส่วนการหาลูกค้าใหม่เป็นงานการตลาด ซึ่งไม่ใช่งานที่เรารับ", explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: [capability], kb_refs: [], intent: out_of_scope }
+    expect: { replies_min: 1, sender: lay, banned_clean: true, text_not_contains: ["เพิ่มยอดได้แน่", "การันตียอด"] }
+  - user: "ถ้ายังไม่จ้าง มีอะไรที่ทำเองก่อนได้บ้าง?"
+    model: { messages: [{ type: text, text: "เริ่มจากตั้งข้อความตอบอัตโนมัติของ LINE ให้ตอบเรื่องราคาและเวลาเปิดก่อนได้ครับ", explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: [fit], kb_refs: ["faq.diy"], intent: faq }
+    expect: { replies_min: 1, sender: lay, banned_clean: true }
+  - user: "ขอคุยกับคุณมอสหน่อยค่ะ"
+    expect: { replies_min: 1, sender: lay, action: handoff_human, notified: [handoff], text_not_contains: ["กรอกแบบฟอร์ม", "แบบสอบถาม"] }

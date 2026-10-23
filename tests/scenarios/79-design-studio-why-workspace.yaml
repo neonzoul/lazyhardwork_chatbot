@@ -1,0 +1,22 @@
+name: 79 · design studio already on Claude Projects — why pay for Workspace setup? (GPT review scenario 2)
+covers: ["§9.2", "GPT review 23 Oct #2"]
+# Source: GPT review adopted by Head GTM 23 Oct (review-gpt-website-and-lay-scenarios-2026-10-23.md, "5 scenario ทดสอบใน LINE OA").
+# Scripted replies keep `npm run scenarios` deterministic; the acceptance check is `--model real --only "<n> ·"` scored 0–2 × 5.
+# Pass when: explains the difference with real deliverables; separates the setup fee from the tool (Claude) cost; never
+# claims AI will remember everything or never answer wrong again.
+user: { id: U79, displayName: "สตูดิโอออกแบบ" }
+steps:
+  - follow: true
+    expect: { replies: 1, sender: lay }
+  - user: "เห็น Workspace Setup 4,999 ครับ ผมใช้ Claude Projects แล้ว อัปโหลดไฟล์เองก็เป็น ของคุณต่างจากที่ผมทำเองยังไง?"
+    model: { messages: [{ type: text, text: "ต่างกันที่เราจัดไฟล์ เขียนกฎของธุรกิจ และทำชุดคำสั่งที่ใช้ซ้ำได้ให้ครับ", explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: [capability], kb_refs: ["offer.A4"], intent: capability }
+    expect: { replies_min: 1, sender: lay, banned_clean: true, text_not_contains: ["จำทุกอย่าง", "ไม่ตอบผิดอีก", "ไม่มีวันผิด", "แน่นอน"] }
+  - user: "ปัญหาคือต้องเล่าเรื่องลูกค้าใหม่ทุกครั้ง และบางทีหยิบราคาเก่ามาตอบ"
+    model: { messages: [{ type: text, text: "แบบนี้ตรงกับงานตั้งค่า AI Workspace ครับ ไฟล์ราคาและกฎอยู่ที่เดียว AI อ่านจากไฟล์ล่าสุด", explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: [fit], kb_refs: [], intent: fit }
+    expect: { replies_min: 1, sender: lay, banned_clean: true, text_not_contains: ["จำทุกอย่าง", "ไม่ตอบผิดอีก"] }
+  - user: "ราคาเปลี่ยนทุกเดือน ใครต้องอัปเดต?"
+    model: { messages: [{ type: text, text: "เรื่องนี้ขอให้มอส ผู้ออกแบบระบบของเรา ตอบให้ตรงกับงานของพี่ครับ", explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: [], kb_refs: [], intent: unknown }
+    expect: { replies_min: 1, sender: lay, banned_clean: true }
+  - user: "คำว่าไม่มีรายเดือน รวมค่า Claude ด้วยไหม แล้วหลังเจ็ดวันมีปัญหาทำยังไง?"
+    model: { messages: [{ type: text, text: "ค่าบัญชี Claude พี่จ่ายเองครับ ไม่รวมในราคาตั้งค่า", explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: [pricing], kb_refs: ["faq.existing-ai-subscription"], intent: faq }
+    expect: { replies_min: 1, sender: lay, banned_clean: true, text_not_contains: ["รวมค่า Claude แล้ว", "ฟรีตลอด"] }

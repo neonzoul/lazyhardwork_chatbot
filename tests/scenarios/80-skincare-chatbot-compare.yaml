@@ -1,0 +1,25 @@
+name: 80 · online skincare comparing chatbot prices — several questions, slip check, cheaper rival, try the demo (GPT review scenario 3)
+covers: ["§9.2", "GPT review 23 Oct #3"]
+# Source: GPT review adopted by Head GTM 23 Oct (review-gpt-website-and-lay-scenarios-2026-10-23.md, "5 scenario ทดสอบใน LINE OA").
+# Scripted replies keep `npm run scenarios` deterministic; the acceptance check is `--model real --only "<n> ·"` scored 0–2 × 5.
+# Pass when: answers the several questions; separates answering info from checking payment; does not confirm a capability
+# not yet assessed (slip verification → never "ได้ครับ คอนเฟิร์มส่งของให้"); really takes her into the demo shop.
+user: { id: U80, displayName: "ร้านสกินแคร์" }
+steps:
+  - follow: true
+    expect: { replies: 1, sender: lay }
+  - user: "อยากทำบอท LINE ค่ะ ลูกค้าถามราคา วิธีใช้ แล้วก็ส่งสลิปมา เริ่ม 15,000 ทำอะไรได้บ้าง ใช้กี่วัน และมีค่าอะไรเพิ่มไหมคะ?"
+    model: { messages: [{ type: text, text: "แพ็กแชทบอทราคาเริ่มต้น 15,000 บาท บอทตอบคำถามลูกค้า 24 ชม. 1 ช่องทาง ใช้เวลาราว 14 วัน ปรับตามขอบเขตจริงหลังคุยค่ะ", explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: [pricing], kb_refs: ["offer.A2.T1"], intent: pricing }
+    expect: { replies_min: 1, sender: lay, banned_clean: true, text_contains: ["15,000"] }
+  - user: "ถ้าราคาโปรเปลี่ยน พนักงานแก้เองได้ไหม?"
+    model: { messages: [{ type: text, text: "ได้ครับ ช่วงดูแลเราแก้และเพิ่มความรู้ให้ตามรอบแก้ของแพ็ก", explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: [capability], kb_refs: ["faq.changes-after-handover"], intent: faq }
+    expect: { replies_min: 1, sender: lay, banned_clean: true }
+  - user: "ให้บอทเช็กสลิปแล้วคอนเฟิร์มส่งของเลยได้ไหม?"
+    model: { messages: [{ type: text, text: "เรื่องเงินและการยืนยันออเดอร์บอทไม่ตัดสินใจเองครับ มีคนกดยืนยันเสมอ", explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: [capability], kb_refs: ["faq.wrong-answers"], intent: faq }
+    expect: { replies_min: 1, sender: lay, banned_clean: true, text_not_contains: ["คอนเฟิร์มส่งของให้ได้เลย", "ตรวจสลิปอัตโนมัติได้", "บอทยืนยันการชำระเงิน"] }
+  - user: "เจ้าอื่นเสนอถูกกว่า ของคุณต่างกันตรงไหน?"
+    model: { messages: [{ type: text, text: "ส่วนต่างคือเราสร้างคลังความรู้ให้ครบทั้งร้าน ทดสอบด้วยเคสที่ตั้งใจหลอกบอทก่อนส่ง และมีคนดูแลต่อครับ", explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: [capability], kb_refs: ["faq.why-not-cheap-platform"], intent: faq }
+    expect: { replies_min: 1, sender: lay, banned_clean: true, text_not_contains: ["ลดราคา", "แน่นอน"] }
+  - user: "ขอลองเป็นลูกค้าร้านตัวอย่างก่อนค่ะ"
+    model: { messages: [{ type: text, text: "ได้ครับ เลือกร้านตัวอย่างได้เลย", explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: [proof], kb_refs: [], intent: proof }
+    expect: { replies_min: 1, sender: lay }

@@ -152,3 +152,8 @@ test('a hotel never gets the shop few-shot wording (สต็อก ค่าส
   const shop = policy.applyPolicy(mk(shopy), { session: { homework: { business: 'ร้านขายเสื้อผ้าออนไลน์' } } });
   assert.match(shop.response.messages[0].text, /สต็อก/, 'a shop keeps its own wording');
 });
+
+test('asking for "คุณมอส" (polite form) is a request for a person (GPT review scenario 5, 23 Oct)', () => {
+  const handoff = require('../../src/flows/handoff');
+  for (const t of ['ขอคุยกับคุณมอสหน่อยค่ะ', 'คุยกับคุณมอส', 'ติดต่อคุณมอสได้ไหม', 'ขอคุยกับมอส']) assert.ok(handoff.isAskHuman(t), t);
+});
