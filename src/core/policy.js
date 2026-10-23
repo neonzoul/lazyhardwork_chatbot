@@ -308,6 +308,12 @@ function applyPolicy(input, { session = {}, pack = null, allow, userText } = {})
       if (n && n !== m.text) { m.text = n; fixed.push('fit claim before the customer named a problem removed'); }
     }
   }
+  // --- "not worth hiring us yet" and a package card in the same reply contradict each other: the card goes (real-model
+  // run 23 Oct, flower shop; Head GTM ruling R2) ---
+  if ((r.messages || []).some((m) => m && m.type === 'card') && bubbleTexts.some((t) => /ยังไม่ต้องจ้าง|ไม่คุ้ม(?:ที่จะ)?จ้าง|อาจไม่คุ้ม/u.test(t))) {
+    r.messages = r.messages.filter((m) => !(m && m.type === 'card'));
+    fixed.push('package card dropped: the reply says hiring us is not worth it yet');
+  }
   // --- one message per turn (head correction 19 Oct): a short reply split in two bubbles goes out as one ---
   if (mergeShortPair(r)) fixed.push('messages: two short bubbles merged into one');
 

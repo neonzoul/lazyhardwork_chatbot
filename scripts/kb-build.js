@@ -633,6 +633,18 @@ ${timelineRows}
     if (faq.approved && it.status !== 'approved') console.warn(`kb-build: WARN FAQ approved but ${it.id} is still status: ${it.status}`);
     text += `\n### ${it.id}\n${draft ? '<!-- status: draft -->\n' : ''}**${it.q}**\n${it.a}\n`;
   }
+  // Facts the Head GTM confirmed from the service cards (ruling 23 Oct, F1–F4) after the model improvised them in the
+  // real-model run. Kept here until Mos moves them into faq-lay-v2.md; an id already in the source wins.
+  const RULED = [
+    ['faq.workspace-follow-up-days', 'หลังส่งมอบ AI Workspace ถามต่อได้กี่วัน', 'AI Workspace Setup ไม่มีช่วง "ดูแลฟรี" ครับ มีช่วงถามต่อได้ตามแพ็ก: Starter 7 วัน · Advanced 14 วัน · Operation 30 วัน และปรับจูน 1 ครั้ง'],
+    ['faq.workspace-price-updates', 'ราคาเปลี่ยนทุกเดือน ใครต้องอัปเดต (AI Workspace)', 'ไฟล์ราคาเป็นของคุณ แก้ไฟล์เอง AI อ่านไฟล์ปัจจุบันเสมอ ไม่ต้องตั้งค่าใหม่และไม่มีค่ารายเดือนครับ ค่าสมาชิก Claude เป็นบัญชีของคุณเอง'],
+    ['faq.chatbot-slip', 'บอทเช็กสลิปหรือยืนยันการโอนได้ไหม', 'บอทรับสลิปแล้วส่งให้คนของร้านตรวจและยืนยันครับ บอทไม่ยืนยันเงินหรือสั่งส่งของเอง'],
+    ['faq.chatbot-edit-after-delivery', 'หลังส่งมอบแชทบอท ถ้าราคาหรือโปรเปลี่ยน พนักงานแก้เองได้ไหม', 'คลังความรู้เป็นของร้านครับ ช่วงดูแล ร้านส่งเรื่องที่เปลี่ยน เช่น ราคาโปร มาทาง LINE แล้วเราอัปเดตให้ รวมในค่าดูแลแล้ว ไม่มีหน้าจอให้พนักงานแก้เอง'],
+  ].filter(([id]) => !included.some((it) => it.id === id));
+  if (RULED.length) {
+    text += `\n**หมวด: ข้อเท็จจริงจากการ์ดบริการ**\n`;
+    for (const [id, q, a] of RULED) text += `\n### ${id}\n**${q}**\n${a}\n`;
+  }
   addOutput('faq', 'kb/faq.md', text, [SRC.faq]);
 }
 

@@ -84,3 +84,9 @@ test('R3: the GEO answer offers the free talk and the note; R4: a typed demo ask
   assert.match(all, /ร้านกาแฟตัวอย่าง/);
   assert.match(all, /คลินิกความงามตัวอย่าง/);
 });
+
+test('R2: "not worth hiring us yet" drops a package card in the same reply', () => {
+  const r = { messages: [{ type: 'text', text: 'ถ้าแชทเข้าวันละห้าข้อความ อาจไม่คุ้มที่จะจ้างบอทตอนนี้ครับ', explain: false, template: null, alt: null, data: null }, { type: 'card', text: null, explain: false, template: 'offer', alt: 'แพ็กเริ่มต้น AI Chatbot', data: { card_id: 'A2' } }], quick_replies: [], topics: [], kb_refs: [], intent: 'fit', lead_updates: {}, action: null };
+  const p = policy.applyPolicy(r, { session: {}, userText: 'วันธรรมดาคนทักประมาณห้าคน' });
+  assert.equal(p.response.messages.filter((m) => m.type === 'card').length, 0);
+});
