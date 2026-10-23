@@ -73,8 +73,12 @@ Railway applies a variable change **only with the next deployment**. Setting a v
 - `docker build -f deploy/Dockerfile -t lay-v2 .` from the repo root (Node 22 slim, runtime files only, runs as `node`,
   database on `/data`, `/health` health check).
 - Run: `docker run -d --name lay -p 8080:8080 --env-file lay.env -v lay-data:/data lay-v2`.
-- Status 22 Oct: written but **not yet built** — Docker was not running on the dev machine. Build and run it once
-  (health 200, smoke 24/24 against it) before any host relies on it.
+- Verified 23 Oct (commit 47ff79f): image builds (403 MB, Node 22.23, user `node`, no `.env`, no tests inside); the
+  container served the test OA through the tunnel (health check healthy, LINE webhook test 200, smoke 24/24); backup →
+  restore into a second container kept the data; `docker compose config` valid, compose build OK, Caddyfile valid.
+  Not yet exercised: Caddy's real certificate issuance (needs a real domain pointing at a server).
+- Test-OA container: `docker run -d --name lay-test -p 3100:8080 -v lay-test-data:/data -e …` with the §7 variables
+  passed as `-e NAME` from the shell environment (never on the command line).
 
 ## 6. Moving off Railway in about an hour (VPS: Hetzner or DigitalOcean)
 
