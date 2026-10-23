@@ -323,6 +323,42 @@ function applyPolicy(input, { session = {}, pack = null, allow, userText } = {})
     r.messages = r.messages.filter((m) => !(m && m.type === 'card'));
     fixed.push('package card dropped: the reply says hiring us is not worth it yet');
   }
+  // --- ...and no price or package name either: the free advice stands alone unless the customer asked what paid options
+  // exist (Head GTM round-2 ruling, 23 Oct, flower shop: "แต่ถ้าแชทเข้า 10 ข้อความ… แพ็กลองก่อน" with its price) ---
+  const NOT_WORTH_RE = /ยังไม่ต้องจ้าง|ไม่คุ้ม(?:ที่จะ)?จ้าง|อาจไม่คุ้ม/u;
+  const PAID_TALK_RE = /\d{1,3}(?:,\d{3})+\s*บาท|฿\s*\d|แพ็ก|AI Business Review|AI Workspace|AI Chatbot|AI Agent|ระบบงานภายใน|ราคาเริ่มต้น/u;
+  const ASKED_PAID_RE = /ราคา|แพ็ก|เท่าไหร่|เท่าไร|ค่าใช้จ่าย|เสียเงิน|ตัวเลือก|บริการอะไร/u;
+  if (bubbleTexts.some((t) => NOT_WORTH_RE.test(t)) && !ASKED_PAID_RE.test(userText || '')) {
+    let cut = false;
+    (r.messages || []).forEach((m) => {
+      if (!m || m.type !== 'text' || typeof m.text !== 'string' || !PAID_TALK_RE.test(m.text)) return;
+      const n = m.text.split('\n').map((line) => line.split(/(?<=ครับ|ค่ะ|คะ|[.?？])\s+|\s+(?=แต่(?:ถ้า|หาก)?|ถ้า|หาก)/u)
+        .filter((c) => !PAID_TALK_RE.test(c)).join(' ').trim()).filter(Boolean).join('\n');
+      if (n !== m.text) { m.text = n; cut = true; }
+    });
+    if (cut) {
+      r.messages = r.messages.filter((m) => !(m && m.type === 'text' && !String(m.text || '').trim()));
+      r.quick_replies = (r.quick_replies || []).filter((q) => !PAID_TALK_RE.test(q) && !/ราคา/u.test(q));
+      fixed.push('price / package talk removed from a "not worth it yet" reply');
+    }
+  }
+  // --- one small start, never a menu of packages (Head GTM round-2 ruling, 23 Oct, bakery: "อยากเริ่มจากแพ็กไหนครับ เช่น
+  // AI Agent หรือ AI Chatbot") — a line that asks the customer to choose between packages is dropped in place ---
+  {
+    const PKG = 'AI\\s*Agent|AI\\s*Chatbot|แชทบอท|ระบบงานภายใน|AI\\s*Workspace|(?:AI\\s*)?Business\\s*Review|ออโตเมชัน';
+    const MENU_RE = new RegExp(`(?:${PKG})[^\\n]{0,25}หรือ[^\\n]{0,10}(?:${PKG})[^\\n]{0,15}(?:[?？]|ครับ\\s*$|ดี(?:ครับ)?\\s*$)|(?:แพ็ก|บริการ)ไหน[^\\n]{0,30}(?:${PKG})[^\\n]{0,20}หรือ`, 'iu');
+    let dropped = false;
+    (r.messages || []).forEach((m) => {
+      if (!m || m.type !== 'text' || typeof m.text !== 'string' || !MENU_RE.test(m.text)) return;
+      const n = m.text.split('\n').filter((line) => !MENU_RE.test(line)).join('\n').trim();
+      if (n) { m.text = n; dropped = true; }
+    });
+    if (dropped) {
+      const pkgButton = new RegExp(`^(?:${PKG})$`, 'iu');
+      r.quick_replies = (r.quick_replies || []).filter((q) => !pkgButton.test(q));
+      fixed.push('package menu question removed: recommend one small start');
+    }
+  }
   // --- one message per turn (head correction 19 Oct): a short reply split in two bubbles goes out as one ---
   if (mergeShortPair(r)) fixed.push('messages: two short bubbles merged into one');
 

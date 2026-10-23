@@ -126,3 +126,31 @@ test('#demo-a2-shop opens the sample-shop picker by code; a token after the firs
   await runTurn(v.input({ text: 'ดูเพิ่ม #demo-c1' }), v.deps);
   assert.equal((await v.store.sessions.get('U1')).lead_source, undefined);
 });
+
+// Head GTM round-2 rulings (23 Oct evening)
+const mkR = (texts, quick = [], intent = 'fit') => ({ messages: texts.map((x) => ({ type: 'text', text: x, explain: false, template: null, alt: null, data: null })), quick_replies: quick, topics: [], kb_refs: [], intent, lead_updates: {}, action: null });
+
+test('round 2 / 82: a "not worth it yet" reply carries no price and no package name', () => {
+  const p = policy.applyPolicy(mkR(['ถ้าแชทเข้าวันละไม่กี่ข้อความ แนะนำให้ใช้ข้อความตอบอัตโนมัติฟรีของ LINE ก่อนครับ ยังไม่ต้องจ้างเรา แต่ถ้าแชทเข้ามากกว่าวันละ 10 ข้อความ เรามีแพ็กลองก่อนที่ราคาเริ่มต้น 15,000 บาทครับ'], ['ราคาเท่าไหร่', 'เริ่มยังไง']), { session: {}, userText: 'มีงบประมาณห้าพัน พอทำได้ไหมคะ' });
+  const said = p.response.messages.map((m) => m.text).join('\n');
+  assert.match(said, /ตอบอัตโนมัติฟรีของ LINE/);
+  assert.doesNotMatch(said, /15,000|แพ็ก|บาท/);
+  assert.ok(!p.response.quick_replies.includes('ราคาเท่าไหร่'));
+  // asked for paid options → prices stay
+  const asked = policy.applyPolicy(mkR(['ตอนนี้ยังไม่ต้องจ้างครับ ถ้าอยากรู้ แพ็กลองก่อนราคาเริ่มต้น 15,000 บาท'], [], 'pricing'), { session: {}, userText: 'ถ้าจะจ้างจริง ราคาเท่าไหร่' });
+  assert.match(asked.response.messages[0].text, /15,000/);
+});
+
+test('round 2 / 78: a package menu question ("AI Agent หรือ AI Chatbot") is dropped with its buttons', () => {
+  const p = policy.applyPolicy(mkR(['ทีมยังใช้ LINE และ Google Sheets เหมือนเดิมครับ ระบบอยู่ข้างหลัง\nถ้าพร้อมแล้ว อยากเริ่มจากแพ็กไหนครับ เช่น AI Agent หรือ AI Chatbot?'], ['AI Agent', 'AI Chatbot']), { session: { draft: { confirmed: 'scattered_data' } }, userText: 'ไม่อยากเปลี่ยนทุกอย่างครับ พนักงานไม่ถนัดคอม' });
+  const said = p.response.messages.map((m) => m.text).join('\n');
+  assert.match(said, /ระบบอยู่ข้างหลัง/);
+  assert.doesNotMatch(said, /AI Agent หรือ AI Chatbot/);
+  assert.deepEqual(p.response.quick_replies, []);
+});
+
+test('round 2 / 79: the pack carries the A4 revisions per tier and the after-follow-up line', () => {
+  const faq = require('fs').readFileSync(require('path').resolve(__dirname, '..', '..', 'knowledge', 'kb', 'faq.md'), 'utf8');
+  assert.match(faq, /Starter แก้ได้ 1 ครั้ง ภายใน 5 วัน ถามต่อได้ 7 วัน/);
+  assert.match(faq, /หลังช่วงถามต่อ ทักมาได้ครับ เราดูให้ว่าเป็นเรื่องเล็กหรือต้องคิดเป็นงานใหม่/);
+});
