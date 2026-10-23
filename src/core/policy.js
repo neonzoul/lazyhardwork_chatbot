@@ -112,6 +112,9 @@ function dedupePriceSentence(t) {
 // "system error" line — that line is for real failures (honesty). Banned content is never salvaged.
 // two_questions is style-only: regenerate once, and if the second answer still asks two, it goes out (salvaged, logged) —
 // never blocked (Head GTM 22 Oct)
+// "Not worth hiring us yet": said outright, or as "use LINE's free auto-reply first and come back later" (Head GTM round-2
+// ruling, 23 Oct). Shared with flows/endings so no code-added offer card lands under it.
+const NOT_WORTH_RE = /ยังไม่ต้องจ้าง|ไม่คุ้ม(?:ที่จะ)?จ้าง|อาจไม่คุ้ม|(?:ข้อความ)?ตอบอัตโนมัติ(?:ฟรี)?ของ\s*LINE\s*(?:OA\s*)?(?:เอง\s*)?ก่อน|ฟรีของ\s*LINE\s*ก่อน|ค่อยกลับมาคุย/u;
 const STYLE_RULES = new Set(['prose_list', 'too_long', 'emoji', 'markdown', 'two_questions']);
 // One question per bubble: split into clauses at ครับ/ค่ะ + space, และ, a question mark or a line break, and count the
 // clauses that ask (ไหม · กี่ · อะไร · ยังไง · หรือเปล่า · ?). "มีคนตอบแชทกี่คนครับ และแชทเข้าวันละกี่ข้อความครับ" → 2.
@@ -203,10 +206,18 @@ function applyPolicy(input, { session = {}, pack = null, allow, userText } = {})
   // the GEO buttons belong to a findability ask only (real-model run 23 Oct: the flower shop got "สนใจ Review")
   {
     const GEO_BUTTONS = new Set(['สนใจ Review', 'คุยฟรีก่อน']);
-    const aboutFindability = (r.messages || []).some((m) => m && m.type === 'text' && /ถูกค้นเจอ|ค้นเจอ|แนะนำร้าน|ถูกแนะนำ|ChatGPT|Google/iu.test(m.text || ''));
-    if (!(session && session.geo_asked) && !aboutFindability && r.quick_replies.some((q) => GEO_BUTTONS.has(q))) {
-      r.quick_replies = r.quick_replies.filter((q) => !GEO_BUTTONS.has(q));
-      fixed.push('quick_replies: GEO buttons dropped for a lead who did not ask about being found');
+    // the customer's own words decide (82: the model pitched the Review "ให้ถูกค้นเจอ" to a shop asking about more sales)
+    const askedFindability = (session && session.geo_asked) || /ค้นเจอ|แนะนำร้าน|ถูกแนะนำ|รู้จักร้าน|ChatGPT|Google|Gemini|\bAI\b|เอไอ|\bSEO\b|\bGEO\b/iu.test(userText || '');
+    if (!askedFindability) {
+      if (r.quick_replies.some((q) => GEO_BUTTONS.has(q))) {
+        r.quick_replies = r.quick_replies.filter((q) => !GEO_BUTTONS.has(q));
+        fixed.push('quick_replies: GEO buttons dropped for a lead who did not ask about being found');
+      }
+      (r.messages || []).forEach((m) => {
+        if (!m || m.type !== 'text' || typeof m.text !== 'string' || !/ถูกค้นเจอ|ค้นเจอมากขึ้น/u.test(m.text)) return;
+        const n = m.text.split('\n').filter((line) => !/ถูกค้นเจอ|ค้นเจอมากขึ้น/u.test(line)).join('\n').trim();
+        if (n) { m.text = n; fixed.push('findability pitch removed: the customer did not ask about being found'); }
+      });
     }
   }
 
@@ -319,13 +330,12 @@ function applyPolicy(input, { session = {}, pack = null, allow, userText } = {})
   }
   // --- "not worth hiring us yet" and a package card in the same reply contradict each other: the card goes (real-model
   // run 23 Oct, flower shop; Head GTM ruling R2) ---
-  if ((r.messages || []).some((m) => m && m.type === 'card') && bubbleTexts.some((t) => /ยังไม่ต้องจ้าง|ไม่คุ้ม(?:ที่จะ)?จ้าง|อาจไม่คุ้ม/u.test(t))) {
+  if ((r.messages || []).some((m) => m && m.type === 'card') && bubbleTexts.some((t) => NOT_WORTH_RE.test(t))) {
     r.messages = r.messages.filter((m) => !(m && m.type === 'card'));
     fixed.push('package card dropped: the reply says hiring us is not worth it yet');
   }
   // --- ...and no price or package name either: the free advice stands alone unless the customer asked what paid options
   // exist (Head GTM round-2 ruling, 23 Oct, flower shop: "แต่ถ้าแชทเข้า 10 ข้อความ… แพ็กลองก่อน" with its price) ---
-  const NOT_WORTH_RE = /ยังไม่ต้องจ้าง|ไม่คุ้ม(?:ที่จะ)?จ้าง|อาจไม่คุ้ม/u;
   const PAID_TALK_RE = /\d{1,3}(?:,\d{3})+\s*บาท|฿\s*\d|แพ็ก|AI Business Review|AI Workspace|AI Chatbot|AI Agent|ระบบงานภายใน|ราคาเริ่มต้น/u;
   const ASKED_PAID_RE = /ราคา|แพ็ก|เท่าไหร่|เท่าไร|ค่าใช้จ่าย|เสียเงิน|ตัวเลือก|บริการอะไร/u;
   if (bubbleTexts.some((t) => NOT_WORTH_RE.test(t)) && !ASKED_PAID_RE.test(userText || '')) {
@@ -429,4 +439,4 @@ function fallbackReply({ reason = 'error', config } = {}) {
   return response;
 }
 
-module.exports = { countQuestionClauses, speakAsLay, dropFiller, mergeShortPair, dropCertainty, OUT_OF_SCOPE_RE, salvage, isStyleOnly, stripClosers, STYLE_RULES, applyPolicy, fallbackReply, strings, PRICE_RE, PRICE_REF_RE, BENEFITS_CAVEAT_RE, QUICK_REPLY_MAX, QUICK_REPLY_LABEL_MAX };
+module.exports = { NOT_WORTH_RE, countQuestionClauses, speakAsLay, dropFiller, mergeShortPair, dropCertainty, OUT_OF_SCOPE_RE, salvage, isStyleOnly, stripClosers, STYLE_RULES, applyPolicy, fallbackReply, strings, PRICE_RE, PRICE_REF_RE, BENEFITS_CAVEAT_RE, QUICK_REPLY_MAX, QUICK_REPLY_LABEL_MAX };

@@ -95,7 +95,7 @@ test('D-39: the GEO buttons are dropped for a lead who did not ask about being f
   const mk = (x) => ({ messages: [{ type: 'text', text: x, explain: false, template: null, alt: null, data: null }], quick_replies: ['สนใจ Review', 'คุยฟรีก่อน', 'ไม่เป็นไร'], topics: [], kb_refs: [], intent: 'fit', lead_updates: {}, action: null });
   const shop = policy.applyPolicy(mk('เมื่อแชทเริ่มล้น ค่อยกลับมาคุยเรื่องบอทได้ครับ'), { session: {} });
   assert.deepEqual(shop.response.quick_replies, ['ไม่เป็นไร']);
-  const geo = policy.applyPolicy(mk('เรื่องให้ร้านถูกค้นเจอ Review ตรวจให้ได้ครับ'), { session: {} });
+  const geo = policy.applyPolicy(mk('เรื่องให้ร้านถูกค้นเจอ Review ตรวจให้ได้ครับ'), { session: {}, userText: 'อยากให้ ChatGPT แนะนำร้านผม' });
   assert.equal(geo.response.quick_replies.length, 3);
 });
 
@@ -153,4 +153,19 @@ test('round 2 / 79: the pack carries the A4 revisions per tier and the after-fol
   const faq = require('fs').readFileSync(require('path').resolve(__dirname, '..', '..', 'knowledge', 'kb', 'faq.md'), 'utf8');
   assert.match(faq, /Starter แก้ได้ 1 ครั้ง ภายใน 5 วัน ถามต่อได้ 7 วัน/);
   assert.match(faq, /หลังช่วงถามต่อ ทักมาได้ครับ เราดูให้ว่าเป็นเรื่องเล็กหรือต้องคิดเป็นงานใหม่/);
+});
+
+test('round 2 / 82: "use LINE free auto-reply first" counts as not worth it — no price, no card; no findability pitch for a sales ask', () => {
+  const card = { type: 'card', text: null, explain: false, template: 'offer', alt: 'แพ็กเริ่มต้น AI Chatbot', data: { card_id: 'A2' } };
+  const r = mkR(['สำหรับงบ 5,000 บาท แนะนำให้ใช้ข้อความตอบอัตโนมัติฟรีของ LINE ก่อนครับ แต่ถ้าแชทเข้าวันละ 10 ข้อความขึ้นไป เรามีแพ็กลองก่อนราคาเริ่มต้น 15,000 บาท']);
+  r.messages.push(card);
+  const p = policy.applyPolicy(r, { session: {}, userText: 'มีงบประมาณห้าพัน พอทำได้ไหมคะ' });
+  const said = p.response.messages.filter((m) => m.type === 'text').map((m) => m.text).join('\n');
+  assert.equal(p.response.messages.filter((m) => m.type === 'card').length, 0);
+  assert.doesNotMatch(said, /15,000|แพ็ก/);
+  const s = policy.applyPolicy(mkR(['บอทไม่ได้พาลูกค้าใหม่เข้าร้านครับ การหาลูกค้าใหม่เป็นงานการตลาด\nถ้าสนใจ อาจใช้ AI Business Review เพื่อดูว่าร้านควรทำอะไรให้ถูกค้นเจอมากขึ้นครับ'], ['สนใจ Review', 'คุยฟรีก่อน', 'ไม่เป็นไร']), { session: {}, userText: 'บอททำให้ลูกค้าเข้าร้านมากขึ้นได้ไหม' });
+  const s2 = s.response.messages.map((m) => m.text).join('\n');
+  assert.match(s2, /งานการตลาด/);
+  assert.doesNotMatch(s2, /ถูกค้นเจอ/);
+  assert.deepEqual(s.response.quick_replies, ['ไม่เป็นไร']);
 });
