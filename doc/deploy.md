@@ -24,7 +24,9 @@ read and set them with tools that do not print values.
      accepted failure ("แล้วจะให้มัยเรียกว่าอะไร").
    - Mos tests the change on the test OA from his own LINE (§7).
    - Mos's go, in his own words.
-3. `main` is fast-forwarded to `v2` (`git push origin v2:main`) and Railway builds it (§3).
+3. Release = a PR `v2` → `main` (branch protection since 23 Oct: PR required, check `test` must pass, no direct push even
+   as admin, no force push). The Chief Engineer merges it on Mos's go; Railway auto-deploys `main`, so the merge IS the
+   deploy (§3). Each release PR carries a Rollback line (redeploy the previous Railway deployment).
 
 ## 2. Production variables (names only)
 
@@ -125,8 +127,8 @@ Files: `deploy/vps/` — `docker-compose.yml` (Lay + Caddy for automatic HTTPS, 
 
 ## 9. Rollback
 
-- Railway: redeploy the previous successful deployment from the dashboard, or `git push --force-with-lease origin <good-sha>:main`
-  (Mos's go; the next build is that commit).
+- Railway: redeploy the previous successful deployment from the dashboard (first choice; no git change). A code rollback is
+  a revert PR to `main` (force push is blocked by branch protection), merged on Mos's go.
 - Variables: put the old value back and redeploy.
 - VPS: `git checkout <good-sha>` in `/opt/lay`, `docker compose up -d --build`.
 
