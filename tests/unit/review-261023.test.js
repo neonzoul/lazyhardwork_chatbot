@@ -177,3 +177,13 @@ test('round 2 / 82: "ถ้ายังไม่จ้าง…" (do-it-yourself
   assert.equal(endings.decorateResponse({ response, session, deps: {} }), false);
   assert.equal(response.messages.filter((m) => m.type === 'card').length, 0);
 });
+
+test('round 2 / 82: "wait until chats grow" also counts — the 15,000 sentence and the card go, the advice stays', () => {
+  const r = mkR(['ถ้าเทศกาลแชทเยอะ บอทช่วยตอบคำถามซ้ำๆ ได้ครับ\nแพ็กที่เหมาะกับพี่คือ AI Chatbot ราคาเริ่มต้น 15,000 บาท แต่ถ้างบประมาณมีแค่ห้าพัน อาจต้องรอให้แชทเข้ามากกว่านี้ก่อนครับ']);
+  r.messages.push({ type: 'card', text: null, explain: false, template: 'offer', alt: 'แพ็กเริ่มต้น AI Chatbot', data: { card_id: 'A2' } });
+  const p = policy.applyPolicy(r, { session: {}, userText: 'วันธรรมดาคนทักประมาณห้าคน แต่เทศกาลจะเยอะ' });
+  const said = p.response.messages.filter((m) => m.type === 'text').map((m) => m.text).join('\n');
+  assert.doesNotMatch(said, /15,000|แพ็ก/);
+  assert.match(said, /รอให้แชทเข้ามากกว่านี้ก่อน/);
+  assert.equal(p.response.messages.filter((m) => m.type === 'card').length, 0);
+});
