@@ -256,3 +256,21 @@ test('v2.0.1: a first message with a token still sets the first-touch source (an
   assert.equal(s.homework.last_touch, 'web-demo-a4');
   assert.equal(intake.buildLeadRow({ session: s, now: new Date() }).source, 'web-demo-a4');
 });
+
+// CE review of PR #12: a token on any message must never get past the mode gates
+test('PR #12 review: "…#demo-a2-shop" in human / mos_active / quiet mode — no shop picker, the message is relayed to Mos', async () => {
+  for (const mode of ['human', 'mos_active', 'quiet']) {
+    const w = world();
+    const s = await w.store.sessions.getOrCreate('U1');
+    const at = w.deps.clock.now().toISOString();
+    Object.assign(s, { mode, mode_since: at, last_customer_at: at, last_mos_at: at, discord_thread_id: 'T-1', quiet_acked: true, opened: true });
+    await w.store.sessions.save(s);
+    await runTurn(w.input({ text: 'ขอดูตัวอย่าง ร้านกาแฟ #demo-a2-shop' }), w.deps);
+    assert.equal(w.line.texts().length, 0, `${mode}: Lay stays silent`);
+    assert.doesNotMatch(JSON.stringify(w.line.sent), /ร้านกาแฟตัวอย่าง|เลือกร้าน/, mode);
+    const relayed = w.deps.notifier.named('relayToMos');
+    assert.equal(relayed.length, 1, `${mode}: relayed`);
+    assert.doesNotMatch(relayed[0].payload.text, /#demo/, `${mode}: token not relayed`);
+    assert.equal((await w.store.sessions.get('U1')).mode, mode, `${mode}: mode kept`);
+  }
+});

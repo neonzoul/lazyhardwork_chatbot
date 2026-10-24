@@ -123,7 +123,7 @@ async function runTurn(input, deps, opts = {}) {
             try { if (await deps.store.leads.byUser(s.user_id)) await upsertLead(s); } catch (e) { deps.log.warn('lead.last_touch_failed', { error: e?.message }); }
         }
         // the sample-shop CTA: a text that names the shop ("ขอดูตัวอย่าง ร้านกาแฟ") enters that shop; otherwise the picker
-        if (demoTag === 'a2-shop' && s.mode !== 'demo') {
+        if (demoTag === 'a2-shop' && !['demo', 'human', 'mos_active', 'quiet'].includes(s.mode)) {   // never past the mode gates (CE review, PR #12)
             const demo = deps.flows?.demo || lazy('../flows/demo');
             if (demo?.onModelAction && demo.shopFromText?.(text)) return await demo.onModelAction({ action: 'demo_enter', response: null, input, session: s, deps, config, send, persist, done, senders });
             if (demo?.onDemoPostback) return await demo.onDemoPostback({ data: 'DEMO_PICK', input, session: s, deps, config, send, persist, done, senders });
