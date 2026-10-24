@@ -115,9 +115,18 @@ function dedupePriceSentence(t) {
 // "Not worth hiring us yet": said outright, or as "use LINE's free auto-reply first and come back later" (Head GTM round-2
 // ruling, 23 Oct). Shared with flows/endings so no code-added offer card lands under it.
 const NOT_WORTH_RE = /ยังไม่(?:ต้อง)?จ้าง|ไม่คุ้ม(?:ที่จะ)?จ้าง|อาจไม่คุ้ม|(?:ข้อความ)?ตอบอัตโนมัติ(?:ฟรี)?ของ\s*LINE\s*(?:OA\s*)?(?:เอง\s*)?ก่อน|ฟรีของ\s*LINE\s*ก่อน|ค่อยกลับมาคุย|รอให้แชท(?:เข้า)?(?:มา)?(?:มาก|เยอะ)/u;
-// Claimed actions: "จอง/สั่ง/ยืนยัน/นัด … เรียบร้อย(แล้ว) / สำเร็จ / ยืนยันแล้ว", "ได้ทำการจอง…", "จองให้แล้ว".
-const CLAIMED_ACTION_RE = /(?:จอง|สั่ง|ออเดอร์|นัด|ยืนยัน|ชำระ|โอน)[^\n]{0,50}(?:เรียบร้อย(?:แล้ว)?|สำเร็จ(?:แล้ว)?|ยืนยันแล้ว|บันทึกแล้ว)|(?:ได้|ทำการ)\s*(?:จอง|สั่ง|ยืนยัน)(?:คิว|ห้อง|นัด|ออเดอร์)?[^\n]{0,30}(?:ให้)?แล้ว|(?:จอง|สั่ง)(?:คิว|ห้อง|ออเดอร์)?ให้(?:พี่|คุณ)?แล้ว/u;
-const WAITS_FOR_PERSON_RE = /รอ\s*(?:คน|เจ้าของร้าน|แอดมิน|มอส|ทางร้าน|พนักงาน)?\s*(?:ของร้าน)?\s*ยืนยัน/u;
+// Claimed actions, completed and done by "us" (CE review 24 Oct: narrow, so describing what a bot does is not a claim):
+// "ได้ทำการจองคิว… แล้ว / เรียบร้อย", "จองคิว… ให้(พี่) … เรียบร้อย(แล้ว)", "จองให้แล้ว", "การจองของพี่สำเร็จแล้ว / ยืนยันแล้ว".
+// Checked per clause; a clause with a condition or a future (เมื่อ · หลัง · ถ้า · หาก · พอ · จะ) is a description, not a claim.
+// "แล้ว" counts only at the end of a clause ("…ให้แล้วครับ"), not as "and then" ("…ให้ลูกค้ากดยืนยัน แล้วส่งต่อ");
+// "คำสั่ง" (a prompt) is not "สั่ง" (an order)
+const CLAIMED_ACTION_RE = /(?:ได้|ทำการ)\s*(?:ทำการ\s*)?(?:จอง|(?<!คำ)สั่ง|ยืนยัน|บันทึก)[^\n]{0,40}(?:เรียบร้อย|แล้ว(?=\s*(?:ครับ|ค่ะ|คะ|นะ|$|[.!?])))|(?:จอง|(?<!คำ)สั่ง|ยืนยัน|บันทึก)(?:คิว|ห้อง|นัด|ออเดอร์|การจอง|การสั่ง)?[^\n]{0,30}ให้(?:พี่|คุณ|ลูกค้า)?[^\n]{0,30}(?:เรียบร้อย|แล้ว(?=\s*(?:ครับ|ค่ะ|คะ|นะ|$|[.!?])))|(?:การจอง|การสั่ง|ออเดอร์|คิว|นัด)(?:ของ(?:พี่|คุณ))?[^\n]{0,10}(?:สำเร็จแล้ว|ยืนยันแล้ว|เรียบร้อยแล้ว)/u;
+const CLAIM_CONDITION_RE = /(?:^|\s)(?:เมื่อ|หลัง|ถ้า|หาก|พอ)|จะ/u;
+const WAITS_FOR_PERSON_RE = /รอ\s*(?:คน|เจ้าของร้าน|แอดมิน|มอส|ทางร้าน|พนักงาน)?\s*(?:ของร้าน)?\s*(?:กด|ตรวจ(?:และ)?)?\s*ยืนยัน/u;
+function claimsAction(text) {
+  return String(text || '').split(/\n+|(?<=ครับ|ค่ะ|คะ)\s+|\s+(?=แต่|และ)/u)
+    .some((c) => CLAIMED_ACTION_RE.test(c) && !CLAIM_CONDITION_RE.test(c) && !WAITS_FOR_PERSON_RE.test(c));
+}
 const STYLE_RULES = new Set(['prose_list', 'too_long', 'emoji', 'markdown', 'two_questions']);
 // One question per bubble: split into clauses at ครับ/ค่ะ + space, และ, a question mark or a line break, and count the
 // clauses that ask (ไหม · กี่ · อะไร · ยังไง · หรือเปล่า · ?). "มีคนตอบแชทกี่คนครับ และแชทเข้าวันละกี่ข้อความครับ" → 2.
@@ -387,8 +396,17 @@ function applyPolicy(input, { session = {}, pack = null, allow, userText } = {})
   // the sample shop). Bookings, orders and confirmations are done only by code paths, which do not pass through here.
   // A line that says it still waits for a person ("รอ…ยืนยัน") is not a claim. ---
   // (allowed only where code says Mos already confirmed: the same 'booking_confirmed' allow as the lint)
-  if (!allowSet.has('booking_confirmed') && texts.some((t) => CLAIMED_ACTION_RE.test(t) && !WAITS_FOR_PERSON_RE.test(t))) {
-    violate('claimed_action', 'regenerate', 'the reply says a booking / order / confirmation is done — Lay cannot do that; say what the customer can do next instead');
+  if (!allowSet.has('booking_confirmed') && texts.some((t) => claimsAction(t))) {
+    if (/^booking_/.test(String(r.action || ''))) {
+      // the booking flow runs by code right after this reply: the claim is removed in place, the flow says what is true
+      r.messages = (r.messages || []).map((m) => (m && m.type === 'text' && claimsAction(m.text)
+        ? { ...m, text: String(m.text).split(/(?<=ครับ|ค่ะ|คะ)\s+|\n+/u).filter((c) => !claimsAction(c)).join(' ').trim() }
+        : m)).filter((m) => !(m && m.type === 'text' && !String(m.text || '').trim()));
+      if (!r.messages.length) r.messages = [{ type: 'text', text: 'ได้ครับ', explain: false, template: null, alt: null, data: null }];
+      fixed.push('claimed booking removed: the booking flow follows');
+    } else {
+      violate('claimed_action', 'regenerate', 'the reply says a booking / order / confirmation is done — Lay cannot do that; say what the customer can do next instead');
+    }
   }
   // --- out of scope: once the customer asked about something LazyHardWork does not do, never tailor an offer to it ---
   if (session && session.out_of_scope && texts.some((t) => OUT_OF_SCOPE_RE.test(t))) {
@@ -449,4 +467,4 @@ function fallbackReply({ reason = 'error', config } = {}) {
   return response;
 }
 
-module.exports = { NOT_WORTH_RE, CLAIMED_ACTION_RE, WAITS_FOR_PERSON_RE, countQuestionClauses, speakAsLay, dropFiller, mergeShortPair, dropCertainty, OUT_OF_SCOPE_RE, salvage, isStyleOnly, stripClosers, STYLE_RULES, applyPolicy, fallbackReply, strings, PRICE_RE, PRICE_REF_RE, BENEFITS_CAVEAT_RE, QUICK_REPLY_MAX, QUICK_REPLY_LABEL_MAX };
+module.exports = { NOT_WORTH_RE, CLAIMED_ACTION_RE, WAITS_FOR_PERSON_RE, claimsAction, countQuestionClauses, speakAsLay, dropFiller, mergeShortPair, dropCertainty, OUT_OF_SCOPE_RE, salvage, isStyleOnly, stripClosers, STYLE_RULES, applyPolicy, fallbackReply, strings, PRICE_RE, PRICE_REF_RE, BENEFITS_CAVEAT_RE, QUICK_REPLY_MAX, QUICK_REPLY_LABEL_MAX };

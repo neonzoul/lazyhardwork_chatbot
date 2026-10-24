@@ -136,3 +136,50 @@ test('booking: a time question the buttons do not answer ("ว่างกี่
   assert.doesNotMatch(last, /ยืนยันแล้ว|เรียบร้อย/);
   assert.equal((await w.store.sessions.get('U1')).mode, 'quiet');
 });
+
+// CE review 24 Oct (22c1928..f339295)
+test('CE review: describing what a bot does is not a claim — offer.md:126 and the conditional probes pass; real claims still caught', () => {
+  for (const t of ['• รับออเดอร์ / จองคิว สรุปรายการเรียบร้อย รอคนกดยืนยัน — บอทไม่ยืนยันเรื่องเงินเอง',
+    'เมื่อชำระเงินเรียบร้อยแล้ว เราเริ่มงานทันที', 'หลังโอนมัดจำสำเร็จ เราส่งไฟล์ให้',
+    'ระบบจะส่งข้อความยืนยันให้ลูกค้าเมื่อจองเรียบร้อย', 'สรุปออเดอร์เรียบร้อยครับ',
+    'แสดงการ์ดสรุปการจองให้ลูกค้ากดยืนยัน แล้วส่งต่อให้เจ้าของร้าน', 'ทำคำสั่งที่ใช้ซ้ำได้ ให้ AI ที่คุณมีอยู่แล้วรู้จักร้าน']) {
+    assert.equal(policy.claimsAction(t), false, t);
+  }
+  for (const t of ['ขอบคุณครับ บอทได้ทำการจองคิวทำหน้าที่คลินิกความงามให้พรุ่งนี้บ่าย 2 เรียบร้อยแล้วครับ', 'จองคิวให้แล้วครับ', 'การจองของพี่สำเร็จแล้วครับ']) {
+    assert.equal(policy.claimsAction(t), true, t);
+  }
+  // nothing in the generated pack trips it
+  const fs = require('fs'); const dir = path.resolve(__dirname, '..', '..', 'knowledge', 'kb');
+  const flagged = fs.readdirSync(dir).flatMap((f) => fs.readFileSync(path.join(dir, f), 'utf8').split('\n').filter((l) => policy.claimsAction(l)));
+  assert.deepEqual(flagged, []);
+});
+
+test('CE review: after Mos really confirmed the booking, "ยืนยันแล้ว" from the model goes through (no safe line)', async () => {
+  const w = world();
+  const s = await w.store.sessions.getOrCreate('U1');
+  s.booking_step = 'confirmed'; s.booking = { status: 'confirmed' }; s.opened = true;
+  await w.store.sessions.save(s);
+  w.model.push(text('นัดคุยกับมอสยืนยันแล้วครับ เจอกันตามเวลาที่นัดไว้', { intent: 'faq' }));
+  await runTurn(w.input({ text: 'เจอกันกี่โมงนะครับ' }), w.deps);
+  const last = w.line.texts().slice(-1)[0];
+  assert.match(last, /ยืนยันแล้ว/);
+  assert.equal(w.model.calls.length, 1);
+});
+
+test('CE review: a negated day / time during the booking is not taken as a slot — it is handed to Mos honestly', async () => {
+  for (const said of ['พรุ่งนี้ไม่ว่าง', 'เช้าไม่สะดวก ขอเย็น']) {
+    const w = world();
+    await runTurn(w.input({ kind: 'postback', data: 'BOOK_START', text: '' }), w.deps);
+    for (let i = 0; i < 6; i++) {
+      const step = (await w.store.sessions.get('U1')).booking_step;
+      if (step === 'window_day') break;
+      await runTurn(w.input({ text: step === 'name' || step === 'name_text' ? 'มอส' : 'ร้านเค้กตามสั่ง ตามรายละเอียดลูกค้าไม่ทัน' }), w.deps);
+    }
+    if (said.startsWith('เช้า')) await runTurn(w.input({ text: 'วันนี้' }), w.deps);
+    await runTurn(w.input({ text: said }), w.deps);
+    const s = await w.store.sessions.get('U1');
+    if (said.startsWith('พรุ่ง')) assert.ok(!/^พรุ่งนี้/.test(s.draft.window_day || ''), said);
+    else assert.notEqual(s.draft.window_time, 'เช้า 9-12', said);
+    assert.match(w.line.texts().slice(-1)[0], /ขอเช็กคิวกับมอสก่อนนะครับ/, said);
+  }
+});

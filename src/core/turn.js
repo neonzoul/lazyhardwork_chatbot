@@ -586,14 +586,14 @@ async function runTurn(input, deps, opts = {}) {
                 response = { ...response, action: null };
             }
             if (policy?.applyPolicy) {
-                let p = policy.applyPolicy(response, { session: sess, pack, allow: new Set(), userText });
+                let p = policy.applyPolicy(response, { session: sess, pack, allow: policyAllow(sess), userText });
                 if (p.severity === 'regenerate') {
                     d.log.warn('policy.regenerate', { violations: p.violations.map((v) => v.rule || v).join(',') });
                     response = await attempt(`คำตอบก่อนหน้าละเมิดกฎ: ${p.violations.map((v) => v.rule || v).join(', ')} — ตอบใหม่โดยไม่ละเมิด ถ้ายาวหรือเป็นรายการ ให้แบ่งเป็น 2 ข้อความสั้น หรือใช้การ์ด steps/info แทนรายการ`);
-                    p = policy.applyPolicy(response, { session: sess, pack, allow: new Set(), userText });
+                    p = policy.applyPolicy(response, { session: sess, pack, allow: policyAllow(sess), userText });
                     if ((p.severity === 'regenerate' || p.severity === 'fallback') && policy.salvage && policy.isStyleOnly(p.violations)) {
                         // style-only twice: repair by code (split, unlist) instead of claiming a system error (honesty)
-                        const salvaged = policy.applyPolicy(policy.salvage(p.response || response), { session: sess, pack, allow: new Set(), userText });
+                        const salvaged = policy.applyPolicy(policy.salvage(p.response || response), { session: sess, pack, allow: policyAllow(sess), userText });
                         if (salvaged.severity !== 'fallback' && !salvaged.violations.some((v) => String(v.rule).startsWith('banned:'))) {
                             d.log.warn('policy.salvaged', { violations: p.violations.map((v) => v.rule || v).join(',') });
                             await d.store.events.append({ kind: 'policy_salvaged', user_id: sess.user_id, payload: { violations: p.violations.map((v) => v.rule) }, created_at: at.toISOString() });
@@ -763,7 +763,7 @@ const GEO_LINES = [
 const A4_VS_PROJECTS_RE = /(?:Claude|ChatGPT|GPT|Gemini)\s*Projects?|โปรเจกต์(?:ของ)?\s*(?:Claude|ChatGPT)|อัปโหลดไฟล์เอง|ทำเอง(?:ก็)?(?:ได้|เป็น)|ต่างจาก(?:ที่)?\s*(?:ผม|ฉัน|เรา|หนู|พี่)?\s*ทำเอง/iu;
 const A4_WHY_RE = /ต่าง|ทำไม|คุ้ม|จ้าง|ดีกว่า|ยังไง|อย่างไร|ไหม|มั้ย|\?/u;
 // a time / availability question during the booking that the buttons do not answer
-const BOOKING_TIME_ASK_RE = /ว่าง|กี่โมง|เวลาไหน|ช่วงไหน|วันไหน|เมื่อไหร่|เมื่อไร|สะดวก|คิว|ได้(?:ไหม|มั้ย|มั๊ย|รึเปล่า|หรือเปล่า)/u;
+const BOOKING_TIME_ASK_RE = /ว่าง|กี่โมง|เวลาไหน|ช่วงไหน|วันไหน|เมื่อไหร่|เมื่อไร|สะดวก|คิว|ไม่ได้|ขอ(?:วัน|เวลา)อื่น|เปลี่ยน(?:วัน|เวลา)|ได้(?:ไหม|มั้ย|มั๊ย|รึเปล่า|หรือเปล่า)/u;
 // an approved FAQ answer from the pack: the section without its bold question line
 function faqAnswer(pack, id) {
     const ex = lazy('../flows/examples');
@@ -772,6 +772,12 @@ function faqAnswer(pack, id) {
     const lines = String(raw).split('\n').filter((l) => l.trim() && !/^#{1,4}\s/.test(l) && !/^<!--/.test(l));
     if (lines.length && /^\*\*.*\*\*$/.test(lines[0].trim())) lines.shift();
     return lines.join('\n').trim() || null;
+}
+// Lint ids a model reply may contain in this session: once Mos has really confirmed the booking (endings.applyMosDecision),
+// the prompt says so and "ยืนยันแล้ว" is true (CE review 24 Oct)
+function policyAllow(sess) {
+    const confirmed = (sess && sess.booking && sess.booking.status === 'confirmed') || (sess && sess.booking_step === 'confirmed');
+    return confirmed ? new Set(['booking_confirmed']) : new Set();
 }
 // Safe line when the model keeps claiming an action Lay did not perform (Mos's test 24 Oct, freeze exception (b))
 const CLAIM_SAFE_LINE = 'ผมจองหรือยืนยันอะไรแทนไม่ได้ครับ ตอนนี้ยังไม่มีอะไรถูกจองไว้ ถ้าอยากเห็นบอทรับจองจริง ลองเป็นลูกค้าร้านตัวอย่างได้เลยครับ';
