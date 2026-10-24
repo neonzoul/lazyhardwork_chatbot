@@ -1,0 +1,9 @@
+name: 84 · Mos's hand test 24 Oct, B2 opener — "ต่างจาก Claude Projects ยังไง" gets the approved four-point answer (faq.a4-vs-projects)
+covers: ["§9.2", "Mos test 24 Oct (review-pack-mos-test-2026-10-24.md)", "Head 24 Oct faq.a4-vs-projects"]
+# Mos's exact opener. Answered by code from the approved FAQ item, so the real model cannot make it generic.
+user: { id: U84, displayName: "ทดสอบมอส B2" }
+steps:
+  - follow: true
+    expect: { replies: 1, sender: lay }
+  - user: "เห็น Workspace Setup 4,999 ครับ ผมใช้ Claude Projects แล้ว อัปโหลดไฟล์เองก็เป็น ของคุณต่างจากที่ผมทำเองยังไง?"
+    expect: { replies: 1, sender: lay, banned_clean: true, text_contains: ["Claude Projects คือที่ใส่ไฟล์", "1) อ่านไฟล์ของร้านแล้วจัดใหม่", "2) เขียนไฟล์กฎของร้าน", "3) ทำคำสั่งพร้อมใช้", "4) ติดตั้งบน Claude Desktop", "ทำเองคุ้มกว่าครับ ไม่ต้องจ้างเรา"], text_not_contains: ["จำทุกอย่าง"] }

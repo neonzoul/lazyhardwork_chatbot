@@ -21,6 +21,7 @@ const strings = {
     unknownForwarded: 'ส่งคำถามให้มอสแล้วครับ เดี๋ยวมอสตอบกลับมาทางแชทนี้\nระหว่างนี้ถามเรื่องอื่นต่อได้เลย',
     unknown: 'เรื่องนี้ผมยังไม่มีข้อมูลครับ ไม่อยากตอบมั่ว\nให้ส่งคำถามนี้ให้มอสตอบไหมครับ',
     notifyFailed: (phone) => `ขออภัยครับ ระบบส่งเรื่องขัดข้อง\nรบกวนโทรหามอสโดยตรงที่ ${phone} ครับ`,
+    booking: 'ขอเช็กคิวกับมอสก่อนนะครับ แล้วจะยืนยันเวลาให้ในแชทนี้',
     unknownButtons: ['ส่งให้มอสตอบ', 'ถามเรื่องอื่น'],
     forwardPostback: 'FORWARD_TO_MOS',
 };
@@ -29,7 +30,7 @@ function isAskHuman(text) { return ASK_HUMAN_RE.some((re) => re.test(text || '')
 function isSpecialPrice(text) { return SPECIAL_PRICE_RE.test(text || ''); }
 
 // Performs a handoff: notify FIRST, then (and only then) change state and build the customer message.
-// kind: 'handoff_human' | 'handoff_scope' | 'handoff_unknown'
+// kind: 'handoff_human' | 'handoff_scope' | 'handoff_unknown' | 'handoff_booking' (a time question during the booking)
 async function performHandoff({ kind, session, lead, question, draft, deps, config, now }) {
     const phone = config.contact.phoneDisplay;
     try {
@@ -45,7 +46,7 @@ async function performHandoff({ kind, session, lead, question, draft, deps, conf
         return { ok: true, text: strings.unknownForwarded, quickReplies: null, action: 'handoff_unknown' };
     }
     enterQuiet(session, now, kind);
-    const text = kind === 'handoff_human' ? strings.askHuman(phone) : strings.scope;
+    const text = kind === 'handoff_human' ? strings.askHuman(phone) : kind === 'handoff_booking' ? strings.booking : strings.scope;
     return { ok: true, text, quickReplies: [CALL_LAY_LABEL], action: kind };
 }
 

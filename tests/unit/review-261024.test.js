@@ -105,3 +105,34 @@ test('Mos 24 Oct: "วันนี้ได้มั้ย" while the day button
   await runTurn(w.input({ text: 'บ่ายสองได้ไหม' }), w.deps);
   assert.equal((await w.store.sessions.get('U1')).draft.window_time, 'บ่าย 13-17');
 });
+
+test('Mos 24 Oct B2: "ต่างจากที่ผมทำเองยังไง" (Claude Projects) gets faq.a4-vs-projects verbatim — four points + the honest last line, no model', async () => {
+  const w = world();
+  await runTurn(w.input({ text: 'เห็น Workspace Setup 4,999 ครับ ผมใช้ Claude Projects แล้ว อัปโหลดไฟล์เองก็เป็น ของคุณต่างจากที่ผมทำเองยังไง?' }), w.deps);
+  assert.equal(w.model.calls.length, 0);
+  const said = w.line.texts().join('\n');
+  for (const part of ['Claude Projects คือที่ใส่ไฟล์', '1) อ่านไฟล์ของร้านแล้วจัดใหม่ให้ AI หาเจอ', '2) เขียนไฟล์กฎของร้าน', '3) ทำคำสั่งพร้อมใช้', '4) ติดตั้งบน Claude Desktop', 'ทำเองคุ้มกว่าครับ ไม่ต้องจ้างเรา']) assert.ok(said.includes(part), part);
+  assert.doesNotMatch(said, /จำทุกอย่าง/);
+  // a plain mention of Claude without the comparison still goes to the model
+  const v = world();
+  v.model.push(text('ได้ครับ', { intent: 'capability' }));
+  await runTurn(v.input({ text: 'ทีมผมใช้ Claude อยู่' }), v.deps);
+  assert.equal(v.model.calls.length, 1);
+});
+
+test('booking: a time question the buttons do not answer ("ว่างกี่โมงบ้าง") → the honest check-the-queue line + handoff, never the neutral line', async () => {
+  const w = world();
+  await runTurn(w.input({ kind: 'postback', data: 'BOOK_START', text: '' }), w.deps);
+  for (let i = 0; i < 6; i++) {
+    const step = (await w.store.sessions.get('U1')).booking_step;
+    if (step === 'window_day') break;
+    await runTurn(w.input({ text: step === 'name' || step === 'name_text' ? 'มอส' : 'ร้านเค้กตามสั่ง ตามรายละเอียดลูกค้าไม่ทัน' }), w.deps);
+  }
+  const calls = w.model.calls.length;
+  await runTurn(w.input({ text: 'มอสว่างกี่โมงบ้างครับ' }), w.deps);
+  assert.equal(w.model.calls.length, calls);
+  const last = w.line.texts().slice(-1)[0];
+  assert.match(last, /ขอเช็กคิวกับมอสก่อนนะครับ แล้วจะยืนยันเวลาให้ในแชทนี้/);
+  assert.doesNotMatch(last, /ยืนยันแล้ว|เรียบร้อย/);
+  assert.equal((await w.store.sessions.get('U1')).mode, 'quiet');
+});

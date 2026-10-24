@@ -10,6 +10,7 @@ const KIND_LABEL = {
     take: 'Human Mode — มอสคุยเอง (Lay หยุดตอบ)',
     handoff_human: 'คุยกับคน',
     handoff_scope: 'ราคาพิเศษ·นอกขอบเขต',
+    handoff_booking: 'นัดคุย·ขอเช็กคิว',
     handoff_unknown: 'คำถามที่ Lay ตอบไม่ได้',
     booking: 'นัดคุย',
 };

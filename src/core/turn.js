@@ -173,6 +173,11 @@ async function runTurn(input, deps, opts = {}) {
         if (input.kind === 'text' && s.booking_step && endingsMod?.onBookingText && !handoff.isAskHuman(text)) {
             const r = await endingsMod.onBookingText({ text, input, session: s, deps, config, send, persist, done, sender: senders.lay });
             if (r) return r;
+            // a time / availability question the day-time buttons do not answer ("ว่างกี่โมงบ้าง"): never the neutral line and
+            // never a slot implied as confirmed — say Mos checks the queue, and hand off (Head GTM ruling, Mos's test 24 Oct)
+            if (['window_day', 'window_time', 'window_day_text'].includes(s.booking_step) && BOOKING_TIME_ASK_RE.test(text)) {
+                return await doHandoff('handoff_booking', input, s, { question: text });
+            }
         }
 
         // 6. explicit human request (any state) and discount asks
@@ -257,6 +262,17 @@ async function runTurn(input, deps, opts = {}) {
         if (input.kind === 'text' && GUARANTEE_ASK_RE.test(text)) {
             const aboutBeingFound = s.geo_asked || GEO_INTEREST_RE.test(text) || /แนะนำ|ค้นเจอ|ติดอันดับ|ChatGPT|Google/iu.test(text);
             return await plainTurn([aboutBeingFound ? GUARANTEE_GEO : GUARANTEE_GENERAL], { intent: 'capability', topics: ['capability'], lead: false });
+        }
+        // "ต่างจากทำเองใน Claude Projects ยังไง" — A4's most common objection: the approved answer verbatim (faq.a4-vs-projects,
+        // Head 24 Oct after Mos's test; the model's answer was generic)
+        if (input.kind === 'text' && A4_VS_PROJECTS_RE.test(text) && A4_WHY_RE.test(text)) {
+            const answer = faqAnswer(deps.pack, 'faq.a4-vs-projects');
+            if (answer) {
+                session.unionTopics(s, ['capability']);
+                const sent = await send(input, [msg.text(answer)], ['ราคาเท่าไหร่', 'ใช้เวลานานไหม', 'เริ่มยังไง'], senders.lay);
+                await persist(input, s, sent, { role: 'lay' });
+                return done(sent, null);
+            }
         }
         // right after the shop picker, a typed shop name ("คลินิกความงาม") enters that sample shop by code (Mos's test 24 Oct:
         // the model played the clinic itself and "confirmed" a booking)
@@ -743,6 +759,20 @@ const GEO_LINES = [
     'ระหว่างนี้ทำเองได้ครับ เขียนหน้าเว็บหรือโปรไฟล์ร้านให้ตอบคำถามที่ลูกค้ามักถามให้ชัด เช่น อยู่ที่ไหน ขายอะไร ราคาประมาณเท่าไหร่ เปิดกี่โมง เพราะ AI มักหยิบข้อมูลที่เขียนชัดและตรงคำถามไปใช้',
     'ไม่มีใครรับประกันได้ว่า AI จะแนะนำร้านไหนนะครับ เราก็ไม่รับประกัน และเราไม่รับทำเว็บเป็นบริการ ถ้าสนใจ Review ทักต่อได้เลย หรือคุยฟรี 30 นาทีก่อนก็ได้ครับ',
 ];
+// A4 vs doing it yourself in Claude Projects (faq.a4-vs-projects): the question names the tool AND asks why / the difference
+const A4_VS_PROJECTS_RE = /(?:Claude|ChatGPT|GPT|Gemini)\s*Projects?|โปรเจกต์(?:ของ)?\s*(?:Claude|ChatGPT)|อัปโหลดไฟล์เอง|ทำเอง(?:ก็)?(?:ได้|เป็น)|ต่างจาก(?:ที่)?\s*(?:ผม|ฉัน|เรา|หนู|พี่)?\s*ทำเอง/iu;
+const A4_WHY_RE = /ต่าง|ทำไม|คุ้ม|จ้าง|ดีกว่า|ยังไง|อย่างไร|ไหม|มั้ย|\?/u;
+// a time / availability question during the booking that the buttons do not answer
+const BOOKING_TIME_ASK_RE = /ว่าง|กี่โมง|เวลาไหน|ช่วงไหน|วันไหน|เมื่อไหร่|เมื่อไร|สะดวก|คิว|ได้(?:ไหม|มั้ย|มั๊ย|รึเปล่า|หรือเปล่า)/u;
+// an approved FAQ answer from the pack: the section without its bold question line
+function faqAnswer(pack, id) {
+    const ex = lazy('../flows/examples');
+    const raw = ex && ex.sectionText ? ex.sectionText(pack, id) : null;
+    if (!raw) return null;
+    const lines = String(raw).split('\n').filter((l) => l.trim() && !/^#{1,4}\s/.test(l) && !/^<!--/.test(l));
+    if (lines.length && /^\*\*.*\*\*$/.test(lines[0].trim())) lines.shift();
+    return lines.join('\n').trim() || null;
+}
 // Safe line when the model keeps claiming an action Lay did not perform (Mos's test 24 Oct, freeze exception (b))
 const CLAIM_SAFE_LINE = 'ผมจองหรือยืนยันอะไรแทนไม่ได้ครับ ตอนนี้ยังไม่มีอะไรถูกจองไว้ ถ้าอยากเห็นบอทรับจองจริง ลองเป็นลูกค้าร้านตัวอย่างได้เลยครับ';
 // website CTA tokens (Head GTM 23 Oct): a4 · c1 · a2 · a2-shop · a1 · a3
