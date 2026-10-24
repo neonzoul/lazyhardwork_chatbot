@@ -165,7 +165,8 @@ function assertSynced(v, before) {
   assert.equal(e2.status, 'new'); assert.equal(e2.business_name, 'TBD'); assert.equal(e2.contact.handle, null);
   assert.deepEqual(leads.leads.slice(0, before.leads.leads.length), before.leads.leads, 'existing leads.yaml entries untouched');
   assert.equal(leads.updated_by, 'lead-sync (Lay v2)');
-  assert.notEqual(leads.last_updated, before.leads.last_updated);
+  // stamped today (Bangkok); not "different from before": the real vault file may already be dated today (CE, 24 Oct)
+  assert.equal(String(leads.last_updated), new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' }));
   assert.equal(ledger.leads.length, before.ledger.leads.length + 2);
   assert.ok(leadsText.includes('# HARD RULE: every write here'), 'leads.yaml header comment kept');
   assert.ok(leadsText.includes('# new | contacted | qualifying | interested | converted | lost'));

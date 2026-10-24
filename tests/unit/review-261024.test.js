@@ -223,3 +223,36 @@ test('CE review: during the booking only time questions hand off — price, chat
     assert.match(w.line.texts().slice(-1)[0], /ขอเช็กคิวกับมอสก่อนนะครับ/, t);
   }
 });
+
+// v2.0.1 last_touch (Head 24 Oct, approved (b)): a returning friend from the website is counted
+test('v2.0.1: a token on a later message sets homework.last_touch on the existing lead; first-touch source is kept; token stripped', async () => {
+  const w = world();
+  w.model.push(text('ได้ครับ งานไหนกินเวลาที่สุดครับ', { intent: 'fit', lead_updates: { business: 'ร้านเค้ก', problem_verbatim: 'ตอบแชทไม่ทัน' } }));
+  await runTurn(w.input({ text: 'ร้านเค้กครับ ตอบแชทไม่ทัน' }), w.deps);
+  const before = await w.store.leads.byUser('U1');
+  assert.ok(before, 'precondition: a lead exists');
+  assert.equal(before.source, 'line_oa');
+  w.model.push(text('ได้ครับ AI Workspace ช่วยให้ AI อ่านไฟล์จริงของร้านครับ', { intent: 'capability' }));
+  await runTurn(w.input({ text: 'มาจากเว็บ ดูเดโม Workspace #demo-a4' }), w.deps);
+  const lead = await w.store.leads.byUser('U1');
+  assert.equal(lead.source, 'line_oa', 'first touch untouched');
+  assert.equal(lead.homework.last_touch, 'web-demo-a4');
+  assert.ok(lead.homework.last_touch_at);
+  assert.doesNotMatch(JSON.stringify(w.model.calls.slice(-1)), /#demo-a4/);
+  const msgs = await w.store.messages.recent('U1', 20);
+  assert.ok(!JSON.stringify(msgs).includes('#demo-'));
+  // a second page later moves the last touch
+  w.model.push(text('ได้ครับ', { intent: 'capability' }));
+  await runTurn(w.input({ text: 'มาจากเว็บ ดูเดโม AI Business Review #demo-c1' }), w.deps);
+  assert.equal((await w.store.leads.byUser('U1')).homework.last_touch, 'web-demo-c1');
+});
+
+test('v2.0.1: a first message with a token still sets the first-touch source (and the last touch)', async () => {
+  const w = world();
+  w.model.push(text('ได้ครับ', { intent: 'capability' }));
+  await runTurn(w.input({ text: 'มาจากเว็บ ดูเดโม Workspace #demo-a4' }), w.deps);
+  const s = await w.store.sessions.get('U1');
+  assert.equal(s.lead_source, 'web-demo-a4');
+  assert.equal(s.homework.last_touch, 'web-demo-a4');
+  assert.equal(intake.buildLeadRow({ session: s, now: new Date() }).source, 'web-demo-a4');
+});
