@@ -84,3 +84,24 @@ test('Mos 24 Oct: after the picker, typing "คลินิกความงา
   assert.equal(s.demo_shop, 'clinic');
   assert.equal(w.model.calls.length, 0);
 });
+
+test('Mos 24 Oct: "วันนี้ได้มั้ย" while the day buttons are up is the day answer — never the neutral line, no model', async () => {
+  const w = world();
+  await runTurn(w.input({ kind: 'postback', data: 'BOOK_START', text: '' }), w.deps);
+  // answer the homework / name questions the booking asks first, as a customer would
+  for (let i = 0; i < 6; i++) {
+    const step = (await w.store.sessions.get('U1')).booking_step;
+    if (step === 'window_day') break;
+    await runTurn(w.input({ text: step === 'name' || step === 'name_text' ? 'มอส' : 'ร้านเค้กตามสั่ง ตามรายละเอียดลูกค้าไม่ทัน' }), w.deps);
+  }
+  assert.equal((await w.store.sessions.get('U1')).booking_step, 'window_day', 'precondition: the day question is up');
+  const calls = w.model.calls.length;
+  await runTurn(w.input({ text: 'วันนี้ได้มั้ย' }), w.deps);
+  const s = await w.store.sessions.get('U1');
+  assert.equal(w.model.calls.length, calls);
+  assert.match(s.draft.window_day, /^วันนี้/);
+  assert.equal(s.booking_step, 'window_time');
+  assert.notEqual(w.line.texts().slice(-1)[0], 'รับทราบครับ');
+  await runTurn(w.input({ text: 'บ่ายสองได้ไหม' }), w.deps);
+  assert.equal((await w.store.sessions.get('U1')).draft.window_time, 'บ่าย 13-17');
+});

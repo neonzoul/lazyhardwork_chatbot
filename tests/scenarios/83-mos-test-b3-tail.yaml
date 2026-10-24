@@ -7,7 +7,7 @@ steps:
     expect: { replies: 1, sender: lay }
   - user: "“ถ้าราคาโปรเปลี่ยน พนักงานแก้เองได้ไหม?”"
     model: { messages: [{ type: text, text: "คลังความรู้เป็นของร้านครับ ช่วงดูแล ร้านส่งเรื่องที่เปลี่ยน เช่น ราคาโปร มาทาง LINE แล้วเราอัปเดตให้ รวมในค่าดูแลแล้ว", explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: [process], kb_refs: ["faq.chatbot-edit-after-delivery"], intent: faq }
-    expect: { replies_min: 1, sender: lay, banned_clean: true, text_contains: ["เราอัปเดตให้"] }
+    expect: { replies_min: 1, sender: lay, banned_clean: true, text_contains: ["อัปเดต", "LINE"] }
   - user: "“ให้บอทเช็กสลิปแล้วคอนเฟิร์มส่งของเลยได้ไหม?”\n“เจ้าอื่นเสนอถูกกว่า ของคุณต่างกันตรงไหน?”"
     model: { messages: [{ type: text, text: "บอทรับสลิปแล้วส่งให้คนของร้านตรวจและยืนยันครับ บอทไม่ยืนยันเงินหรือสั่งส่งของเอง", explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: [capability], kb_refs: ["faq.chatbot-slip"], intent: faq }
     expect: { replies_min: 1, sender: lay, banned_clean: true, text_contains: ["ส่งให้คนของร้านตรวจ"], text_not_contains: ["เรียบร้อยแล้ว"] }
