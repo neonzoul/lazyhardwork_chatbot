@@ -53,7 +53,10 @@ const SENDER_NAMES = { lay: 'Agent Lay · AI', mos: 'มอส' };
 const EXPECT_KEYS = ['replies', 'replies_min', 'text_contains', 'text_not_contains', 'quick_replies', 'quick_replies_includes', 'quick_replies_max',
   'card', 'sender', 'banned_clean', 'emoji_max', 'no_prose_list', 'action', 'notified', 'not_notified', 'silent', 'session', 'alerts'];
 const SESSION_EXPECT_KEYS = ['mode', 'topics_covered_includes', 'questions_asked_max', 'draft_has', 'homework_has'];
-const STEP_KEYS = ['user', 'postback', 'media', 'follow', 'mos', 'decision', 'fault', 'clock', 'allow', 'model', 'expect', 'note'];
+// `expect_scripted` checks only hold when the scripted model said exactly what the step scripts (e.g. a repaired link);
+// with --model real only `expect` applies
+const stepExpect = (step, mode) => ({ ...(step.expect || {}), ...(mode !== 'real' ? step.expect_scripted || {} : {}) });
+const STEP_KEYS = ['user', 'postback', 'media', 'follow', 'mos', 'decision', 'fault', 'clock', 'allow', 'model', 'expect', 'expect_scripted', 'note'];
 const INPUT_STEP_KEYS = ['user', 'postback', 'media', 'follow', 'mos', 'decision'];
 
 function arg(name, def) { const i = process.argv.indexOf(`--${name}`); return i > -1 ? process.argv[i + 1] : def; }
@@ -203,7 +206,7 @@ async function runScenario(sc, { turn, modelMode }) {
         if (!booking) throw new Error('decision: no booking for this user');
         await endings.applyMosDecision({ decision: step.decision.decision, windows: step.decision.windows || [], booking, session: sess, deps, config, senders: createSenders(config) });
         const session = await store.sessions.get(userId);
-        fails = assertStep(step.expect || {}, { line, notifier, alerts, result: { action: null }, session, sentBefore, allow });
+        fails = assertStep(stepExpect(step, modelMode), { line, notifier, alerts, result: { action: null }, session, sentBefore, allow });
       } catch (e) { fails = [`decision threw: ${e.message}`]; }
       stepResults.push({ i, kind: 'decision', input: step.decision, ok: fails.length === 0, fails, sent: line.sent.slice(sentBefore), bubbles: bubblesOf(line.sent.slice(sentBefore)) });
       continue;
@@ -224,9 +227,9 @@ async function runScenario(sc, { turn, modelMode }) {
     if (scripted) { const k = model.queue.indexOf(scripted); if (k >= 0) model.queue.splice(k, 1); }
     if (pendingModelFault !== null) { const k = model.queue.indexOf(pendingModelFault); if (k >= 0) model.queue.splice(k, 1); pendingModelFault = null; }
     const session = await store.sessions.get(userId);
-    const fails = err ? [`runTurn threw: ${err.message}`] : assertStep(step.expect || {}, { line, notifier, alerts, result, session, sentBefore, allow });
+    const fails = err ? [`runTurn threw: ${err.message}`] : assertStep(stepExpect(step, modelMode), { line, notifier, alerts, result, session, sentBefore, allow });
     // never-silent: every customer-originated step must produce at least one outgoing message unless the scenario says silent
-    if (!err && !step.expect?.silent && line.sent.length === sentBefore && input.kind !== 'mos_relay') fails.push('SILENT: no message sent');
+    if (!err && !stepExpect(step, modelMode).silent && line.sent.length === sentBefore && input.kind !== 'mos_relay') fails.push('SILENT: no message sent');
     stepResults.push({ i, kind: input.kind, input: step.user ?? step.postback ?? step.media ?? (step.mos ? step.mos.text : 'follow'), ok: fails.length === 0, fails, sent: line.sent.slice(sentBefore), bubbles: bubblesOf(line.sent.slice(sentBefore)), errors: (result?.errors || []).map((e) => e.message) });
     // a notifier fault lasts for exactly one input step (the header promises "next call"); it used to stick for the whole scenario
     if (pendingNotifierFault) { delete notifier.fail[pendingNotifierFault]; pendingNotifierFault = null; }
