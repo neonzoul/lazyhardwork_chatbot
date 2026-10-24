@@ -280,6 +280,19 @@ function check(label, cardValue, ledgerValue) {
   if (!ok) mismatches.push(`${label}: cards=${cardValue} ledger=${ledgerValue}`);
 }
 
+// A tier the ledger no longer carries (null / missing) was dropped on purpose — e.g. D-22 (22 Oct): A1 drops its ฿4,900
+// package while the cards file still lists it. The ledger is the source of truth for prices: the tier is left out of the
+// pack with a warning instead of failing the build. A real price disagreement still fails.
+const droppedTiers = [];
+for (const id of CARD_IDS) {
+  const card = parsed.cards[id];
+  card.packages = card.packages.filter((p) => {
+    const lp = ledgerPrice(id, p.tier);
+    if (lp === null || lp === undefined) { droppedTiers.push(`${id}.${p.tier} (${p.name})`); return false; }
+    return true;
+  });
+}
+for (const d of droppedTiers) console.warn(`kb-build: WARN ${d} is in the cards file but not in the ledger — left out of the pack`);
 for (const id of CARD_IDS) {
   const card = parsed.cards[id];
   for (const p of card.packages) check(`${id}.${p.tier} (${p.name})`, p.price, ledgerPrice(id, p.tier));
@@ -366,7 +379,10 @@ function checkExamples(text) {
   }
   return body.trim();
 }
-const examplesBody = checkExamples(examplesText);
+// The demo-shops card has one line for both shops; the model copied it onto both items of a two-shop list (real-model
+// run 23 Oct, skincare). One line per shop, until the source cards file is fixed (Head GTM ruling R4, 23 Oct).
+const DEMO_SHOP_LINES = 'cafe_line: ลองสั่งกาแฟกับร้านกาแฟตัวอย่าง\nclinic_line: ลองจองคิวกับคลินิกตัวอย่าง';
+const examplesBody = checkExamples(examplesText).replace(/(### examples\.carousel\.demo-shops\n(?:[^\n]*\n)*?line: [^\n]*)/u, `$1\n${DEMO_SHOP_LINES}`);
 
 // ---------------------------------------------------------------------------------------------
 // Writers
@@ -442,7 +458,7 @@ ${p.proof.line_th}
   const ladderTable = CARD_IDS.map((id) => {
     const tiers = TIER_ORDER.map((t) => {
       const v = ledgerPrice(id, t);
-      return v === undefined ? '—' : thb(v);
+      return v === undefined || v === null ? '—' : thb(v); // a dropped tier is never "0"
     });
     return `| ${id} | ${c[id].title} | ${tiers.join(' | ')} | ${c[id].t4 ? thb(c[id].t4.price) : '—'} |`;
   }).join('\n');
@@ -498,7 +514,8 @@ ${parsed.screening.map((s, i) => `${i + 1}. ${s}`).join('\n')}
       text += `ดูแลให้ฟรี ${ledger.ladders.care_monthly.free_months_after_delivery} เดือนแรก (แพ็ก ${TIER_NAMES.T3} ดูแลรวมนานกว่า ดูในแพ็ก) หลังจากนั้นค่าดูแล ราคาเริ่มต้น ${thb(n.careStandard)} บาท/เดือน แก้ เพิ่มความรู้ กันล่ม รายงานรายเดือน ไม่มีสัญญาผูกมัด ยกเลิกได้ทุกเดือน\n`;
     }
     if (n.addChannel !== null) {
-      text += `\n### offer.${id}.add-channel\n**${id} เพิ่มช่องทาง**\nเพิ่มช่องทาง (LINE OA / Facebook / Instagram / เว็บไซต์) ราคาเริ่มต้น ${thb(n.addChannel)} บาทต่อช่องทาง ถูกกว่าทำใหม่เพราะใช้สมองและคลังความรู้ชุดเดียวกัน แก้ที่เดียวเปลี่ยนครบทุกช่อง ${PRICE_SENTENCE}\n`;
+      // Instagram is not offered now (Mos 22 Oct: planned, no date) even though the card's add-on line lists it
+      text += `\n### offer.${id}.add-channel\n**${id} เพิ่มช่องทาง**\nเพิ่มช่องทาง (LINE OA / Facebook / เว็บไซต์) ราคาเริ่มต้น ${thb(n.addChannel)} บาทต่อช่องทาง ถูกกว่าทำใหม่เพราะใช้สมองและคลังความรู้ชุดเดียวกัน แก้ที่เดียวเปลี่ยนครบทุกช่อง ${PRICE_SENTENCE}\n`;
     }
     const other = n.lines.filter((l) => !/ค่าดูแลหลังหมดช่วงฟรี|ไม่เกิน [\d,]+ ข้อความ|เพิ่มช่องทาง:/.test(l));
     for (const l of other) {
@@ -615,6 +632,20 @@ ${timelineRows}
     const draft = !faq.approved || it.status !== 'approved';
     if (faq.approved && it.status !== 'approved') console.warn(`kb-build: WARN FAQ approved but ${it.id} is still status: ${it.status}`);
     text += `\n### ${it.id}\n${draft ? '<!-- status: draft -->\n' : ''}**${it.q}**\n${it.a}\n`;
+  }
+  // Facts the Head GTM confirmed from the service cards (ruling 23 Oct, F1–F4) after the model improvised them in the
+  // real-model run. Kept here until Mos moves them into faq-lay-v2.md; an id already in the source wins.
+  const RULED = [
+    ['faq.workspace-follow-up-days', 'หลังส่งมอบ AI Workspace ถามต่อได้กี่วัน', 'AI Workspace Setup ไม่มีช่วง "ดูแลฟรี" ครับ มีช่วงถามต่อได้ตามแพ็ก: Starter 7 วัน · Advanced 14 วัน · Operation 30 วัน และปรับจูน 1 ครั้ง'],
+    ['faq.workspace-revisions', 'AI Workspace แก้ได้กี่ครั้ง ใช้เวลากี่วัน', 'ตามแพ็กครับ Starter แก้ได้ 1 ครั้ง ภายใน 5 วัน ถามต่อได้ 7 วัน · Advanced แก้ได้ 2 ครั้ง ภายใน 7 วัน ถามต่อได้ 14 วัน · Operation แก้ได้ 3 ครั้ง ภายใน 14 วัน ถามต่อได้ 30 วัน และปรับจูน 1 ครั้ง'],
+    ['faq.workspace-after-follow-up', 'หลังหมดช่วงถามต่อของ AI Workspace มีปัญหาทำยังไง', 'หลังช่วงถามต่อ ทักมาได้ครับ เราดูให้ว่าเป็นเรื่องเล็กหรือต้องคิดเป็นงานใหม่'],
+    ['faq.workspace-price-updates', 'ราคาเปลี่ยนทุกเดือน ใครต้องอัปเดต (AI Workspace)', 'ไฟล์ราคาเป็นของคุณ แก้ไฟล์เอง AI อ่านไฟล์ปัจจุบันเสมอ ไม่ต้องตั้งค่าใหม่และไม่มีค่ารายเดือนครับ ค่าสมาชิก Claude เป็นบัญชีของคุณเอง'],
+    ['faq.chatbot-slip', 'บอทเช็กสลิปหรือยืนยันการโอนได้ไหม', 'บอทรับสลิปแล้วส่งให้คนของร้านตรวจและยืนยันครับ บอทไม่ยืนยันเงินหรือสั่งส่งของเอง'],
+    ['faq.chatbot-edit-after-delivery', 'หลังส่งมอบแชทบอท ถ้าราคาหรือโปรเปลี่ยน พนักงานแก้เองได้ไหม', 'คลังความรู้เป็นของร้านครับ ช่วงดูแล ร้านส่งเรื่องที่เปลี่ยน เช่น ราคาโปร มาทาง LINE แล้วเราอัปเดตให้ รวมในค่าดูแลแล้ว'],
+  ].filter(([id]) => !included.some((it) => it.id === id));
+  if (RULED.length) {
+    text += `\n**หมวด: ข้อเท็จจริงจากการ์ดบริการ**\n`;
+    for (const [id, q, a] of RULED) text += `\n### ${id}\n**${q}**\n${a}\n`;
   }
   addOutput('faq', 'kb/faq.md', text, [SRC.faq]);
 }

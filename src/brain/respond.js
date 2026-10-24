@@ -3,7 +3,7 @@
 // the turn needs is on the returned object; everything that goes wrong is a thrown error with a `kind` so core/turn
 // can pick the fallback and log one event.
 //
-//   createModel({ task = 'lay.reply', keys?, keyring?, tracker?, log?, client?, model?, maxTokens?, temperature?, timeoutMs? })
+//   createModel({ task = 'lay.reply', keys?, keyring?, tracker?, health?, log?, client?, model?, maxTokens?, temperature?, timeoutMs? })
 //     → { respond({ system, messages, schema, meta }) → Promise<response>, config, keyring }
 //
 //   respond: one call with response_format json_schema when the task is structured (strict when the schema allows it —
@@ -89,9 +89,12 @@ function errorText(err) {
 }
 
 // 402, or a 429/403 whose body talks about credits / limits ⇒ the key is spent (OpenRouter key limit or account credit).
+// 401 = the key itself is rejected (deleted, disabled, account gone: "User not found", 22 Oct 2026). It is as unusable as a
+// spent key: rotate, and with none left take the degraded path (question forwarded to Mos + critical alert), not the bare
+// error line.
 function isExhaustedError(err) {
   const status = err && err.status;
-  if (status === 402) return true;
+  if (status === 402 || status === 401) return true;
   if ((status === 429 || status === 403) && EXHAUSTED_RE.test(errorText(err))) return true;
   return false;
 }
@@ -99,6 +102,7 @@ function isExhaustedError(err) {
 function classifyProviderError(err) {
   const text = errorText(err);
   const status = err && err.status;
+  if (status === 401) return new ModelError('exhausted', `key rejected (401): ${(err && err.message) || status}`, { cause: err, status });
   if (isExhaustedError(err)) return new ModelError('exhausted', `key limit exhausted: ${(err && err.message) || status}`, { cause: err, status });
   if (/timeout|timed out|ETIMEDOUT|AbortError/i.test(text)) return new ModelError('timeout', `model call timed out: ${err && err.message}`, { cause: err, status });
   return new ModelError('provider', `model provider error: ${(err && err.message) || String(err)}`, { cause: err, status });
@@ -143,6 +147,7 @@ function createModel(opts = {}) {
   };
   const log = opts.log || null;
   const tracker = opts.tracker || null;
+  const health = opts.health || null;   // /health model status (Issue #5)
 
   let keyring = opts.keyring || null;
   if (!keyring) {
@@ -183,10 +188,12 @@ function createModel(opts = {}) {
       if (config.structured && schema) body.response_format = { type: 'json_schema', json_schema: providerSchema(schema, log) };
       completion = await clientFor(key).chat.completions.create(body, { timeout: config.timeoutMs });
     } catch (err) {
+      if (health) { try { health.error(err); } catch { /* never */ } }
       const e = err instanceof ModelError ? err : classifyProviderError(err);
       track({ ...base, prompt_tokens: 0, completion_tokens: 0, cached_tokens: 0, total_tokens: 0, cost_usd: 0, latency_ms: Date.now() - started, outcome: e.kind === 'exhausted' ? 'exhausted' : 'error', error: e.message.slice(0, 300), request_id: null });
       throw e;
     }
+    if (health) { try { health.ok(); } catch { /* never */ } }   // the key and the provider answered
     const latencyMs = Date.now() - started;
     const u = completion && completion.usage;
     const tokens = { prompt_tokens: (u && u.prompt_tokens) || 0, completion_tokens: (u && u.completion_tokens) || 0, cached_tokens: (u && u.prompt_tokens_details && u.prompt_tokens_details.cached_tokens) || 0, total_tokens: (u && u.total_tokens) || 0, cost_usd: (u && Number.isFinite(u.cost)) ? u.cost : 0 };

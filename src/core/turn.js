@@ -30,6 +30,13 @@ const sanitizeInput = (text) => String(text || '')
     .replace(/###\s*system\s*###[\s\S]*?###/gi, '')
     .replace(/IGNORE\s+(ALL\s+)?(PREVIOUS|PRIOR|ABOVE)\s+(INSTRUCTIONS?|RULES?|PROMPTS?)[^\n]*/gi, '')
     .trim();
+// Leading bullets / dashes / quotes and wrapping quotes come off every line before any matching (Mos's test 24 Oct:
+// '- “ขอลองเป็นลูกค้าร้านตัวอย่างก่อนค่ะ”' missed the demo path and the model played the shop itself).
+const LEAD_MARK_RE = /^[\s\-–—•·‣◦*>"“”'‘’«»「」『』]+/u;
+const TRAIL_MARK_RE = /[\s"“”'‘’«»「」『』]+$/u;
+const normaliseText = (text) => String(text || '').split('\n')
+    .map((line) => line.replace(LEAD_MARK_RE, '').replace(TRAIL_MARK_RE, ''))
+    .filter((line) => line.trim()).join('\n').trim();
 
 function lazy(path) { try { return require(path); } catch (e) { if (e.code === 'MODULE_NOT_FOUND' && e.message.includes(path.split('/').pop())) return null; throw e; } }
 
@@ -54,6 +61,20 @@ async function runTurn(input, deps, opts = {}) {
         }
         const shops = deps.pack?.demoShops || {};
         sender = senders.forSession(s, shops);
+
+        // 0a. bullets / dashes / quotes off before every matcher (opening, intent, demo path, model)
+        if (input.kind === 'text' && typeof input.text === 'string') {
+            const n = normaliseText(input.text);
+            if (n && n !== input.text) input = { ...input, text: n };
+        }
+        // 0. a website CTA prefills "#demo-<id>" (Head GTM 23 Oct, Issue #2): the first message names the page the lead came
+        // from (lead.source web-demo-<id>); the token never reaches the model, the opening check or the transcript
+        let demoTag = null;
+        if (input.kind === 'text' && !s.last_customer_at && DEMO_TAG_RE.test(input.text || '')) {
+            demoTag = String(input.text).match(DEMO_TAG_RE)[1].toLowerCase();
+            s.lead_source = `web-demo-${demoTag}`;
+            input = { ...input, text: String(input.text).replace(DEMO_TAG_RE, ' ').replace(/[ \t]{2,}/gu, ' ').trim() || 'สวัสดีครับ' };
+        }
 
         // 1. lazy quiet-window expiry
         const resumed = quiet.resumeIfIdle(s, now, { windowMinutes: config.quiet.windowMinutes });
@@ -94,6 +115,12 @@ async function runTurn(input, deps, opts = {}) {
         s.last_customer_at = now.toISOString();
         if (text) s.last_customer_text = text;
         await deps.store.messages.append({ user_id: s.user_id, role: 'customer', kind: input.kind, text: text || data, created_at: now.toISOString(), payload: input.kind === 'postback' ? { data } : null });
+        // the sample-shop CTA: a text that names the shop ("ขอดูตัวอย่าง ร้านกาแฟ") enters that shop; otherwise the picker
+        if (demoTag === 'a2-shop' && s.mode !== 'demo') {
+            const demo = deps.flows?.demo || lazy('../flows/demo');
+            if (demo?.onModelAction && demo.shopFromText?.(text)) return await demo.onModelAction({ action: 'demo_enter', response: null, input, session: s, deps, config, send, persist, done, senders });
+            if (demo?.onDemoPostback) return await demo.onDemoPostback({ data: 'DEMO_PICK', input, session: s, deps, config, send, persist, done, senders });
+        }
 
         // 4a. Human Mode (Mos took the chat): Lay never answers; every customer message goes to the lead thread. Only Mos
         // releases it (▶️Lay / /lay / @บอท resume), so the customer's own "เรียก Lay" is relayed too.
@@ -146,6 +173,11 @@ async function runTurn(input, deps, opts = {}) {
         if (input.kind === 'text' && s.booking_step && endingsMod?.onBookingText && !handoff.isAskHuman(text)) {
             const r = await endingsMod.onBookingText({ text, input, session: s, deps, config, send, persist, done, sender: senders.lay });
             if (r) return r;
+            // a time / availability question the day-time buttons do not answer ("ว่างกี่โมงบ้าง"): never the neutral line and
+            // never a slot implied as confirmed — say Mos checks the queue, and hand off (Head GTM ruling, Mos's test 24 Oct)
+            if (['window_day', 'window_time', 'window_day_text'].includes(s.booking_step) && BOOKING_TIME_ASK_RE.test(text)) {
+                return await doHandoff('handoff_booking', input, s, { question: text });
+            }
         }
 
         // 6. explicit human request (any state) and discount asks
@@ -182,6 +214,8 @@ async function runTurn(input, deps, opts = {}) {
             else if (data.startsWith('DETAIL_')) { return await detailsTurn(data.slice('DETAIL_'.length)); }
             // "อยากได้แบบนี้" on an example: that example's card, its offer and its next step — decided by code, no model
             // question from another card (head review 19 Oct).
+            else if (data === GEO_NOTE_PB || data === GEO_SKIP_PB) { return await geoNoteTurn(data === GEO_NOTE_PB); }
+            else if (data === GEO_TALK_PB) { return await geoTalkTurn(); }
             else if (data.startsWith('WANT_') && fit?.chooseSymptom) { const sym = fit.chooseSymptom(s, data.slice('WANT_'.length)); if (sym) return await detailsTurn(sym.card); }
             else if (data === 'MENU_EXAMPLES' || data === 'MENU_PORTFOLIO') { const demo = flows.demo || lazy('../flows/demo'); if (demo?.onDemoPostback) return await demo.onDemoPostback({ data: 'DEMO_EXAMPLES', input, session: s, deps, config, send, persist, done, senders }); }
             else if (data.startsWith('MENU_')) { const t = MENU_TO_TEXT[data]; if (t) { userText = t; intentHint = topics.topicFromText(t) || 'unknown'; } }
@@ -199,12 +233,63 @@ async function runTurn(input, deps, opts = {}) {
         if (input.kind === 'text' && OUT_OF_SCOPE_RE.test(text)) return await outOfScopeTurn();
         // 8a''. not started yet (head review 20 Oct, pre-launch burger): no system and no paid card is needed yet; say when we
         // would help and invite them back. The lead becomes nurture.
-        if (input.kind === 'text' && TOO_EARLY_RE.test(text) && !s.draft?.confirmed) return await tooEarlyTurn();
+        // Too-early vs operating (Head GTM review 22 Oct, case B: an operating hotel got the pre-launch answer because the flag
+        // from an earlier burger line stuck to the user):
+        //  · both signals in one message → one clarifying question, set nothing until the answer
+        //  · an operating signal alone → clear the too-early flag (the lead leaves nurture) and carry on to qualify
+        //  · the answer to the clarifying question decides
+        const tooEarlyNow = input.kind === 'text' && TOO_EARLY_RE.test(text);
+        const operatingNow = input.kind === 'text' && OPERATING_RE.test(text);
+        if (input.kind === 'text' && s.launch_question_open) {
+            s.launch_question_open = false;
+            if (LAUNCH_NO_RE.test(text)) return await tooEarlyTurn();
+            if (LAUNCH_YES_RE.test(text)) { await clearTooEarly(); s.operating = true; }
+        } else if (tooEarlyNow && operatingNow && !s.draft?.confirmed) {
+            return await launchQuestionTurn();
+        } else if (operatingNow) {
+            if (s.too_early) await clearTooEarly();
+            s.operating = true;
+        }
+        if (input.kind === 'text' && tooEarlyNow && !operatingNow && !s.operating && !s.draft?.confirmed) return await tooEarlyTurn();
         // 8a'''. marketing work itself (content, clips, ads, page management, branding) is not ours: say so, one free tip, no card
+        // GEO / SEO interest (Head GTM 22 Oct, Mos's ruling): not a service yet but being prepared — honest "not open yet", one
+        // DIY line, offer to note the interest. Checked before the marketing refusal; never not_fit.
+        if (input.kind === 'text' && GEO_INTEREST_RE.test(text)) return await geoInterestTurn();
+        if (input.kind === 'text' && (text.trim() === GEO_NOTE_LABEL || text.trim() === GEO_SKIP_LABEL) && s.geo_asked) return await geoNoteTurn(text.trim() === GEO_NOTE_LABEL);
+        if (input.kind === 'text' && text.trim() === GEO_TALK_LABEL && s.geo_asked) return await geoTalkTurn();
+        // a guarantee question gets a fixed honest line (Head GTM ruling R1, 23 Oct): the model's answer kept tripping the
+        // banned-guarantee rule and ended in "รับทราบครับ"
+        if (input.kind === 'text' && GUARANTEE_ASK_RE.test(text)) {
+            const aboutBeingFound = s.geo_asked || GEO_INTEREST_RE.test(text) || /แนะนำ|ค้นเจอ|ติดอันดับ|ChatGPT|Google/iu.test(text);
+            return await plainTurn([aboutBeingFound ? GUARANTEE_GEO : GUARANTEE_GENERAL], { intent: 'capability', topics: ['capability'], lead: false });
+        }
+        // "ต่างจากทำเองใน Claude Projects ยังไง" — A4's most common objection: the approved answer verbatim (faq.a4-vs-projects,
+        // Head 24 Oct after Mos's test; the model's answer was generic)
+        if (input.kind === 'text' && A4_VS_PROJECTS_RE.test(text) && A4_WHY_RE.test(text)) {
+            const answer = faqAnswer(deps.pack, 'faq.a4-vs-projects');
+            if (answer) {
+                session.unionTopics(s, ['capability']);
+                const sent = await send(input, [msg.text(answer)], ['ราคาเท่าไหร่', 'ใช้เวลานานไหม', 'เริ่มยังไง'], senders.lay);
+                await persist(input, s, sent, { role: 'lay' });
+                return done(sent, null);
+            }
+        }
+        // right after the shop picker, a typed shop name ("คลินิกความงาม") enters that sample shop by code (Mos's test 24 Oct:
+        // the model played the clinic itself and "confirmed" a booking)
+        if (input.kind === 'text' && s.demo_pick_open && s.mode !== 'demo') {
+            s.demo_pick_open = false;
+            const demo = flows.demo || lazy('../flows/demo');
+            if (demo?.onModelAction && demo.shopFromText?.(text) && [...text].length <= 40) return await demo.onModelAction({ action: 'demo_enter', response: null, input, session: s, deps, config, send, persist, done, senders });
+        }
+        // "ขอลองเป็นลูกค้าร้านตัวอย่าง" typed: the shop picker by code (the model wrote a two-item list with one line twice)
+        if (input.kind === 'text' && DEMO_TRY_RE.test(text) && s.mode !== 'demo') {
+            const demo = flows.demo || lazy('../flows/demo');
+            if (demo?.onDemoPostback) return await demo.onDemoPostback({ data: 'DEMO_PICK', input, session: s, deps, config, send, persist, done, senders });
+        }
         if (input.kind === 'text' && MARKETING_RE.test(text) && !IN_SCOPE_HINT_RE.test(text)) return await marketingTurn();
         // ...and while they have not started, telling us about the team or plans gets the same short line (the model kept
         // praising and asking screening questions, replay 20 Oct); a named problem or one of the main questions still goes on
-        if (input.kind === 'text' && s.too_early && !s.draft?.confirmed && !topics.topicFromText(text) && !handoff.isAskHuman(text)) {
+        if (input.kind === 'text' && s.too_early && !operatingNow && !s.draft?.confirmed && !topics.topicFromText(text) && !handoff.isAskHuman(text)) {
             const fitMod = flows.fit || lazy('../flows/fit');
             if (!fitMod?.symptomFromText?.(text)) return await tooEarlyTurn();
         }
@@ -240,7 +325,19 @@ async function runTurn(input, deps, opts = {}) {
         if (s.draft?.card && !s.draft.tier) s.draft.tier = 'T1';
         try { endingsMod?.decorateResponse?.({ response, session: s, deps }); } catch (e) { deps.log.warn('endings.decorate_failed', { error: e?.message }); }
         fixA1Offer(response, s, deps, endingsMod);
+        // Qualify an operating business with no named problem (Head GTM review 22 Oct): the model asks which work floods them
+        // with 2–3 examples from their domain; code adds the symptom chooser. This is the SYMPTOM question, not a screening
+        // question — prompt rule "คำถามคัดกรอง … ถามได้เฉพาะหลังลูกค้าบอกปัญหา" is not violated. Do not "fix" it backwards.
+        const askedTopic = topics.topicFromText(text);
+        if (operatingNow && (!askedTopic || askedTopic === 'fit') && !s.draft?.confirmed && !(response.messages || []).some((m) => m.type === 'card')) {
+            const fitMod = flows.fit || lazy('../flows/fit');
+            const card = fitMod?.fitChoiceCard?.();
+            if (card) response.messages = [...(response.messages || []).filter((m) => m.type === 'text').slice(0, 1), { type: 'card', text: null, explain: false, template: card.template, alt: card.alt, data: card.data }];
+        }
         dropUnfitOffers(response, s, endingsMod);
+        // the model answered a GEO ask the regex missed (Head GTM ruling 22 Oct) and offered the note button: the tap then
+        // records interest=geo exactly like the code branch
+        if ((response.quick_replies || []).some((q) => (typeof q === 'string' ? q : q && q.label) === GEO_NOTE_LABEL)) s.geo_asked = true;
         s.last_kb_refs = response.kb_refs || [];
         s.last_intent = response.intent;
         if (response.intent === 'unknown' || response.intent === 'faq' && response.action === 'handoff_unknown') s.last_unknown_question = userText;
@@ -311,6 +408,48 @@ async function runTurn(input, deps, opts = {}) {
         const sent = await send(input, renderMessages(response, { deps, config, session: s }), [], senders.lay);
         await persist(input, s, sent, { role: 'lay', response });
         if (lead) { try { await upsertLead(s, {}); } catch (e) { deps.log.warn('lead.upsert_failed', { error: e?.message }); } }
+        return done(sent, null);
+    }
+
+    async function geoInterestTurn() {
+        const again = !!s.geo_asked;
+        s.geo_asked = true;
+        // keep the wording demand uses (Head GTM): the customer's own ask, only if no problem was recorded yet
+        if (!s.homework?.problem_verbatim) s.homework = { ...(s.homework || {}), problem_verbatim: String(input.text || '').slice(0, 200) };
+        const response = emptyResponse({ intent: 'out_of_scope', topics: ['capability'], messages: [{ type: 'text', text: (again ? [GEO_AGAIN] : GEO_LINES).join('\n'), explain: false, template: null, alt: null, data: null }] });
+        session.unionTopics(s, response.topics);
+        const sent = await send(input, renderMessages(response, { deps, config, session: s }), GEO_QUICK, senders.lay);
+        await persist(input, s, sent, { role: 'lay', response });
+        return done(sent, null);
+    }
+
+    // Either positive tap is the demand signal (Head GTM, D-39): interest=geo; status follows the normal ladder.
+    async function geoNoteTurn(note) {
+        if (note) {
+            s.homework = { ...(s.homework || {}), interest: 'geo' };
+            try { await upsertLead(s, { reason: 'status' }); } catch (e) { deps.log.warn('lead.upsert_failed', { error: e?.message }); }
+        }
+        return plainTurn([note ? GEO_NOTED : 'รับทราบครับ'], { intent: note ? 'pricing' : 'out_of_scope', topics: ['capability'], lead: false });
+    }
+    // "คุยฟรีก่อน": interest=geo, then the normal booking entry (the free 30-minute talk)
+    async function geoTalkTurn() {
+        s.homework = { ...(s.homework || {}), interest: 'geo' };
+        const endingsMod = deps.flows?.endings || lazy('../flows/endings');
+        if (endingsMod?.onModelAction) return await endingsMod.onModelAction({ action: 'booking_start', response: null, input, session: s, deps, config, send, persist, done, senders, doHandoff, upsertLead });
+        return await geoNoteTurn(true);
+    }
+
+    async function clearTooEarly() {
+        s.too_early = false;
+        s.too_early_replies = 0;
+        try { await upsertLead(s, {}); } catch (e) { deps.log.warn('lead.upsert_failed', { error: e?.message }); }
+    }
+
+    async function launchQuestionTurn() {
+        s.launch_question_open = true;
+        const response = emptyResponse({ intent: 'fit', topics: [], messages: [{ type: 'text', text: LAUNCH_QUESTION, explain: false, template: null, alt: null, data: null }] });
+        const sent = await send(input, renderMessages(response, { deps, config, session: s }), LAUNCH_QUICK, senders.lay);
+        await persist(input, s, sent, { role: 'lay', response });
         return done(sent, null);
     }
 
@@ -441,19 +580,20 @@ async function runTurn(input, deps, opts = {}) {
             // (brief §2 row "อยากได้คนขาย"; replay 18 Oct on gpt-4.1-mini silenced Lay for the rest of the chat).
             // Allowed: special price / discount / firm quote, and help applying for a subsidy (brief §5.7).
             const HELP_APPLY_RE = /ช่วย\s*(?:ยื่น|สมัคร|ทำเรื่อง|กรอก)|ยื่นขอ|ทำเรื่องขอ/u;
-            if (response && response.action === 'handoff_scope' && !['special_price', 'benefits'].includes(response.intent) && !handoff.isSpecialPrice(userText) && !HELP_APPLY_RE.test(userText || '') && !handoff.isAskHuman(userText)) {
+            // A stated budget is not a handoff (Head GTM ruling 23 Oct, flower shop): only the customer's own words count.
+            if (response && response.action === 'handoff_scope' && response.intent !== 'benefits' && !handoff.isSpecialPrice(userText) && !HELP_APPLY_RE.test(userText || '') && !handoff.isAskHuman(userText)) {
                 d.log.info('model.handoff_ignored', { intent: response.intent, action: 'handoff_scope' });
                 response = { ...response, action: null };
             }
             if (policy?.applyPolicy) {
-                let p = policy.applyPolicy(response, { session: sess, pack, allow: new Set(), userText });
+                let p = policy.applyPolicy(response, { session: sess, pack, allow: policyAllow(sess), userText });
                 if (p.severity === 'regenerate') {
                     d.log.warn('policy.regenerate', { violations: p.violations.map((v) => v.rule || v).join(',') });
                     response = await attempt(`คำตอบก่อนหน้าละเมิดกฎ: ${p.violations.map((v) => v.rule || v).join(', ')} — ตอบใหม่โดยไม่ละเมิด ถ้ายาวหรือเป็นรายการ ให้แบ่งเป็น 2 ข้อความสั้น หรือใช้การ์ด steps/info แทนรายการ`);
-                    p = policy.applyPolicy(response, { session: sess, pack, allow: new Set(), userText });
+                    p = policy.applyPolicy(response, { session: sess, pack, allow: policyAllow(sess), userText });
                     if ((p.severity === 'regenerate' || p.severity === 'fallback') && policy.salvage && policy.isStyleOnly(p.violations)) {
                         // style-only twice: repair by code (split, unlist) instead of claiming a system error (honesty)
-                        const salvaged = policy.applyPolicy(policy.salvage(p.response || response), { session: sess, pack, allow: new Set(), userText });
+                        const salvaged = policy.applyPolicy(policy.salvage(p.response || response), { session: sess, pack, allow: policyAllow(sess), userText });
                         if (salvaged.severity !== 'fallback' && !salvaged.violations.some((v) => String(v.rule).startsWith('banned:'))) {
                             d.log.warn('policy.salvaged', { violations: p.violations.map((v) => v.rule || v).join(',') });
                             await d.store.events.append({ kind: 'policy_salvaged', user_id: sess.user_id, payload: { violations: p.violations.map((v) => v.rule) }, created_at: at.toISOString() });
@@ -477,6 +617,8 @@ async function runTurn(input, deps, opts = {}) {
                 // the "ระบบขัดข้อง" line would be untrue: send a calm neutral line with the next questions instead.
                 d.log.warn('model.policy_neutral', { userId: sess.user_id, error: err.message });
                 await d.store.events.append({ kind: 'policy_neutral', user_id: sess.user_id, payload: { error: err.message }, created_at: at.toISOString() });
+                // a reply that kept claiming a booking / order Lay never made: say plainly that nothing was booked
+                if (/claimed_action/.test(err.message)) return emptyResponse({ messages: [{ type: 'text', text: CLAIM_SAFE_LINE, explain: false, template: null, alt: null, data: null }], quick_replies: ['ลองร้านตัวอย่าง', 'นัดคุยกับมอส'], intent: 'capability' });
                 return emptyResponse({ messages: [{ type: 'text', text: 'รับทราบครับ', explain: false, template: null, alt: null, data: null }], quick_replies: topics.nextQuickReplies(null, sess.topics_covered), intent: 'banter' });
             }
             errs.push(err);
@@ -604,6 +746,60 @@ function shortenMosIntro(messages, sess) {
 }
 const PROFANITY_RE = /เหี้ย|เชี่ย|สัส|ควย|\bfuck|\bshit/iu;
 const PROFANITY_LINE = 'ขอโทษครับ ถ้าที่ผมตอบไม่ตรงใจ ผมรอฟังก่อนนะครับ';
+// "running a business now" / "wants to use AI": a business already selling (not "จะ/เริ่ม/อยากทำธุรกิจ")
+const OPERATING_RE = /(?<!(?:จะ|เริ่ม|อยาก)\s*)ทำ(?:ธุรกิจ|กิจการ|ร้าน|บริษัท|โรงแรม|รีสอร์ท)|เปิด(?:ร้าน|กิจการ|ขาย|บริการ|โรงแรม)?(?:มา|อยู่|แล้ว)|ขายอยู่|(?<!ไม่)มีลูกค้า|ลูกค้า(?:ทัก|ถาม|เยอะ|ประจำ)|ออเดอร์(?:เข้า|เยอะ)|อยาก(?:เอา|ใช้|ให้)\s*(?:AI|เอไอ)|(?:เอา|ใช้)\s*(?:AI|เอไอ)\s*(?:มา|ไป)?(?:ใช้|ช่วย)/iu;
+const LAUNCH_QUESTION = 'ตอนนี้เปิดขายอยู่แล้วหรือยังครับ';
+const LAUNCH_QUICK = ['เปิดขายอยู่แล้ว', 'ยังไม่เปิด'];
+const LAUNCH_YES_RE = /เปิด(?:ขาย)?(?:อยู่)?แล้ว|ขายอยู่|เปิดอยู่|^\s*(?:ใช่|ครับ|ค่ะ|คะ|แล้ว)/u;
+const LAUNCH_NO_RE = /ยังไม่|^\s*ยัง|กำลังจะ/u;
+// Being found or recommended — on Google (SEO) or in AI answers (GEO). Not a service yet; interest is recorded on a tap.
+const GEO_INTEREST_RE = /(?:ChatGPT|แชทจีพีที|Gemini|เจมิไน|Perplexity|Claude|\bAI\b|เอไอ|Google\s*AI|AI\s*Overview)[^\n]{0,20}(?:แนะนำ(?:ร้าน|ธุรกิจ|แบรนด์|เรา|ผม)|ค้นเจอ|พูดถึงร้าน|อ้างอิง)|(?:แนะนำ|รู้จัก)[^\n]{0,12}(?:ร้าน|ธุรกิจ|แบรนด์|เรา)[^\n]{0,12}(?:ใน|ผ่าน|บน)\s*(?:ChatGPT|AI|เอไอ)|(?:ChatGPT|แชทจีพีที|Gemini|\bAI\b|เอไอ)[^\n]{0,60}(?:มีชื่อ(?:ร้าน|ที่พัก|เรา|ผม)?|ชื่อ(?:ร้าน|ที่พัก)[^\n]{0,15})\s*ขึ้น(?:มา)?|\bGEO\b|AI\s*search|ติดอันดับ[^\n]{0,15}(?:ChatGPT|AI|เอไอ)|\bSEO\b|ติดหน้าแรก\s*Google|ติดอันดับ[^\n]{0,10}Google/iu;
+const GEO_LINES = [
+    'เรื่องให้ร้านถูกค้นเจอหรือถูกแนะนำ ทั้งบน Google และใน AI อย่าง ChatGPT — AI Business Review ฿4,900 ของเราตรวจเรื่องนี้ให้ได้ครับ: ข้อมูลร้านตรงกันทุกช่องทางไหม หน้าไหนตอบคำถามลูกค้าได้ อะไรทำเองได้ อะไรควรจ้าง และจะดูผลยังไง',
+    'ระหว่างนี้ทำเองได้ครับ เขียนหน้าเว็บหรือโปรไฟล์ร้านให้ตอบคำถามที่ลูกค้ามักถามให้ชัด เช่น อยู่ที่ไหน ขายอะไร ราคาประมาณเท่าไหร่ เปิดกี่โมง เพราะ AI มักหยิบข้อมูลที่เขียนชัดและตรงคำถามไปใช้',
+    'ไม่มีใครรับประกันได้ว่า AI จะแนะนำร้านไหนนะครับ เราก็ไม่รับประกัน และเราไม่รับทำเว็บเป็นบริการ ถ้าสนใจ Review ทักต่อได้เลย หรือคุยฟรี 30 นาทีก่อนก็ได้ครับ',
+];
+// A4 vs doing it yourself in Claude Projects (faq.a4-vs-projects): the message names the tool or A4 AND asks about the
+// difference or doing it oneself (CE review 24 Oct: "ตั้งค่า LINE OA ทำเองได้ไหม" must not get this answer)
+const A4_VS_PROJECTS_RE = /(?:Claude|ChatGPT|GPT|Gemini)\s*Projects?|โปรเจกต์(?:ของ)?\s*(?:Claude|ChatGPT)|\bProjects?\b|AI\s*Workspace|Workspace\s*Setup|\bA4\b/iu;
+const A4_WHY_RE = /ต่าง(?:กัน|จาก|ตรง|ยังไง)|ทำไม|ดีกว่า|ทำเอง|อัปโหลด(?:ไฟล์)?เอง/u;
+// a time / availability question during the booking that the buttons do not answer: time words, or a bare "ได้ไหม /
+// ไม่สะดวก / ไม่ได้" right next to a day or time word (CE review 24 Oct: "ขอถามเรื่องราคาก่อนได้ไหม" is not one)
+const BOOKING_DAYTIME = 'วันนี้|พรุ่งนี้|มะรืน|เช้า|บ่าย|เย็น|ค่ำ|เที่ยง|โมง|ทุ่ม|วัน(?:จันทร์|อังคาร|พุธ|พฤหัส|ศุกร์|เสาร์|อาทิตย์)|สัปดาห์หน้า|อาทิตย์หน้า|เวลา';
+const BOOKING_TIME_ASK_RE = new RegExp(`ว่าง|กี่โมง|เวลาไหน|ช่วงไหน|วันไหน|เมื่อไหร่|เมื่อไร|ขอ(?:วัน|เวลา)อื่น|เปลี่ยน(?:วัน|เวลา)|(?:${BOOKING_DAYTIME})[^\\n]{0,12}(?:ได้(?:ไหม|มั้ย|มั๊ย|รึเปล่า|หรือเปล่า)|ไม่(?:สะดวก|ได้))|ไม่(?:สะดวก|ได้)[^\\n]{0,8}(?:${BOOKING_DAYTIME})`, 'u');
+// an approved FAQ answer from the pack: the section without its bold question line
+function faqAnswer(pack, id) {
+    const ex = lazy('../flows/examples');
+    const raw = ex && ex.sectionText ? ex.sectionText(pack, id) : null;
+    if (!raw) return null;
+    const lines = String(raw).split('\n').filter((l) => l.trim() && !/^#{1,4}\s/.test(l) && !/^<!--/.test(l));
+    if (lines.length && /^\*\*.*\*\*$/.test(lines[0].trim())) lines.shift();
+    return lines.join('\n').trim() || null;
+}
+// Lint ids a model reply may contain in this session: once Mos has really confirmed the booking (endings.applyMosDecision),
+// the prompt says so and "ยืนยันแล้ว" is true (CE review 24 Oct)
+function policyAllow(sess) {
+    const confirmed = (sess && sess.booking && sess.booking.status === 'confirmed') || (sess && sess.booking_step === 'confirmed');
+    return confirmed ? new Set(['booking_confirmed']) : new Set();
+}
+// Safe line when the model keeps claiming an action Lay did not perform (Mos's test 24 Oct, freeze exception (b))
+const CLAIM_SAFE_LINE = 'ผมจองหรือยืนยันอะไรแทนไม่ได้ครับ ตอนนี้ยังไม่มีอะไรถูกจองไว้ ถ้าอยากเห็นบอทรับจองจริง ลองเป็นลูกค้าร้านตัวอย่างได้เลยครับ';
+// website CTA tokens (Head GTM 23 Oct): a4 · c1 · a2 · a2-shop · a1 · a3
+const DEMO_TAG_RE = /#demo-(a2-shop|a[1-4]|c1)(?![\w-])/iu;
+const GUARANTEE_ASK_RE = /รับประกัน|การันตี|guarantee|รับรองผล|(?:รับรอง|สัญญา)(?:ได้)?(?:ไหม|มั้ย)?ว่า/iu;
+const GUARANTEE_GEO = 'ไม่มีใครรับประกันได้ว่า AI จะแนะนำร้านไหนครับ รวมถึงเราด้วย ที่ทำได้คือทำให้ข้อมูลร้านชัด ตรงกันทุกที่ และตอบคำถามที่ลูกค้าถามจริง ซึ่งเพิ่มโอกาส แต่ไม่ใช่คำสัญญา';
+const GUARANTEE_GENERAL = 'เราไม่รับประกันผลลัพธ์เป็นตัวเลขครับ สิ่งที่รับประกันได้คือขอบเขตงานที่ตกลงกัน และแก้จนใช้ได้ตามที่ตกลง';
+const DEMO_TRY_RE = /^\s*(?:ขอ)?ลอง(?:เป็น)?ลูกค้า(?:ของ)?ร้านตัวอย่าง|^\s*(?:ขอ)?ลอง(?:คุยกับ)?(?:บอท)?ร้านตัวอย่าง/u;
+const GEO_AGAIN = 'เรื่องให้ร้านถูกค้นเจอ AI Business Review ฿4,900 ตรวจให้ได้ครับ ถ้าสนใจ Review ทักต่อได้เลย หรือคุยฟรี 30 นาทีก่อนก็ได้ครับ';
+// after "สนใจ Review": the Review needs to know where the shop's information lives (scenario 81 pass condition, §5)
+const GEO_NOTED = 'ได้ครับ ตอนนี้ข้อมูลร้านอยู่ช่องทางไหนบ้างครับ เช่น Facebook, Google Maps, เว็บจองที่พัก หรือยังไม่มีเว็บ';
+const GEO_NOTE_LABEL = 'สนใจ Review';
+const GEO_TALK_LABEL = 'คุยฟรีก่อน';
+const GEO_TALK_PB = 'GEO_TALK';
+const GEO_SKIP_LABEL = 'ไม่เป็นไร';
+const GEO_NOTE_PB = 'GEO_NOTE';
+const GEO_SKIP_PB = 'GEO_SKIP';
+const GEO_QUICK = [{ label: GEO_NOTE_LABEL, data: GEO_NOTE_PB }, { label: GEO_TALK_LABEL, data: GEO_TALK_PB }, { label: GEO_SKIP_LABEL, data: GEO_SKIP_PB }];
 const TOO_EARLY_RE = /กำลังจะ(?:เริ่ม|เปิด)|ยังไม่(?:ได้)?(?:เริ่ม|เปิด)|เพิ่งคิด(?:จะ)?|วางแผน(?:จะ)?(?:เปิด|เริ่ม)|ยังไม่มีลูกค้า|ยังไม่ได้ขาย|pre-?launch/iu;
 const TOO_EARLY_LINES = [
     'ช่วงที่ยังไม่ได้เริ่มขาย ยังไม่ต้องใช้ระบบหรือจ้างเราครับ ตั้งใจกับสินค้าและลูกค้ากลุ่มแรกก่อนคุ้มกว่า',
@@ -700,4 +896,4 @@ function createEventHandler(deps, opts = {}) {
 }
 
 const INPUT_KINDS = ['text', 'postback', 'media', 'follow', 'unfollow', 'mos_relay', 'mos_release'];
-module.exports = { shortenMosIntro, cardContext, runTurn, createEventHandler, isGreeting, isTellMeMore, countQuestions, sanitizeInput, MENU_TO_TEXT, INPUT_KINDS };
+module.exports = { normaliseText, shortenMosIntro, cardContext, runTurn, createEventHandler, isGreeting, isTellMeMore, countQuestions, sanitizeInput, MENU_TO_TEXT, INPUT_KINDS };

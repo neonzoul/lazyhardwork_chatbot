@@ -3,7 +3,7 @@
     "A1": {
       "name": "Agentic Workflow / Internal AI System",
       "tiers": {
-        "T1": 4900,
+        "T1": null,
         "T2": 49000,
         "T3": 109000,
         "T4": 390000

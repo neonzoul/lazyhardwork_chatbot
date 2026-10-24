@@ -1,0 +1,26 @@
+name: 81 · homestay wants ChatGPT to recommend it — GEO stance, no guarantee, no internal-system pitch (GPT review scenario 4)
+covers: ["§9.2", "GPT review 23 Oct #4", "D-38", "D-39"]
+# Source: GPT review adopted by Head GTM 23 Oct (review-gpt-website-and-lay-scenarios-2026-10-23.md, "5 scenario ทดสอบใน LINE OA").
+# Scripted replies keep `npm run scenarios` deterministic; the acceptance check is `--model real --only "<n> ·"` scored 0–2 × 5.
+# Pass when (copy-geo-a-2026-10-23.md §5, D-39): offers the Review with the four checks, states both disclaimers (no
+# guarantee; we do not build websites), asks for their channels (Facebook / Google Maps / OTA / no website), and never
+# pitches a chatbot or an internal system.
+user: { id: U81, displayName: "โฮมสเตย์" }
+steps:
+  - follow: true
+    expect: { replies: 1, sender: lay }
+  - user: "ทำโฮมสเตย์อยู่ครับ อยากให้เวลาคนถาม ChatGPT ว่าที่พักเงียบ ๆ แถวพัทลุง แล้วมีชื่อที่พักผมขึ้นมา คุณรับทำไหมครับ?"
+    model: { messages: [{ type: text, text: "เรื่องทำให้ร้านถูกค้นเจอหรือถูกแนะนำใน AI ตอนนี้ LazyHardWork ยังไม่ได้เปิดเป็นบริการครับ กำลังเตรียมอยู่", explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: [capability], kb_refs: [], intent: out_of_scope }
+    expect: { replies_min: 1, sender: lay, banned_clean: true, text_contains: ["AI Business Review ฿4,900 ของเราตรวจเรื่องนี้ให้ได้", "ข้อมูลร้านตรงกันทุกช่องทางไหม", "เราก็ไม่รับประกัน", "ไม่รับทำเว็บเป็นบริการ"], text_not_contains: ["ไม่ใช่งานที่ LazyHardWork รับ", "ระบบงานภายใน", "แชทบอท"], quick_replies: ["สนใจ Review", "คุยฟรีก่อน", "ไม่เป็นไร"] }
+  - user: "ยังไม่มีเว็บ ต้องทำเว็บก่อนหรือเปล่า?"
+    model: { messages: [{ type: text, text: "ยังไม่จำเป็นครับ ตอนนี้ข้อมูลที่พักอยู่ช่องทางไหนบ้างครับ เช่น Facebook, Google Maps หรือเว็บจองที่พัก", explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: [capability], kb_refs: [], intent: faq }
+    expect: { replies_min: 1, sender: lay, banned_clean: true, text_contains: ["ช่องทาง"], text_not_contains: ["ระบบงานภายใน", "แชทบอท"] }
+  - user: "คุณช่วยทำให้เลย หรือให้แผนแล้วผมต้องไปทำเอง?"
+    model: { messages: [{ type: text, text: "Review ตรวจและให้แผนครับ ส่วนไหนทำเองได้เราบอกตรงๆ ส่วนไหนควรจ้างก็บอกให้ ถ้ายังไม่แน่ใจคุยฟรี 30 นาทีก่อนได้", explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: [capability], kb_refs: [], intent: out_of_scope }
+    expect: { replies_min: 1, sender: lay, banned_clean: true, text_not_contains: ["ระบบงานภายใน", "แชทบอท", "รับทำให้ครบ"] }
+  - user: "จ่ายแล้วรับประกันได้ไหมว่าจะถูกแนะนำ ภายในสามเดือน?"
+    model: { messages: [{ type: text, text: "รับประกันไม่ได้ครับ การที่ AI จะแนะนำใครขึ้นกับระบบของ AI เอง", explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: [capability], kb_refs: [], intent: faq }
+    expect: { replies_min: 1, sender: lay, banned_clean: true, text_contains: ["ไม่มีใครรับประกันได้ว่า AI จะแนะนำร้านไหน", "ไม่ใช่คำสัญญา"], text_not_contains: ["รับทราบครับ", "ภายในสามเดือนแน่", "การันตี"] }
+  - user: "Business Review 4,900 จะได้อะไรที่เกี่ยวกับเรื่องนี้ครับ?"
+    model: { messages: [{ type: text, text: "AI Business Review ตรวจให้ว่าข้อมูลที่พักตรงกันทุกช่องทางไหม หน้าไหนตอบคำถามลูกค้าได้ อะไรทำเองได้ อะไรควรจ้าง และจะดูผลยังไงครับ", explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: [pricing], kb_refs: ["offer.C1"], intent: faq }
+    expect: { replies_min: 1, sender: lay, banned_clean: true, text_not_contains: ["รับประกันว่าจะ", "แชทบอท", "ระบบงานภายใน"] }

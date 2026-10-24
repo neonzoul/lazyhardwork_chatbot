@@ -59,7 +59,7 @@ function clone(x) { return JSON.parse(JSON.stringify(x)); }
 // --- voice repairs found in the first-tester replay (2026-10-18) — mechanical, so they never cost a regenerate ---
 // A trailing "if you have anything else, just tell me" sentence is the v2 cousin of v1's "ยินดีช่วยเสมอ".
 const CLOSER_RE = /\s*(?:ถ้า|หาก)\s*(?:พี่|คุณ)?\s*(?:มี|ต้องการ|สนใจ|อยาก)[^\n]{0,110}?(?:บอก|ถาม|สอบถาม|ทัก|แจ้ง)(?:มา)?\s*ได้(?:เลย|ตลอด|เสมอ)?\s*(?:นะ)?\s*(?:ครับ|คะ|ค่ะ)?\s*[!.]?\s*$/u;
-const CLOSER_2_RE = /\s*(?:ผมอยู่ที่นี่เพื่อช่วย[^\n]{0,20}|ยินดีช่วย[^\n]{0,20}|ถามมาเถอะ[^\n]{0,60}|(?:พี่)?อยากรู้อะไร[^\n]{0,20}(?:ถาม|บอก)(?:มา)?\s*ได้(?:เลย)?(?:นะ)?(?:ครับ)?|มีอะไรให้ช่วย(?:อีก|เพิ่มเติม)ไหม(?:ครับ)?|(?:พี่)?อยากให้ผมช่วยอะไร(?:เพิ่มเติม|อีก)?ไหม(?:ครับ)?)\s*[!.?]?\s*$/u;
+const CLOSER_2_RE = /\s*(?:ผมอยู่ที่นี่เพื่อช่วย[^\n]{0,20}|ยินดีช่วย[^\n]{0,20}|ถามมาเถอะ[^\n]{0,60}|(?:พี่)?อยากรู้อะไร[^\n]{0,20}(?:ถาม|บอก)(?:มา)?\s*ได้(?:เลย)?(?:นะ)?(?:ครับ)?|มีอะไรให้ช่วย(?:อีก|เพิ่มเติม)ไหม(?:ครับ)?|(?:ตอนนี้)?(?:มี|ยังมี)คำถาม(?:เพิ่มเติม)?(?:อะไร)?(?:อีก)?(?:ไหม|มั้ย|หรือเปล่า)(?:ครับ)?|(?:พี่)?อยากให้ผมช่วยอะไร(?:เพิ่มเติม|อีก)?ไหม(?:ครับ)?)\s*[!.?]?\s*$/u;
 function stripClosers(t) {
   let out = t;
   for (let i = 0; i < 2; i++) { const n = out.replace(CLOSER_RE, '').replace(CLOSER_2_RE, ''); if (n === out) break; out = n; }
@@ -68,7 +68,7 @@ function stripClosers(t) {
 }
 // Naming rule (head correction 19 Oct 15:20): studio work is "เรา", Lay itself is "ผม", "มอส" only at human steps
 // (the 30-min call, firm quote / budget, handoff, Mos replying). "ผม" or "มอส" doing studio work becomes "เรา".
-const MOS_AS_ME_RE = /(งานที่|ลูกค้าของ|ผลงานของ|โปรไฟล์(?:\s*Fastwork)?\s*ของ)ผม|ผม(?=\s*(?:จะ\s*)?(?:ตั้งค่า|ติดตั้ง|สร้างระบบ|สร้างบอท|สร้างคลัง|ออกแบบ|วางระบบ|ทำระบบ|ดูแลระบบ|รับทำ|ทำบ่อย|ทำให้ลูกค้า))/gu;
+const MOS_AS_ME_RE = /(งานที่|ลูกค้าของ|ผลงานของ|โปรไฟล์(?:\s*Fastwork)?\s*ของ|ต่อหน้า)ผม|ผม(?=\s*(?:จะ\s*)?(?:ตั้งค่า|ติดตั้ง|สร้างระบบ|สร้างบอท|สร้างคลัง|ออกแบบ|วางระบบ|ทำระบบ|ดูแลระบบ|รับทำ|ทำบ่อย|ทำให้ลูกค้า))/gu;
 const MOS_STUDIO_RE = /(งานที่|ลูกค้าของ|ผลงานของ|โปรไฟล์(?:\s*Fastwork)?\s*ของ|ระบบ(?:งาน)?ที่)มอส|มอส(?=\s*(?:จะ\s*)?(?:สามารถ\s*)?(?:ช่วย(?:ธุรกิจ|ทำ|สร้าง|ได้)|สร้าง|ทดสอบ|ออกแบบ|ติดตั้ง|ตั้งค่า|ดูแลระบบ|ส่งมอบ|สรุปปริมาณ|แก้และเพิ่ม|เลือก|ไม่ส่ง|ไม่ลด|ทำบ่อย|ทำให้|ทำระบบ|ใช้ทุกวัน|รับทำ))/gu;
 // a message that is about a human step keeps "มอส"; studio work elsewhere becomes "เรา"
 const HUMAN_STEP_RE = /(?<!ถ)นัด|โทร|คุยกับมอส|คุยเอง|ราคาเป๊ะ|ราคาจริง|ใบเสนอราคา|งบ(?:ประมาณ|มี|เท่า|แค่|จำกัด|ไม่|ของ|\s|$)|ส่งเรื่อง|ส่งต่อ|ส่งให้มอส|มอสตอบ|มอสดูให้|ยืนยัน/u;
@@ -110,7 +110,31 @@ function dedupePriceSentence(t) {
 
 // Style-only rules: when the model breaks only these twice, the reply is repaired by code instead of sending the
 // "system error" line — that line is for real failures (honesty). Banned content is never salvaged.
-const STYLE_RULES = new Set(['prose_list', 'too_long', 'emoji', 'markdown']);
+// two_questions is style-only: regenerate once, and if the second answer still asks two, it goes out (salvaged, logged) —
+// never blocked (Head GTM 22 Oct)
+// "Not worth hiring us yet": said outright, or as "use LINE's free auto-reply first and come back later" (Head GTM round-2
+// ruling, 23 Oct). Shared with flows/endings so no code-added offer card lands under it.
+const NOT_WORTH_RE = /ยังไม่(?:ต้อง)?จ้าง|ไม่คุ้ม(?:ที่จะ)?จ้าง|อาจไม่คุ้ม|(?:ข้อความ)?ตอบอัตโนมัติ(?:ฟรี)?ของ\s*LINE\s*(?:OA\s*)?(?:เอง\s*)?ก่อน|ฟรีของ\s*LINE\s*ก่อน|ค่อยกลับมาคุย|รอให้แชท(?:เข้า)?(?:มา)?(?:มาก|เยอะ)/u;
+// Claimed actions, completed and done by "us" (CE review 24 Oct: narrow, so describing what a bot does is not a claim):
+// "ได้ทำการจองคิว… แล้ว / เรียบร้อย", "จองคิว… ให้(พี่) … เรียบร้อย(แล้ว)", "จองให้แล้ว", "การจองของพี่สำเร็จแล้ว / ยืนยันแล้ว".
+// Checked per clause; a clause with a condition or a future (เมื่อ · หลัง · ถ้า · หาก · พอ · จะ) is a description, not a claim.
+// "แล้ว" counts only at the end of a clause ("…ให้แล้วครับ"), not as "and then" ("…ให้ลูกค้ากดยืนยัน แล้วส่งต่อ");
+// "คำสั่ง" (a prompt) is not "สั่ง" (an order)
+const CLAIMED_ACTION_RE = /(?:ได้|ทำการ)\s*(?:ทำการ\s*)?(?:จอง|(?<!คำ)สั่ง|ยืนยัน|บันทึก)[^\n]{0,40}(?:เรียบร้อย|แล้ว(?=\s*(?:ครับ|ค่ะ|คะ|นะ|$|[.!?])))|(?:จอง|(?<!คำ)สั่ง|ยืนยัน|บันทึก)(?:คิว|ห้อง|นัด|ออเดอร์|การจอง|การสั่ง)?[^\n]{0,30}ให้(?:พี่|คุณ|ลูกค้า)?[^\n]{0,30}(?:เรียบร้อย|แล้ว(?=\s*(?:ครับ|ค่ะ|คะ|นะ|$|[.!?])))|(?:การจอง|การสั่ง|ออเดอร์|คิว|นัด)(?:ของ(?:พี่|คุณ))?[^\n]{0,10}(?:สำเร็จแล้ว|ยืนยันแล้ว|เรียบร้อยแล้ว)/u;
+const CLAIM_CONDITION_RE = /(?:^|\s)(?:เมื่อ|หลัง|ถ้า|หาก|พอ)|จะ/u;
+const WAITS_FOR_PERSON_RE = /รอ\s*(?:คน|เจ้าของร้าน|แอดมิน|มอส|ทางร้าน|พนักงาน)?\s*(?:ของร้าน)?\s*(?:กด|ตรวจ(?:และ)?)?\s*ยืนยัน/u;
+function claimsAction(text) {
+  return String(text || '').split(/\n+|(?<=ครับ|ค่ะ|คะ)\s+|\s+(?=แต่|และ)/u)
+    .some((c) => CLAIMED_ACTION_RE.test(c) && !CLAIM_CONDITION_RE.test(c) && !WAITS_FOR_PERSON_RE.test(c));
+}
+const STYLE_RULES = new Set(['prose_list', 'too_long', 'emoji', 'markdown', 'two_questions']);
+// One question per bubble: split into clauses at ครับ/ค่ะ + space, และ, a question mark or a line break, and count the
+// clauses that ask (ไหม · กี่ · อะไร · ยังไง · หรือเปล่า · ?). "มีคนตอบแชทกี่คนครับ และแชทเข้าวันละกี่ข้อความครับ" → 2.
+const QUESTION_MARK_RE = /ไหม|กี่|อะไร|ยังไง|อย่างไร|หรือเปล่า|หรือยัง|[?？]/u;
+function countQuestionClauses(text) {
+  return String(text || '').split(/(?:ครับ|ค่ะ|คะ)\s+|\s+และ\s*|\s*[?？]\s*|\n+/u)
+    .map((c) => c.trim()).filter((c) => c && QUESTION_MARK_RE.test(c)).length;
+}
 function isStyleOnly(violations) { return violations.length > 0 && violations.every((v) => v.severity === 'fix' || STYLE_RULES.has(v.rule)); }
 function splitLong(text, max = 220) {
   const parts = [];
@@ -191,6 +215,23 @@ function applyPolicy(input, { session = {}, pack = null, allow, userText } = {})
     if (kept.length > QUICK_REPLY_MAX) { fixed.push(`quick_replies: list cut from ${kept.length} to ${QUICK_REPLY_MAX}`); kept.length = QUICK_REPLY_MAX; }
     r.quick_replies = kept;
   } else { r.quick_replies = []; fixed.push('quick_replies: reset to []'); }
+  // the GEO buttons belong to a findability ask only (real-model run 23 Oct: the flower shop got "สนใจ Review")
+  {
+    const GEO_BUTTONS = new Set(['สนใจ Review', 'คุยฟรีก่อน']);
+    // the customer's own words decide (82: the model pitched the Review "ให้ถูกค้นเจอ" to a shop asking about more sales)
+    const askedFindability = (session && session.geo_asked) || /ค้นเจอ|แนะนำร้าน|ถูกแนะนำ|รู้จักร้าน|ChatGPT|Google|Gemini|\bAI\b|เอไอ|\bSEO\b|\bGEO\b/iu.test(userText || '');
+    if (!askedFindability) {
+      if (r.quick_replies.some((q) => GEO_BUTTONS.has(q))) {
+        r.quick_replies = r.quick_replies.filter((q) => !GEO_BUTTONS.has(q));
+        fixed.push('quick_replies: GEO buttons dropped for a lead who did not ask about being found');
+      }
+      (r.messages || []).forEach((m) => {
+        if (!m || m.type !== 'text' || typeof m.text !== 'string' || !/ถูกค้นเจอ|ค้นเจอมากขึ้น/u.test(m.text)) return;
+        const n = m.text.split('\n').filter((line) => !/ถูกค้นเจอ|ค้นเจอมากขึ้น/u.test(line)).join('\n').trim();
+        if (n) { m.text = n; fixed.push('findability pitch removed: the customer did not ask about being found'); }
+      });
+    }
+  }
 
   // --- kb_refs: drop ids the pack does not know (hallucination tripwire) ---
   const entries = sectionEntries(pack);
@@ -239,6 +280,25 @@ function applyPolicy(input, { session = {}, pack = null, allow, userText } = {})
     if (r.messages.length !== before) fixed.push(`messages: ${before - r.messages.length} closer-only bubble(s) dropped`);
   }
 
+  // --- one question per bubble (Head GTM 22 Oct) ---
+  (r.messages || []).forEach((m, i) => {
+    if (m && m.type === 'text' && countQuestionClauses(m.text) >= 2) violate('two_questions', 'regenerate', 'ask ONE question per message — keep the most useful one', i);
+  });
+  // --- speak the customer's domain (Head GTM 22 Oct): shop-only examples for a business that does not sell goods ---
+  {
+    const biz = session && session.homework && session.homework.business ? String(session.homework.business) : '';
+    const sellsGoods = /ร้าน|ขาย|ออนไลน์|shop|สินค้า|ค้าส่ง|ค้าปลีก|ออเดอร์|ส่งของ/iu.test(biz);
+    const shopOnly = /สต็อก|ค่าส่ง|ปิดการขาย/u;
+    // fixed in place, never blocked: a reply replaced by "รับทราบครับ" is worse than a shop word (real-model run 22 Oct)
+    if (biz && !sellsGoods) {
+      (r.messages || []).forEach((m, i) => {
+        if (!m || m.type !== 'text' || !shopOnly.test(m.text || '')) return;
+        m.text = m.text.replace(/ไป\s*ปิดการขาย/gu, 'ไปดูแลลูกค้า').replace(/ปิดการขาย/gu, 'ดูแลลูกค้า')
+          .replace(/[ \t]*(?:สต็อก(?:สินค้า)?|ค่าส่ง)(?=[ \t]|$)/gu, '').replace(/[ \t]{2,}/gu, ' ');
+        fixed.push(`messages[${i}]: shop-only examples removed for ${biz.slice(0, 40)}`);
+      });
+    }
+  }
   // --- no paid offer for a lead that is not ready or not a fit (head review 20 Oct, pre-launch burger) ---
   const bubbleTexts = (r.messages || []).filter((m) => m && m.type === 'text' && typeof m.text === 'string').map((m) => m.text);
   if (session && (session.too_early || session.not_fit) && r.intent !== 'pricing' && bubbleTexts.some((t) => /Business Review|4,900|แพ็ก(?:เริ่มต้น|ลองก่อน|นี้)|ราคาเริ่มต้น/u.test(t))) {
@@ -250,8 +310,24 @@ function applyPolicy(input, { session = {}, pack = null, allow, userText } = {})
     try { named = !!(userText && require('../flows/fit').symptomFromText(userText)); } catch { /* absent */ }
     const confirmed = !!(session && session.draft && session.draft.confirmed) || named;
     const SCREEN_RE = /กี่คน|อยู่ในเครื่องมือ(?:อะไร|ไหน)|เก็บไว้ที่ไหน|ใคร(?:เป็นคน)?ดูแล(?:ระบบ)?(?:ได้)?ไหม|ใครดูแลต่อ/u;
+    // removed in place, never blocked: two blocked rounds ended in "รับทราบครับ" for a customer who had named the
+    // problem in their own words (real-model run 23 Oct, bakery). Only when nothing else is left is it regenerated.
     if (!confirmed && bubbleTexts.some((t) => SCREEN_RE.test(t))) {
-      violate('screening_before_symptom', 'regenerate', 'screening questions (how many people / where the data lives / who maintains) come only after the customer named a problem we solve; ask which work takes the most time instead');
+      const dropScreening = (t) => t.split('\n').map((line) => (SCREEN_RE.test(line)
+        ? line.split(/(?<=(?:ครับ|ค่ะ|คะ|[?？]))\s+/u).filter((c) => !SCREEN_RE.test(c)).join(' ')
+        : line)).filter((line) => line.trim()).join('\n').trim();
+      const kept = [];
+      (r.messages || []).forEach((m) => {
+        if (!m || m.type !== 'text' || typeof m.text !== 'string' || !SCREEN_RE.test(m.text)) { kept.push(m); return; }
+        const n = dropScreening(m.text);
+        if (n) kept.push({ ...m, text: n });
+      });
+      if (kept.some((m) => m && m.type === 'text')) {
+        r.messages = kept;
+        fixed.push('screening question before a named problem removed');
+      } else {
+        violate('screening_before_symptom', 'regenerate', 'screening questions (how many people / where the data lives / who maintains) come only after the customer named a problem we solve; ask which work takes the most time instead');
+      }
     }
   }
   // --- symptom before card (head correction 19 Oct): no "ตรงกับงานที่เราทำ" until the customer named the problem ---
@@ -264,6 +340,47 @@ function applyPolicy(input, { session = {}, pack = null, allow, userText } = {})
       if (n && n !== m.text) { m.text = n; fixed.push('fit claim before the customer named a problem removed'); }
     }
   }
+  // --- "not worth hiring us yet" and a package card in the same reply contradict each other: the card goes (real-model
+  // run 23 Oct, flower shop; Head GTM ruling R2) ---
+  if ((r.messages || []).some((m) => m && m.type === 'card') && bubbleTexts.some((t) => NOT_WORTH_RE.test(t))) {
+    r.messages = r.messages.filter((m) => !(m && m.type === 'card'));
+    fixed.push('package card dropped: the reply says hiring us is not worth it yet');
+  }
+  // --- ...and no price or package name either: the free advice stands alone unless the customer asked what paid options
+  // exist (Head GTM round-2 ruling, 23 Oct, flower shop: "แต่ถ้าแชทเข้า 10 ข้อความ… แพ็กลองก่อน" with its price) ---
+  const PAID_TALK_RE = /\d{1,3}(?:,\d{3})+\s*บาท|฿\s*\d|แพ็ก|AI Business Review|AI Workspace|AI Chatbot|AI Agent|ระบบงานภายใน|ราคาเริ่มต้น/u;
+  const ASKED_PAID_RE = /ราคา|แพ็ก|เท่าไหร่|เท่าไร|ค่าใช้จ่าย|เสียเงิน|ตัวเลือก|บริการอะไร/u;
+  if (bubbleTexts.some((t) => NOT_WORTH_RE.test(t)) && !ASKED_PAID_RE.test(userText || '')) {
+    let cut = false;
+    (r.messages || []).forEach((m) => {
+      if (!m || m.type !== 'text' || typeof m.text !== 'string' || !PAID_TALK_RE.test(m.text)) return;
+      const n = m.text.split('\n').map((line) => line.split(/(?<=ครับ|ค่ะ|คะ|[.?？])\s+|\s+(?=แต่(?:ถ้า|หาก)?|ถ้า|หาก)/u)
+        .filter((c) => !PAID_TALK_RE.test(c)).join(' ').trim()).filter(Boolean).join('\n');
+      if (n !== m.text) { m.text = n; cut = true; }
+    });
+    if (cut) {
+      r.messages = r.messages.filter((m) => !(m && m.type === 'text' && !String(m.text || '').trim()));
+      r.quick_replies = (r.quick_replies || []).filter((q) => !PAID_TALK_RE.test(q) && !/ราคา/u.test(q));
+      fixed.push('price / package talk removed from a "not worth it yet" reply');
+    }
+  }
+  // --- one small start, never a menu of packages (Head GTM round-2 ruling, 23 Oct, bakery: "อยากเริ่มจากแพ็กไหนครับ เช่น
+  // AI Agent หรือ AI Chatbot") — a line that asks the customer to choose between packages is dropped in place ---
+  {
+    const PKG = 'AI\\s*Agent|AI\\s*Chatbot|แชทบอท|ระบบงานภายใน|AI\\s*Workspace|(?:AI\\s*)?Business\\s*Review|ออโตเมชัน';
+    const MENU_RE = new RegExp(`(?:${PKG})[^\\n]{0,25}หรือ[^\\n]{0,10}(?:${PKG})[^\\n]{0,15}(?:[?？]|ครับ\\s*$|ดี(?:ครับ)?\\s*$)|(?:แพ็ก|บริการ)ไหน[^\\n]{0,30}(?:${PKG})[^\\n]{0,20}หรือ`, 'iu');
+    let dropped = false;
+    (r.messages || []).forEach((m) => {
+      if (!m || m.type !== 'text' || typeof m.text !== 'string' || !MENU_RE.test(m.text)) return;
+      const n = m.text.split('\n').filter((line) => !MENU_RE.test(line)).join('\n').trim();
+      if (n) { m.text = n; dropped = true; }
+    });
+    if (dropped) {
+      const pkgButton = new RegExp(`^(?:${PKG})$`, 'iu');
+      r.quick_replies = (r.quick_replies || []).filter((q) => !pkgButton.test(q));
+      fixed.push('package menu question removed: recommend one small start');
+    }
+  }
   // --- one message per turn (head correction 19 Oct): a short reply split in two bubbles goes out as one ---
   if (mergeShortPair(r)) fixed.push('messages: two short bubbles merged into one');
 
@@ -274,6 +391,22 @@ function applyPolicy(input, { session = {}, pack = null, allow, userText } = {})
   const UNBACKED_PROMISE_RE = /(?:คุณ\s*)?มอส\s*(?:จะ|จะได้)\s*(?:เข้ามา|ติดต่อ|โทร|ตอบ)|เดี๋ยว\s*(?:คุณ\s*)?มอส\s*(?:จะ)?\s*(?:เข้ามา|ติดต่อ|โทร|ตอบ)|ส่งเรื่อง(?:ให้|ถึง)\s*(?:คุณ\s*)?มอส(?:แล้ว|ให้แล้ว)/u;
   if (!/^handoff_/.test(String(r.action || '')) && texts.some((t) => UNBACKED_PROMISE_RE.test(t) && !/(?:ถ้า|หาก|อยาก|ต้องการ|กด|บอก)[^\n]{0,20}มอส/u.test(t))) {
     violate('unbacked_promise', 'regenerate', 'says Mos will come/reply without a handoff action — only code may promise that, after the notify succeeded');
+  }
+  // --- an action Lay did not perform is never claimed (Mos's test 24 Oct: "บอทได้ทำการจองคิว… เรียบร้อยแล้วครับ" outside
+  // the sample shop). Bookings, orders and confirmations are done only by code paths, which do not pass through here.
+  // A line that says it still waits for a person ("รอ…ยืนยัน") is not a claim. ---
+  // (allowed only where code says Mos already confirmed: the same 'booking_confirmed' allow as the lint)
+  if (!allowSet.has('booking_confirmed') && texts.some((t) => claimsAction(t))) {
+    if (/^booking_/.test(String(r.action || ''))) {
+      // the booking flow runs by code right after this reply: the claim is removed in place, the flow says what is true
+      r.messages = (r.messages || []).map((m) => (m && m.type === 'text' && claimsAction(m.text)
+        ? { ...m, text: String(m.text).split(/(?<=ครับ|ค่ะ|คะ)\s+|\n+/u).filter((c) => !claimsAction(c)).join(' ').trim() }
+        : m)).filter((m) => !(m && m.type === 'text' && !String(m.text || '').trim()));
+      if (!r.messages.length) r.messages = [{ type: 'text', text: 'ได้ครับ', explain: false, template: null, alt: null, data: null }];
+      fixed.push('claimed booking removed: the booking flow follows');
+    } else {
+      violate('claimed_action', 'regenerate', 'the reply says a booking / order / confirmation is done — Lay cannot do that; say what the customer can do next instead');
+    }
   }
   // --- out of scope: once the customer asked about something LazyHardWork does not do, never tailor an offer to it ---
   if (session && session.out_of_scope && texts.some((t) => OUT_OF_SCOPE_RE.test(t))) {
@@ -334,4 +467,4 @@ function fallbackReply({ reason = 'error', config } = {}) {
   return response;
 }
 
-module.exports = { speakAsLay, dropFiller, mergeShortPair, dropCertainty, OUT_OF_SCOPE_RE, salvage, isStyleOnly, stripClosers, STYLE_RULES, applyPolicy, fallbackReply, strings, PRICE_RE, PRICE_REF_RE, BENEFITS_CAVEAT_RE, QUICK_REPLY_MAX, QUICK_REPLY_LABEL_MAX };
+module.exports = { NOT_WORTH_RE, CLAIMED_ACTION_RE, WAITS_FOR_PERSON_RE, claimsAction, countQuestionClauses, speakAsLay, dropFiller, mergeShortPair, dropCertainty, OUT_OF_SCOPE_RE, salvage, isStyleOnly, stripClosers, STYLE_RULES, applyPolicy, fallbackReply, strings, PRICE_RE, PRICE_REF_RE, BENEFITS_CAVEAT_RE, QUICK_REPLY_MAX, QUICK_REPLY_LABEL_MAX };

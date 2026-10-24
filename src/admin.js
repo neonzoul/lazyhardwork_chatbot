@@ -4,6 +4,7 @@
 //   GET  /admin/sessions                      all sessions
 //   GET  /admin/sessions/:userId              session + last 30 messages
 //   POST /admin/sessions/:userId/mode {mode}  lay | quiet | mos_active | demo | human
+//   GET  /admin/backup                        a consistent snapshot of the whole database (customer data)
 //   POST /admin/sessions/:userId/take         Human Mode + open the lead thread in #leads
 //   POST /admin/sessions/:userId/reset        clear what Lay knows about the user; history starts now
 //   DELETE /admin/users/:userId {confirm}     erase the user from every table
@@ -53,6 +54,25 @@ function createAdminRouter({ store, token, clock, log, llm, take, reset, forget 
 
   router.use('/admin', bearerAuth(getToken));
   router.use('/admin', express.json({ limit: '64kb' }));
+
+  // Daily backup off the host (20 Oct runbook): a consistent snapshot of the whole SQLite database, streamed and then
+  // deleted from the host's temp dir. Contains customer data — the token guards it like every /admin route.
+  router.get('/admin/backup', wrap(async (req, res) => {
+    if (typeof store.snapshot !== 'function') return res.status(404).json({ error: 'backup not available' });
+    const os = require('node:os'); const fs = require('node:fs'); const path = require('node:path');
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const file = path.join(os.tmpdir(), `lay-backup-${stamp}-${crypto.randomBytes(4).toString('hex')}.sqlite`);
+    await store.snapshot(file);
+    const size = fs.statSync(file).size;
+    res.setHeader('content-type', 'application/vnd.sqlite3');
+    res.setHeader('content-length', String(size));
+    res.setHeader('content-disposition', `attachment; filename="lay-${stamp}.sqlite"`);
+    const done = () => fs.rm(file, { force: true }, () => {});
+    const stream = fs.createReadStream(file);
+    stream.on('close', done); stream.on('error', (e) => { done(); res.destroy(e); });
+    if (log && log.info) log.info('admin.backup', { bytes: size });
+    stream.pipe(res);
+  }));
 
   router.get('/admin/leads', wrap(async (req, res) => {
     const since = typeof req.query.since === 'string' && req.query.since ? req.query.since : undefined;

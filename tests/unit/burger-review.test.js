@@ -6,7 +6,7 @@ const path = require('path');
 const { runTurn } = require('../../src/core/turn');
 const { createFakeLine } = require('../fakes/line');
 const { createFakeNotifier } = require('../fakes/notifier');
-const { createFakeModel } = require('../fakes/model');
+const { createFakeModel, text } = require('../fakes/model');
 const { createFakeClock } = require('../fakes/clock');
 const { createFakeStore } = require('../fakes/store');
 const { loadPack } = require('../../src/brain/kb');
@@ -80,4 +80,83 @@ test('pre-launch: telling us about the team gets the short line by code; each re
   const t = w.line.texts();
   assert.equal(t.length, 3);
   assert.ok(t[1].length < t[0].length && t[2].length < t[1].length);
+});
+
+test('case B (22 Oct): an operating business clears the too-early flag and the lead leaves nurture', async () => {
+  const w = world();
+  await runTurn(w.input({ text: 'กำลังจะเริ่มทำธุรกิจขายburger homemade' }), w.deps);
+  assert.equal((await w.store.leads.byUser('U1')).status, 'nurture');
+  w.model.push(text('งานไหนล้นที่สุดครับ เช่น ตอบแชทถามห้องว่างกับราคา คำถามแขกซ้ำๆ หรือเอกสารหลังบ้าน', { intent: 'fit', lead_updates: { business: 'โรงแรม' } }));
+  await runTurn(w.input({ text: 'ผมทำธุรกิจโรงแรม อยากเอา Ai ไปใช้ครับ' }), w.deps);
+  const s = await w.store.sessions.get('U1');
+  assert.equal(s.too_early, false);
+  assert.equal(s.homework.business, 'โรงแรม');
+  assert.notEqual((await w.store.leads.byUser('U1')).status, 'nurture');
+  assert.doesNotMatch(w.line.texts().join('\n'), /ยังไม่ต้องเริ่มอะไรกับเรา/);
+});
+
+test('precedence (22 Oct): both signals in one message → one clarifying question, nothing set', async () => {
+  const w = world();
+  await runTurn(w.input({ text: 'กำลังจะเปิดร้าน อยากเอา AI ไปใช้' }), w.deps);
+  assert.equal(w.model.calls.length, 0);
+  assert.deepEqual(w.line.texts(), ['ตอนนี้เปิดขายอยู่แล้วหรือยังครับ']);
+  const s = await w.store.sessions.get('U1');
+  assert.ok(!s.too_early && !s.operating);
+});
+
+test('GEO/SEO interest (D-39 path a): the Review checks findability, both disclaimers; only a positive tap records interest=geo', async () => {
+  const w = world();
+  await runTurn(w.input({ text: 'อยากให้ ChatGPT แนะนำร้านผมได้ไหมครับ' }), w.deps);
+  assert.equal(w.model.calls.length, 0);
+  assert.match(w.line.texts()[0], /AI Business Review ฿4,900 ของเราตรวจเรื่องนี้ให้ได้/);
+  assert.match(w.line.texts()[0], /เราก็ไม่รับประกัน และเราไม่รับทำเว็บเป็นบริการ/);
+  let s = await w.store.sessions.get('U1');
+  assert.ok(!s.not_fit);
+  assert.equal(s.homework.interest, undefined, 'a curious ask is not counted');
+  assert.equal(s.homework.problem_verbatim, 'อยากให้ ChatGPT แนะนำร้านผมได้ไหมครับ');
+  await runTurn(w.input({ kind: 'postback', data: 'GEO_NOTE', text: '' }), w.deps);
+  s = await w.store.sessions.get('U1');
+  assert.equal(s.homework.interest, 'geo');
+  const lead = await w.store.leads.byUser('U1');
+  assert.equal(lead.homework.interest, 'geo');
+  assert.notEqual(lead.status, 'not_fit');
+  const { leadLine } = require('../../src/discord/format');
+  assert.match(leadLine({ lead, reason: 'status' }), /สนใจ: GEO \(ให้ AI แนะนำร้าน\)/);
+  await runTurn(w.input({ kind: 'postback', data: 'GEO_TALK', text: '' }), w.deps);
+  assert.match(w.line.texts().join('\n'), /30 นาที/);
+});
+
+test('GEO regex does not catch our own services ("AI รู้จักงานผม" is A4; "AI แนะนำสินค้าให้ลูกค้า" is a chatbot)', async () => {
+  for (const t of ['อยากให้ AI รู้จักงานผม', 'ให้ AI แนะนำสินค้าให้ลูกค้าได้ไหม', 'ใช้ AI แล้วเจอปัญหาตอบผิด']) {
+    const w = world();
+    w.model.push(text('ได้ครับ'));
+    await runTurn(w.input({ text: t }), w.deps);
+    assert.doesNotMatch(w.line.texts().join('\n'), /ตรวจเรื่องนี้ให้ได้/, t);
+  }
+});
+
+test('a GEO ask the regex misses: the model offers "สนใจ Review" and the tap records interest=geo (Head GTM 22 Oct, D-39)', async () => {
+  const w = world();
+  w.model.push(text('เรื่องให้ร้านถูกค้นเจอใน AI ทาง AI Business Review ตรวจให้ได้ครับ ไม่มีใครรับประกันได้ และเราไม่รับทำเว็บเป็นบริการ', { intent: 'out_of_scope', quick_replies: ['สนใจ Review', 'คุยฟรีก่อน', 'ไม่เป็นไร'] }));
+  await runTurn(w.input({ text: 'อยากให้ ChatGPT รู้จักร้านเรา' }), w.deps);
+  assert.equal(w.model.calls.length, 1);
+  await runTurn(w.input({ text: 'สนใจ Review' }), w.deps);
+  assert.equal(w.model.calls.length, 1, 'the tap is handled by code');
+  assert.equal((await w.store.sessions.get('U1')).homework.interest, 'geo');
+});
+
+test('a hotel never gets the shop few-shot wording (สต็อก ค่าส่ง ปิดการขาย); a shop still may (Head GTM 22 Oct)', () => {
+  const mk = (x) => ({ messages: [{ type: 'text', text: x, explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: ['fit'], kb_refs: [], intent: 'fit', lead_updates: {}, action: null });
+  const shopy = 'แชทเข้าเยอะตอบไม่ทัน บอทรับคำถามเดิมๆ อย่างราคา สต็อก ค่าส่ง ไปตอบให้จบ';
+  const hotel = policy.applyPolicy(mk(shopy + ' แอดมินได้เวลาคืนไปปิดการขาย'), { session: { homework: { business: 'ธุรกิจโรงแรม' } } });
+  assert.equal(hotel.severity, 'fix', 'fixed in place, never blocked or regenerated');
+  assert.doesNotMatch(hotel.response.messages[0].text, /สต็อก|ค่าส่ง|ปิดการขาย/);
+  assert.match(hotel.response.messages[0].text, /ดูแลลูกค้า/);
+  const shop = policy.applyPolicy(mk(shopy), { session: { homework: { business: 'ร้านขายเสื้อผ้าออนไลน์' } } });
+  assert.match(shop.response.messages[0].text, /สต็อก/, 'a shop keeps its own wording');
+});
+
+test('asking for "คุณมอส" (polite form) is a request for a person (GPT review scenario 5, 23 Oct)', () => {
+  const handoff = require('../../src/flows/handoff');
+  for (const t of ['ขอคุยกับคุณมอสหน่อยค่ะ', 'คุยกับคุณมอส', 'ติดต่อคุณมอสได้ไหม', 'ขอคุยกับมอส']) assert.ok(handoff.isAskHuman(t), t);
 });

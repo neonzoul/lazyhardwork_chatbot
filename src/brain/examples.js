@@ -32,7 +32,7 @@ const EXAMPLES = [
   },
   {
     id: 'fit',
-    note: 'เหมาะกับงานผมไหม — mirror the customer\'s words, fill problem_verbatim ONLY with their exact words',
+    note: 'เหมาะกับงานผมไหม — mirror the customer\'s words and THEIR domain (a hotel: ห้องว่าง ราคาห้อง คำถามแขก; never this shop\'s สต็อก/ค่าส่ง), fill problem_verbatim ONLY with their exact words',
     user: 'ร้านขายของออนไลน์ครับ แชทเข้าเยอะตอบไม่ทัน ลูกค้าถามซ้ำๆ เรื่องเดิม',
     response: emptyResponse({
       messages: [

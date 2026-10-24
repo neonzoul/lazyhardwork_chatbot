@@ -174,3 +174,10 @@ test('no key configured → kind exhausted with a clear message (the turn degrad
   const r = await createModel({ client, overrides: {}, tracker: { record() { throw new Error('tracker down'); } }, log: { info() {}, warn() {}, error() {} } }).respond(req());
   assert.equal(r.intent, 'pricing');
 });
+
+test('HTTP 401 from the provider is a rejected key: kind exhausted, not a plain provider error (22 Oct)', () => {
+  const { classifyProviderError } = require('../../src/brain/respond');
+  const e = classifyProviderError(Object.assign(new Error('401 User not found.'), { status: 401 }));
+  assert.equal(e.kind, 'exhausted');
+  assert.match(e.message, /key rejected \(401\)/);
+});

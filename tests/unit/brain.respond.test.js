@@ -110,11 +110,12 @@ test('refusal → kind refusal; length cutoff → kind length; empty choice → 
 });
 
 test('provider errors → ModelError kind provider; timeouts → kind timeout', async () => {
-  const boom = Object.assign(new Error('401 invalid api key'), { status: 401, name: 'AuthenticationError' });
+  // (a 401 is a rejected key since 22 Oct → kind exhausted, see llm.respond.test.js; a 400 bad request stays a provider error)
+  const boom = Object.assign(new Error('400 bad request'), { status: 400, name: 'BadRequestError' });
   await assert.rejects(createModel({ client: fakeClient([boom]) }).respond(req()), (e) => {
     assert.ok(e instanceof ModelError && !(e instanceof ModelOutputError));
     assert.equal(e.kind, 'provider');
-    assert.equal(e.status, 401);
+    assert.equal(e.status, 400);
     assert.equal(e.cause, boom);
     return true;
   });

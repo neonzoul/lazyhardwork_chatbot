@@ -10,6 +10,7 @@ const KIND_LABEL = {
     take: 'Human Mode — มอสคุยเอง (Lay หยุดตอบ)',
     handoff_human: 'คุยกับคน',
     handoff_scope: 'ราคาพิเศษ·นอกขอบเขต',
+    handoff_booking: 'นัดคุย·ขอเช็กคิว',
     handoff_unknown: 'คำถามที่ Lay ตอบไม่ได้',
     booking: 'นัดคุย',
 };
@@ -117,6 +118,7 @@ function leadLine({ lead, reason } = {}) {
     if (lead && lead.card_id) bits.push(`การ์ด ${clip(scrub(lead.card_id), 24)}`);
     if (lead && lead.symptom) bits.push(`อาการ ${clip(scrub(lead.symptom), 40)}`);
     if (lead && lead.homework && lead.homework.business) bits.push(`ธุรกิจ ${clip(scrub(lead.homework.business), 40)}`);
+    if (lead && lead.homework && lead.homework.interest === 'geo') bits.push('สนใจ: GEO (ให้ AI แนะนำร้าน)');
     return bits.join(' · ');
 }
 

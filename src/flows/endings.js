@@ -27,6 +27,10 @@ const PB = {
 
 const DAYS = [{ key: 'today', label: 'วันนี้', offset: 0 }, { key: 'tomorrow', label: 'พรุ่งนี้', offset: 1 }, { key: 'other', label: 'เลือกวันเอง' }];
 const TIMES = [{ key: 'morning', label: 'เช้า 9-12' }, { key: 'afternoon', label: 'บ่าย 13-17' }, { key: 'evening', label: 'เย็น 18-20' }];
+// typed days and times during the booking (weekday names, "สัปดาห์หน้า", a date, "10 โมง", "14:00", "สองทุ่ม")
+const DAY_TEXT_RE = /วัน(?:จันทร์|อังคาร|พุธ|พฤหัส|ศุกร์|เสาร์|อาทิตย์)|จันทร์|อังคาร|พุธ|พฤหัส|ศุกร์|เสาร์|อาทิตย์|สัปดาห์หน้า|อาทิตย์หน้า|มะรืน|\d{1,2}\s*(?:ม\.ค|ก\.พ|มี\.ค|เม\.ย|พ\.ค|มิ\.ย|ก\.ค|ส\.ค|ก\.ย|ต\.ค|พ\.ย|ธ\.ค)|\d{1,2}\/\d{1,2}/u;
+const BOOKING_NEGATION_RE = /ไม่ว่าง|ไม่สะดวก|ไม่ได้|ไม่เอา|ขอ(?:วัน|เวลา)อื่น|เปลี่ยน(?:วัน|เวลา)/u;
+const TIME_TEXT_RE = /\d{1,2}\s*(?:[:.]\s*\d{2}|โมง|น\.|นาฬิกา)|ทุ่ม|เที่ยง/u;
 const TH_MONTHS = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
 const DOOR_CARDS = new Set(['C1']);           // a door package at any tier
 const DOOR_TIER = 'T1';                        // every card's T1 is a door package (A4 T1 included)
@@ -127,6 +131,8 @@ function decorateResponse({ response, session, deps }) {
     // no paid card before there is a business running, or for a request we do not do (head review 20 Oct)
     if (session.too_early || session.not_fit) return false;
     if (session.draft.card === 'C1' && !c1Fits(session)) return false;
+    // the reply says hiring us is not worth it yet: no package card under it (Head GTM ruling R2, 23 Oct, flower shop)
+    if ((response.messages || []).some((m) => m && m.type === 'text' && require('../core/policy').NOT_WORTH_RE.test(m.text || ''))) return false;
     const ready = homework.readyForEnding(session) || ['fit', 'howtostart', 'pricing'].includes(response.intent);
     if (!ready) return false;
     if ((response.messages || []).some((m) => m.type === 'card')) { if ((response.messages || []).some((m) => m.type === 'card' && m.template === 'offer')) session.offer_shown = true; return false; }
@@ -390,6 +396,27 @@ async function onBookingText(ctx) {
     if (!t) return null;
     if (step === 'name' || step === 'name_text') { session.draft = session.draft || {}; session.draft.name = t.slice(0, 40); session.booking_name_asked = false; return advance(ctx); }
     if (step === 'window_day_text') { session.draft = session.draft || {}; session.draft.window_day = t.slice(0, 60); return advance(ctx); }
+    // a typed day / time while the buttons are up ("วันนี้ได้มั้ย", Mos's test 24 Oct) is the answer, never a model turn
+    // that can end in the neutral line; anything that is not about a day or a time still goes on to the model.
+    // A negated one ("พรุ่งนี้ไม่ว่าง", "เช้าไม่สะดวก ขอเย็น") is not a slot: core/turn hands it to Mos (CE review 24 Oct).
+    if ((step === 'window_day' || step === 'window_time') && BOOKING_NEGATION_RE.test(t)) return null;
+    if (step === 'window_day') {
+        const now = ctx.deps && ctx.deps.clock ? ctx.deps.clock.now() : new Date();
+        const key = /วันนี้/u.test(t) ? 'today' : /พรุ่งนี้/u.test(t) ? 'tomorrow' : null;
+        if (key || DAY_TEXT_RE.test(t)) {
+            session.draft = session.draft || {};
+            session.draft.window_day = key ? dayLabel(key, now) : t.slice(0, 60);
+            return advance(ctx);
+        }
+    }
+    if (step === 'window_time') {
+        const tm = /เช้า/u.test(t) ? TIMES[0] : /บ่าย/u.test(t) ? TIMES[1] : /เย็น|ค่ำ/u.test(t) ? TIMES[2] : null;
+        if (tm || TIME_TEXT_RE.test(t)) {
+            session.draft = session.draft || {};
+            session.draft.window_time = tm ? tm.label : t.slice(0, 40);
+            return advance(ctx);
+        }
+    }
     if (step === 'hw' && session.booking_hw_field) {
         const b = homework.answerFromButton(t);
         if (b) homework.applyAnswer(session, b.field, b.value); else homework.applyAnswer(session, session.booking_hw_field, t);

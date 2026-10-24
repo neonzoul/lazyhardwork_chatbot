@@ -43,7 +43,7 @@ function buildLeadRow({ session, existing = null, now, status = null }) {
     homework,
     customer_words_th: words,
     wave_group: waveGroup({ homework }) || existing?.wave_group || null,
-    source: existing?.source || 'line_oa',
+    source: existing?.source || session.lead_source || 'line_oa',
     display_name: session.display_name || existing?.display_name || null,
     created_at: existing?.created_at || at,
     updated_at: at,
@@ -140,7 +140,7 @@ const NEXT_STEP_TH = {
   offer_shown: 'ติดตามข้อเสนอ',
   closed: 'ปิดแล้ว',
 };
-const REASON_TH = { first_field: 'ลีดใหม่', handoff_human: 'ลูกค้าขอคุยกับมอส', handoff_scope: 'ถามราคาพิเศษ/นอกขอบเขต', handoff_unknown: 'คำถามที่ Lay ตอบไม่ได้', booking: 'ขอนัดโทร', status: 'สถานะเปลี่ยน' };
+const REASON_TH = { first_field: 'ลีดใหม่', handoff_human: 'ลูกค้าขอคุยกับมอส', handoff_scope: 'ถามราคาพิเศษ/นอกขอบเขต', handoff_unknown: 'คำถามที่ Lay ตอบไม่ได้', handoff_booking: 'นัดคุย: ลูกค้าถามเวลา รอมอสเช็กคิว', booking: 'ขอนัดโทร', status: 'สถานะเปลี่ยน' };
 
 function leadSummaryTh(lead, { reason = 'first_field' } = {}) {
   const r = redactForDiscord(lead || {});
