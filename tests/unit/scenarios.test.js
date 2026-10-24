@@ -78,6 +78,7 @@ for (const sc of scenarios) {
         if (pv && typeof step.user === 'string') assert.ok(step.user.replace(/\s+/g, '').includes(String(pv).replace(/\s+/g, '')), where(i, `problem_verbatim "${pv}" is not in the customer text`));
         for (const m of r.messages) if (m.type === 'text') assert.ok(!/\[Agent Lay\]|ยินดีช่วยเสมอ/.test(m.text), where(i, 'scripted text carries a banned phrase'));
       }
+      for (const k of Object.keys(step.expect_scripted || {})) assert.ok(EXPECT_KEYS.includes(k), where(i, `unknown expect_scripted key "${k}"`));
       const e = step.expect || {};
       for (const k of Object.keys(e)) assert.ok(EXPECT_KEYS.includes(k), where(i, `unknown expect key "${k}" (known: ${EXPECT_KEYS.join(', ')})`));
       for (const k of Object.keys(e.session || {})) assert.ok(SESSION_EXPECT_KEYS.includes(k), where(i, `unknown expect.session key "${k}"`));
