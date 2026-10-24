@@ -1,0 +1,29 @@
+# Factory baseline (D-37): dependency audit + secret-leak check on every push/PR to v2 and main.
+name: security
+on:
+  push:
+    branches: [v2, main]
+  pull_request:
+    branches: [v2, main]
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: npm }
+      - run: npm ci
+      - name: npm audit (production deps, high and above)
+        # warn-only until issue #3 is closed; then remove continue-on-error so it blocks
+        continue-on-error: true
+        run: npm audit --omit=dev --audit-level=high
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - name: gitleaks
+        run: |
+          set -euo pipefail
+          curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.21.2/gitleaks_8.21.2_linux_x64.tar.gz | tar -xz gitleaks
+          ./gitleaks git --redact --no-banner -v .
