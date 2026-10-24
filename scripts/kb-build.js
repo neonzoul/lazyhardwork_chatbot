@@ -22,6 +22,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const yaml = require('js-yaml');
+const { PROTOTYPES, siteUrl } = require('../src/brain/site');   // the website's real pages (hotfix 24 Oct)
 
 // ---------------------------------------------------------------------------------------------
 // CLI
@@ -446,8 +447,9 @@ ${p.proof.line_th}
 
 ## about.prototypes
 **ตัวอย่างที่ลองเองได้**
-ต้นแบบให้ลองใช้: ${p.prototypes.base_url}{service} ใช้ข้อมูลสมมติทั้งหมด ไม่มีข้อมูลธุรกิจหรือลูกค้าจริง
-ผลงาน KV Premium แสดงได้เฉพาะหน้าจอและเรื่องราว ไม่มีข้อมูลธุรกิจของ KV และไม่มีข้อมูลลูกค้าจริง
+ต้นแบบให้ลองใช้ (ใช้ข้อมูลสมมติทั้งหมด ไม่มีข้อมูลธุรกิจหรือลูกค้าจริง) ลิงก์มีแค่ 5 อันนี้ ห้ามแต่งลิงก์อื่น:
+${PROTOTYPES.map((x) => `- ${x.name_th}: ${siteUrl(x.path)}`).join('\n')}
+ผลงาน KV Premium (${siteUrl('/work/kv-premium')}) แสดงได้เฉพาะหน้าจอและเรื่องราว ไม่มีข้อมูลธุรกิจของ KV และไม่มีข้อมูลลูกค้าจริง
 `;
   addOutput('about', 'kb/about.md', text, [SRC.profile]);
 }

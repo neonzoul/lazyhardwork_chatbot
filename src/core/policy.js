@@ -16,6 +16,7 @@
 // implementer's; this module only needs ids and (for price grounding) the section text.
 
 const lint = require('./lint');
+const site = require('../brain/site');
 const { emptyResponse, validateResponse } = require('../brain/schema');
 
 const QUICK_REPLY_MAX = 4;
@@ -188,6 +189,9 @@ function applyPolicy(input, { session = {}, pack = null, allow, userText } = {})
       if (lint.hasMarkdown(t)) { t = lint.stripMarkdown(t); fixed.push(`messages[${i}]: markdown stripped`); }
       const voiced = dropFiller(dropCertainty(speakAsLay(dedupePriceSentence(stripExclaim(stripClosers(t))))));
       if (voiced !== t) { t = voiced; fixed.push(`messages[${i}]: stock closer / "!" / repeated price phrase removed / speaker or "แน่นอน" fixed`); }
+      // never an invented site URL (hotfix 24 Oct: /prototype/business-review and /prototype/agent were 404)
+      const linked = site.fixSiteUrls(t, { lastTouch: session && session.homework && session.homework.last_touch });
+      if (linked.changed.length) { t = linked.text; fixed.push(`messages[${i}]: site URL ${linked.changed.map((c) => `${c.from} → ${c.to || 'dropped'}`).join(', ')}`); }
       const trimmed = t.replace(/[ \t]+$/gmu, '').replace(/\s+$/u, '');
       if (trimmed !== t) { t = trimmed; fixed.push(`messages[${i}]: trailing whitespace trimmed`); }
       m.text = t;
@@ -196,6 +200,10 @@ function applyPolicy(input, { session = {}, pack = null, allow, userText } = {})
     }
     if (m.type === 'card') {
       if (typeof m.alt === 'string' && lint.hasMarkdown(m.alt)) { m.alt = lint.stripMarkdown(m.alt); fixed.push(`messages[${i}]: markdown stripped from alt`); }
+      // the same site-URL rule for the card: alt text, data strings, and cta / option URIs (Flex buttons, quick replies)
+      const lastTouch = session && session.homework && session.homework.last_touch;
+      if (typeof m.alt === 'string') { const a = site.fixSiteUrls(m.alt, { lastTouch }); if (a.changed.length) { m.alt = a.text; fixed.push(`messages[${i}]: site URL in alt fixed`); } }
+      if (m.data && typeof m.data === 'object') { const c = site.fixCardData(m.data, { lastTouch }); if (c.changed.length) { m.data = c.data; fixed.push(`messages[${i}]: card site URL ${c.changed.map((x) => `${x.from} → ${x.to || 'dropped'}`).join(', ')}`); } }
       if (m.data && typeof m.data.title === 'string' && lint.countEmoji(m.data.title) > 0) {
         m.data.title = m.data.title.replace(EMOJI_ALL_RE, '').replace(/\s{2,}/gu, ' ').trim();
         fixed.push(`messages[${i}]: emoji removed from card title`);

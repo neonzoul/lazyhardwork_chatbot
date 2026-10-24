@@ -1,0 +1,11 @@
+name: 86 · demo token #demo-a3 — any site link in the reply is a real page (/prototype/automation), never an invented one
+covers: ["§9.2", "hotfix 24 Oct (invented demo URLs)", "Issue #2"]
+# The scripted model reproduces the production failure: it links /prototype/automation. The policy post-check must send the real page.
+user: { id: U86a3, displayName: "เดโม a3" }
+steps:
+  - follow: true
+    expect: { replies: 1, sender: lay }
+  - user: "มาจากเว็บ ดูเดโม AI Automation #demo-a3"
+    model: { messages: [{ type: text, text: "ถ้าพี่สนใจดูเดโม AI Automation ลองได้ที่นี่ครับ: https://lhw.anant-agent.com/prototype/automation", explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: [proof], kb_refs: [], intent: proof }
+    expect: { replies_min: 1, sender: lay, text_contains: ["https://lhw.anant-agent.com/prototype/automation"], text_not_contains: ["#demo", "business-review", "/prototype/agent
+"] }
