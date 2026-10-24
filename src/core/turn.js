@@ -67,12 +67,15 @@ async function runTurn(input, deps, opts = {}) {
             const n = normaliseText(input.text);
             if (n && n !== input.text) input = { ...input, text: n };
         }
-        // 0. a website CTA prefills "#demo-<id>" (Head GTM 23 Oct, Issue #2): the first message names the page the lead came
-        // from (lead.source web-demo-<id>); the token never reaches the model, the opening check or the transcript
+        // 0. a website CTA prefills "#demo-<id>" (Head GTM 23 Oct, Issue #2): the token never reaches the model, the opening
+        // check or the transcript. First touch: the account's first message sets lead.source = web-demo-<id> (kept forever).
+        // Last touch (v2.0.1, Head 24 Oct): ANY message with a token sets homework.last_touch = web-demo-<id>, so a returning
+        // LINE friend who comes in from the website is counted too.
         let demoTag = null;
-        if (input.kind === 'text' && !s.last_customer_at && DEMO_TAG_RE.test(input.text || '')) {
+        if (input.kind === 'text' && DEMO_TAG_RE.test(input.text || '')) {
             demoTag = String(input.text).match(DEMO_TAG_RE)[1].toLowerCase();
-            s.lead_source = `web-demo-${demoTag}`;
+            if (!s.last_customer_at) s.lead_source = `web-demo-${demoTag}`;
+            s.homework = { ...(s.homework || {}), last_touch: `web-demo-${demoTag}`, last_touch_at: now.toISOString() };
             input = { ...input, text: String(input.text).replace(DEMO_TAG_RE, ' ').replace(/[ \t]{2,}/gu, ' ').trim() || 'สวัสดีครับ' };
         }
 
@@ -115,8 +118,12 @@ async function runTurn(input, deps, opts = {}) {
         s.last_customer_at = now.toISOString();
         if (text) s.last_customer_text = text;
         await deps.store.messages.append({ user_id: s.user_id, role: 'customer', kind: input.kind, text: text || data, created_at: now.toISOString(), payload: input.kind === 'postback' ? { data } : null });
+        // a returning friend's lead gets the last touch now (a new visitor's lead is created later, as before)
+        if (demoTag) {
+            try { if (await deps.store.leads.byUser(s.user_id)) await upsertLead(s); } catch (e) { deps.log.warn('lead.last_touch_failed', { error: e?.message }); }
+        }
         // the sample-shop CTA: a text that names the shop ("ขอดูตัวอย่าง ร้านกาแฟ") enters that shop; otherwise the picker
-        if (demoTag === 'a2-shop' && s.mode !== 'demo') {
+        if (demoTag === 'a2-shop' && !['demo', 'human', 'mos_active', 'quiet'].includes(s.mode)) {   // never past the mode gates (CE review, PR #12)
             const demo = deps.flows?.demo || lazy('../flows/demo');
             if (demo?.onModelAction && demo.shopFromText?.(text)) return await demo.onModelAction({ action: 'demo_enter', response: null, input, session: s, deps, config, send, persist, done, senders });
             if (demo?.onDemoPostback) return await demo.onDemoPostback({ data: 'DEMO_PICK', input, session: s, deps, config, send, persist, done, senders });

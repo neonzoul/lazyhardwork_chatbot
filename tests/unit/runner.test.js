@@ -7,19 +7,19 @@ const stubTurn = {
   async runTurn(input, deps) {
     const s = await deps.store.sessions.getOrCreate(input.userId);
     if (input.kind === 'follow') {
-      await deps.line.push(input.userId, [{ type: 'text', text: 'สวัสดีครับ ผม Lay ผู้ช่วย AI ของมอส คนที่ทักมาส่วนใหญ่อยากรู้ 3 เรื่องนี้', sender: { name: 'Lay · ผู้ช่วย AI' },
+      await deps.line.push(input.userId, [{ type: 'text', text: 'สวัสดีครับ ผม Lay ผู้ช่วย AI ของมอส คนที่ทักมาส่วนใหญ่อยากรู้ 3 เรื่องนี้', sender: { name: 'Agent Lay · AI' },
         quickReply: { items: ['ทำอะไรได้บ้าง', 'เหมาะกับงานผมไหม', 'ขอดูตัวอย่าง'].map((l) => ({ type: 'action', action: { type: 'message', label: l, text: l } })) } }]);
       return { action: null, session: s, sent: [] };
     }
     let r;
     try { r = await deps.model.respond({}); } catch {
-      await deps.line.push(input.userId, [{ type: 'text', text: 'ตอนนี้ระบบขัดข้องชั่วคราวครับ ถ้ารีบ โทร 095 569 1674 (มอส) ได้เลย', sender: { name: 'Lay · ผู้ช่วย AI' },
+      await deps.line.push(input.userId, [{ type: 'text', text: 'ตอนนี้ระบบขัดข้องชั่วคราวครับ ถ้ารีบ โทร 095 569 1674 (มอส) ได้เลย', sender: { name: 'Agent Lay · AI' },
         quickReply: { items: [{ type: 'action', action: { type: 'message', label: 'เรียก Lay', text: 'เรียก Lay' } }] } }]);
       return { action: null, session: s, sent: [] };
     }
     s.topics_covered = [...new Set([...(s.topics_covered || []), ...r.topics])];
     await deps.store.sessions.save(s);
-    await deps.line.push(input.userId, [{ type: 'text', text: r.messages[0].text, sender: { name: 'Lay · ผู้ช่วย AI' },
+    await deps.line.push(input.userId, [{ type: 'text', text: r.messages[0].text, sender: { name: 'Agent Lay · AI' },
       quickReply: { items: r.quick_replies.map((l) => ({ type: 'action', action: { type: 'message', label: l, text: l } })) } }]);
     return { action: r.action, session: s, sent: [] };
   },

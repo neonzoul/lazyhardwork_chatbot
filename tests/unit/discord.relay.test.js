@@ -154,7 +154,7 @@ test('handleCommand: /lay → pipeline when runTurn given; otherwise direct rele
 
     const store = createFakeStore(); const line = createFakeLine();
     const s = await store.sessions.getOrCreate('U2'); s.mode = 'mos_active'; s.mode_since = new Date().toISOString(); await store.sessions.save(s);
-    const config = { identity: { layName: 'Lay · ผู้ช่วย AI', mosName: 'มอส', layIconUrl: '', mosIconUrl: '' }, publicBaseUrl: '' };
+    const config = { identity: { layName: 'Agent Lay · AI', mosName: 'มอส', layIconUrl: '', mosIconUrl: '' }, publicBaseUrl: '' };
     const direct = await handleCommand({ command: 'lay', userId: 'U2' }, { deps: { store, line, log: silent, clock: { now: () => new Date() } }, config });
     assert.equal(direct.ok, true);
     const after = await store.sessions.get('U2');
@@ -162,7 +162,7 @@ test('handleCommand: /lay → pipeline when runTurn given; otherwise direct rele
     assert.equal(after.resumed_by, 'mos_release');
     assert.equal(line.sent.length, 1);
     assert.match(line.texts()[0], /Lay กลับมาดูแลต่อครับ/);
-    assert.equal(line.senders()[0], 'Lay · ผู้ช่วย AI');
+    assert.equal(line.senders()[0], 'Agent Lay · AI');
 });
 
 // Mos, 18 Oct: "@agent.layline.lazyhardwork Resume" and "Agent lay ไปตอบต่อเลย" hand the chat back to Lay; neither may

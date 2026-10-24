@@ -39,7 +39,7 @@ module.exports = {
         hoursEnd: int(env.BUSINESS_HOURS_END, 22),
     },
     identity: {
-        layName: 'Lay · ผู้ช่วย AI',
+        layName: 'Agent Lay · AI',   // D-42; LINE sender.name max 20 characters
         mosName: 'มอส',
         layIconUrl: env.LAY_ICON_URL || (publicBaseUrl ? `${publicBaseUrl}/assets/lay-icon.png` : ''),
         mosIconUrl: env.MOS_ICON_URL || (publicBaseUrl ? `${publicBaseUrl}/assets/mos-icon.png` : ''),

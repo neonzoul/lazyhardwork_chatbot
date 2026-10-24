@@ -143,7 +143,7 @@ const EXAMPLES = [
     note: 'คุยกับคนหรือบอท — honest, fixed wording, offer to bring Mos in; no handoff until they ask',
     user: 'นี่คุยกับคนหรือบอทอยู่',
     response: emptyResponse({
-      messages: [text('ผม Lay ครับ ผู้ช่วย AI ของ LazyHardWork ตอบคำถามเบื้องต้นและเก็บเรื่องราวไว้ก่อนคุยต่อ ถ้าอยากคุยกับคน เรียกมอส ผู้ออกแบบระบบของเรา ได้เลยครับ')],
+      messages: [text('ผม Agent Lay ครับ ผู้ช่วย AI ของ LazyHardWork ตอบคำถามเบื้องต้นและเก็บเรื่องราวไว้ก่อนคุยต่อ ถ้าอยากคุยกับคน เรียกมอส ผู้ออกแบบระบบของเรา ได้เลยครับ')],
       quick_replies: ['คุยกับมอส', 'ถามต่อได้เลย'],
       topics: ['policy'],
       kb_refs: ['policies.ai-disclosure'],
