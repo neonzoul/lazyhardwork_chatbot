@@ -48,7 +48,7 @@ const lint = require('../src/core/lint');
 let PACK = null;
 try { const { loadPack } = require('../src/brain/kb'); PACK = loadPack(path.join(__dirname, '..', 'knowledge')); } catch { PACK = null; }
 
-const SENDER_NAMES = { lay: 'Lay · ผู้ช่วย AI', mos: 'มอส' };
+const SENDER_NAMES = { lay: 'Agent Lay · AI', mos: 'มอส' };
 // Vocabulary — tests/unit/scenarios.test.js checks every YAML against these so a typo fails `npm test`.
 const EXPECT_KEYS = ['replies', 'replies_min', 'text_contains', 'text_not_contains', 'quick_replies', 'quick_replies_includes', 'quick_replies_max',
   'card', 'sender', 'banned_clean', 'emoji_max', 'no_prose_list', 'action', 'notified', 'not_notified', 'silent', 'session', 'alerts'];

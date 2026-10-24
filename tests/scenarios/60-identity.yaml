@@ -4,7 +4,7 @@ covers: ["§9.8", "§9.5", "H1.5", "flow §11.1", "design §6.1"]
 user: { id: U60, displayName: "คุณอาร์ม" }
 steps:
   - follow: true
-    expect: { replies: 1, sender: lay, text_contains: ["ผม Lay ผู้ช่วย AI ของ LazyHardWork"], text_not_contains: ["[Agent Lay]"], emoji_max: 0 }
+    expect: { replies: 1, sender: lay, text_contains: ["ผม Agent Lay ผู้ช่วย AI ของ LazyHardWork"], text_not_contains: ["[Agent Lay]"], emoji_max: 0 }
   - user: "ทำอะไรได้บ้าง"
     model: "หลักๆ ผมช่วยเอา AI ไปรับงานซ้ำในธุรกิจครับ แชทบอท ระบบตามงาน หรือตั้งค่า AI ให้รู้จักงานของคุณ"
     expect: { replies: 1, sender: lay, text_not_contains: ["[Agent Lay]"], banned_clean: true, emoji_max: 0 }

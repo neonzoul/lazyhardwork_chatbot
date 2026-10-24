@@ -6,7 +6,7 @@ covers: ["§9.2", "§3.2", "head correction 19 Oct 15:20"]
 user: { id: U72, displayName: "โอ๊ต" }
 steps:
   - follow: true
-    expect: { replies: 1, sender: lay, text_contains: ["ผม Lay ผู้ช่วย AI ของ LazyHardWork"], text_not_contains: ["ของมอส"] }
+    expect: { replies: 1, sender: lay, text_contains: ["ผม Agent Lay ผู้ช่วย AI ของ LazyHardWork"], text_not_contains: ["ของมอส"] }
   - user: "ทำอะไรได้บ้าง"
     model: { messages: [{ type: text, text: "LazyHardWork ช่วยธุรกิจเอางานซ้ำๆ ไปให้ AI ทำครับ เช่น แชทบอทตอบลูกค้าบน LINE OA ระบบงานภายใน หรือออโตเมชันเชื่อมเครื่องมือที่ใช้อยู่\nตอนนี้ของพี่เป็นธุรกิจอะไรครับ", explain: false, template: null, alt: null, data: null }], quick_replies: ["เหมาะกับงานผมไหม", "ราคาเท่าไหร่"], topics: [capability], kb_refs: ["offer.overview"], intent: capability }
     expect: { replies: 1, sender: lay, banned_clean: true, text_not_contains: ["มอส", "แน่นอน"] }

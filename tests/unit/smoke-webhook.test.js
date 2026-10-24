@@ -74,8 +74,8 @@ test('runSmoke against createApp with the fakes: every check PASS, no WARN, no F
     assert.ok(report.counts.PASS >= 16, `expected a full table, got ${report.counts.PASS}`);
     // the table says what was observed, not just the verdict
     const table = lines.join('\n');
-    assert.match(table, /opening text\s+PASS\s+text "สวัสดีครับ ผม Lay/);
-    assert.match(table, /card choice\|offer\s+PASS\s+flex:offer from "Lay/);
+    assert.match(table, /opening text\s+PASS\s+text "สวัสดีครับ ผม Agent Lay/);
+    assert.match(table, /card choice\|offer\s+PASS\s+flex:offer from "Agent Lay/);
     assert.match(table, /card examples\s+PASS\s+(?:flex:examples|text "ดูตัวอย่างได้)/);
     assert.match(table, /draft\.symptom\s+PASS\s+draft=.*"symptom":"chat_overload"/);
     assert.match(table, /result: PASS/);
