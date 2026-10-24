@@ -49,13 +49,14 @@ function normPath(p) {
 
 function fixSiteUrls(text, { lastTouch } = {}) {
   const changed = [];
-  const tokenPage = lastTouch ? DEMO_PAGE[String(lastTouch).replace(/^web-demo-/u, '')] : null;
+  void lastTouch;   // kept in the signature; the session no longer picks the page (Head review, PR #14)
   const out = String(text || '').replace(SITE_URL_RE, (whole, absPath, barePath) => {
     const raw = absPath !== undefined || /^https?:/iu.test(whole) ? (absPath || '/') : barePath;
     const path = normPath(raw);
     if (SITE_PATHS.has(path)) return whole;
+    // repaired only through the known alias map; anything else is dropped, never guessed from the session (Head review)
     let to = null;
-    if (/^\/prototype\//u.test(path)) to = (NEAREST.find(([re]) => re.test(path)) || [])[1] || tokenPage;
+    if (/^\/prototype\//u.test(path)) to = (NEAREST.find(([re]) => re.test(path)) || [])[1] || null;
     const replacement = to ? siteUrl(to) : '';
     changed.push({ from: whole, to: replacement || null });
     return replacement;

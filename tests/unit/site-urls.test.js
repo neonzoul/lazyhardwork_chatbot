@@ -29,7 +29,10 @@ test('every table page is kept; unknown site pages are dropped; bare /prototype 
   assert.equal(dropped.changed[0].to, null);
   assert.doesNotMatch(dropped.text, /anant-agent/);
   assert.match(site.fixSiteUrls('ลองที่ /prototype/agent ได้เลย').text, /https:\/\/lhw\.anant-agent\.com\/prototype\/agentic-workflow/);
-  assert.match(site.fixSiteUrls('ลิงก์ https://lhw.anant-agent.com/prototype/xyz', { lastTouch: 'web-demo-a3' }).text, /\/prototype\/automation/);
+  // an unknown prototype with no alias is dropped, even when the session came from a demo (no guessing, Head review)
+  const unknown = site.fixSiteUrls('ลิงก์ https://lhw.anant-agent.com/prototype/xyz', { lastTouch: 'web-demo-a3' });
+  assert.equal(unknown.changed[0].to, null);
+  assert.doesNotMatch(unknown.text, /anant-agent/);
   const other = 'โปรไฟล์ https://fastwork.co/user/moslazyhardwork และ https://lin.ee/OrYthD8';
   assert.equal(site.fixSiteUrls(other).text, other);
 });
