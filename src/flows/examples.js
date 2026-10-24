@@ -206,6 +206,7 @@ async function onExamplesPostback({ data, input, session, deps, config, send, pe
     }
     if (data === POSTBACKS.pick) {
         unionProof();
+        session.demo_pick_open = true;   // a shop name typed next enters that shop (core/turn), not the model
         const card = flexMessage(cards, 'choice', shopPicker(), ctx, strings.alts.pick);
         const qr = card.quickReplies || [strings.quickAfter.fit, strings.quickAfter.pricing];
         const sent = await send(input, [msg.text(strings.pickIntro), card.message], qr, lay);

@@ -30,6 +30,13 @@ const sanitizeInput = (text) => String(text || '')
     .replace(/###\s*system\s*###[\s\S]*?###/gi, '')
     .replace(/IGNORE\s+(ALL\s+)?(PREVIOUS|PRIOR|ABOVE)\s+(INSTRUCTIONS?|RULES?|PROMPTS?)[^\n]*/gi, '')
     .trim();
+// Leading bullets / dashes / quotes and wrapping quotes come off every line before any matching (Mos's test 24 Oct:
+// '- “ขอลองเป็นลูกค้าร้านตัวอย่างก่อนค่ะ”' missed the demo path and the model played the shop itself).
+const LEAD_MARK_RE = /^[\s\-–—•·‣◦*>"“”'‘’«»「」『』]+/u;
+const TRAIL_MARK_RE = /[\s"“”'‘’«»「」『』]+$/u;
+const normaliseText = (text) => String(text || '').split('\n')
+    .map((line) => line.replace(LEAD_MARK_RE, '').replace(TRAIL_MARK_RE, ''))
+    .filter((line) => line.trim()).join('\n').trim();
 
 function lazy(path) { try { return require(path); } catch (e) { if (e.code === 'MODULE_NOT_FOUND' && e.message.includes(path.split('/').pop())) return null; throw e; } }
 
@@ -55,6 +62,11 @@ async function runTurn(input, deps, opts = {}) {
         const shops = deps.pack?.demoShops || {};
         sender = senders.forSession(s, shops);
 
+        // 0a. bullets / dashes / quotes off before every matcher (opening, intent, demo path, model)
+        if (input.kind === 'text' && typeof input.text === 'string') {
+            const n = normaliseText(input.text);
+            if (n && n !== input.text) input = { ...input, text: n };
+        }
         // 0. a website CTA prefills "#demo-<id>" (Head GTM 23 Oct, Issue #2): the first message names the page the lead came
         // from (lead.source web-demo-<id>); the token never reaches the model, the opening check or the transcript
         let demoTag = null;
@@ -245,6 +257,13 @@ async function runTurn(input, deps, opts = {}) {
         if (input.kind === 'text' && GUARANTEE_ASK_RE.test(text)) {
             const aboutBeingFound = s.geo_asked || GEO_INTEREST_RE.test(text) || /แนะนำ|ค้นเจอ|ติดอันดับ|ChatGPT|Google/iu.test(text);
             return await plainTurn([aboutBeingFound ? GUARANTEE_GEO : GUARANTEE_GENERAL], { intent: 'capability', topics: ['capability'], lead: false });
+        }
+        // right after the shop picker, a typed shop name ("คลินิกความงาม") enters that sample shop by code (Mos's test 24 Oct:
+        // the model played the clinic itself and "confirmed" a booking)
+        if (input.kind === 'text' && s.demo_pick_open && s.mode !== 'demo') {
+            s.demo_pick_open = false;
+            const demo = flows.demo || lazy('../flows/demo');
+            if (demo?.onModelAction && demo.shopFromText?.(text) && [...text].length <= 40) return await demo.onModelAction({ action: 'demo_enter', response: null, input, session: s, deps, config, send, persist, done, senders });
         }
         // "ขอลองเป็นลูกค้าร้านตัวอย่าง" typed: the shop picker by code (the model wrote a two-item list with one line twice)
         if (input.kind === 'text' && DEMO_TRY_RE.test(text) && s.mode !== 'demo') {
@@ -582,6 +601,8 @@ async function runTurn(input, deps, opts = {}) {
                 // the "ระบบขัดข้อง" line would be untrue: send a calm neutral line with the next questions instead.
                 d.log.warn('model.policy_neutral', { userId: sess.user_id, error: err.message });
                 await d.store.events.append({ kind: 'policy_neutral', user_id: sess.user_id, payload: { error: err.message }, created_at: at.toISOString() });
+                // a reply that kept claiming a booking / order Lay never made: say plainly that nothing was booked
+                if (/claimed_action/.test(err.message)) return emptyResponse({ messages: [{ type: 'text', text: CLAIM_SAFE_LINE, explain: false, template: null, alt: null, data: null }], quick_replies: ['ลองร้านตัวอย่าง', 'นัดคุยกับมอส'], intent: 'capability' });
                 return emptyResponse({ messages: [{ type: 'text', text: 'รับทราบครับ', explain: false, template: null, alt: null, data: null }], quick_replies: topics.nextQuickReplies(null, sess.topics_covered), intent: 'banter' });
             }
             errs.push(err);
@@ -722,6 +743,8 @@ const GEO_LINES = [
     'ระหว่างนี้ทำเองได้ครับ เขียนหน้าเว็บหรือโปรไฟล์ร้านให้ตอบคำถามที่ลูกค้ามักถามให้ชัด เช่น อยู่ที่ไหน ขายอะไร ราคาประมาณเท่าไหร่ เปิดกี่โมง เพราะ AI มักหยิบข้อมูลที่เขียนชัดและตรงคำถามไปใช้',
     'ไม่มีใครรับประกันได้ว่า AI จะแนะนำร้านไหนนะครับ เราก็ไม่รับประกัน และเราไม่รับทำเว็บเป็นบริการ ถ้าสนใจ Review ทักต่อได้เลย หรือคุยฟรี 30 นาทีก่อนก็ได้ครับ',
 ];
+// Safe line when the model keeps claiming an action Lay did not perform (Mos's test 24 Oct, freeze exception (b))
+const CLAIM_SAFE_LINE = 'ผมจองหรือยืนยันอะไรแทนไม่ได้ครับ ตอนนี้ยังไม่มีอะไรถูกจองไว้ ถ้าอยากเห็นบอทรับจองจริง ลองเป็นลูกค้าร้านตัวอย่างได้เลยครับ';
 // website CTA tokens (Head GTM 23 Oct): a4 · c1 · a2 · a2-shop · a1 · a3
 const DEMO_TAG_RE = /#demo-(a2-shop|a[1-4]|c1)(?![\w-])/iu;
 const GUARANTEE_ASK_RE = /รับประกัน|การันตี|guarantee|รับรองผล|(?:รับรอง|สัญญา)(?:ได้)?(?:ไหม|มั้ย)?ว่า/iu;
@@ -834,4 +857,4 @@ function createEventHandler(deps, opts = {}) {
 }
 
 const INPUT_KINDS = ['text', 'postback', 'media', 'follow', 'unfollow', 'mos_relay', 'mos_release'];
-module.exports = { shortenMosIntro, cardContext, runTurn, createEventHandler, isGreeting, isTellMeMore, countQuestions, sanitizeInput, MENU_TO_TEXT, INPUT_KINDS };
+module.exports = { normaliseText, shortenMosIntro, cardContext, runTurn, createEventHandler, isGreeting, isTellMeMore, countQuestions, sanitizeInput, MENU_TO_TEXT, INPUT_KINDS };

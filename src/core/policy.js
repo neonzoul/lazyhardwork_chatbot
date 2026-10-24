@@ -115,6 +115,9 @@ function dedupePriceSentence(t) {
 // "Not worth hiring us yet": said outright, or as "use LINE's free auto-reply first and come back later" (Head GTM round-2
 // ruling, 23 Oct). Shared with flows/endings so no code-added offer card lands under it.
 const NOT_WORTH_RE = /ยังไม่(?:ต้อง)?จ้าง|ไม่คุ้ม(?:ที่จะ)?จ้าง|อาจไม่คุ้ม|(?:ข้อความ)?ตอบอัตโนมัติ(?:ฟรี)?ของ\s*LINE\s*(?:OA\s*)?(?:เอง\s*)?ก่อน|ฟรีของ\s*LINE\s*ก่อน|ค่อยกลับมาคุย|รอให้แชท(?:เข้า)?(?:มา)?(?:มาก|เยอะ)/u;
+// Claimed actions: "จอง/สั่ง/ยืนยัน/นัด … เรียบร้อย(แล้ว) / สำเร็จ / ยืนยันแล้ว", "ได้ทำการจอง…", "จองให้แล้ว".
+const CLAIMED_ACTION_RE = /(?:จอง|สั่ง|ออเดอร์|นัด|ยืนยัน|ชำระ|โอน)[^\n]{0,50}(?:เรียบร้อย(?:แล้ว)?|สำเร็จ(?:แล้ว)?|ยืนยันแล้ว|บันทึกแล้ว)|(?:ได้|ทำการ)\s*(?:จอง|สั่ง|ยืนยัน)(?:คิว|ห้อง|นัด|ออเดอร์)?[^\n]{0,30}(?:ให้)?แล้ว|(?:จอง|สั่ง)(?:คิว|ห้อง|ออเดอร์)?ให้(?:พี่|คุณ)?แล้ว/u;
+const WAITS_FOR_PERSON_RE = /รอ\s*(?:คน|เจ้าของร้าน|แอดมิน|มอส|ทางร้าน|พนักงาน)?\s*(?:ของร้าน)?\s*ยืนยัน/u;
 const STYLE_RULES = new Set(['prose_list', 'too_long', 'emoji', 'markdown', 'two_questions']);
 // One question per bubble: split into clauses at ครับ/ค่ะ + space, และ, a question mark or a line break, and count the
 // clauses that ask (ไหม · กี่ · อะไร · ยังไง · หรือเปล่า · ?). "มีคนตอบแชทกี่คนครับ และแชทเข้าวันละกี่ข้อความครับ" → 2.
@@ -380,6 +383,13 @@ function applyPolicy(input, { session = {}, pack = null, allow, userText } = {})
   if (!/^handoff_/.test(String(r.action || '')) && texts.some((t) => UNBACKED_PROMISE_RE.test(t) && !/(?:ถ้า|หาก|อยาก|ต้องการ|กด|บอก)[^\n]{0,20}มอส/u.test(t))) {
     violate('unbacked_promise', 'regenerate', 'says Mos will come/reply without a handoff action — only code may promise that, after the notify succeeded');
   }
+  // --- an action Lay did not perform is never claimed (Mos's test 24 Oct: "บอทได้ทำการจองคิว… เรียบร้อยแล้วครับ" outside
+  // the sample shop). Bookings, orders and confirmations are done only by code paths, which do not pass through here.
+  // A line that says it still waits for a person ("รอ…ยืนยัน") is not a claim. ---
+  // (allowed only where code says Mos already confirmed: the same 'booking_confirmed' allow as the lint)
+  if (!allowSet.has('booking_confirmed') && texts.some((t) => CLAIMED_ACTION_RE.test(t) && !WAITS_FOR_PERSON_RE.test(t))) {
+    violate('claimed_action', 'regenerate', 'the reply says a booking / order / confirmation is done — Lay cannot do that; say what the customer can do next instead');
+  }
   // --- out of scope: once the customer asked about something LazyHardWork does not do, never tailor an offer to it ---
   if (session && session.out_of_scope && texts.some((t) => OUT_OF_SCOPE_RE.test(t))) {
     violate('out_of_scope_offer', 'regenerate', 'the reply talks about the out-of-scope topic (e.g. trading) as if it were a service — answer with the real services only');
@@ -439,4 +449,4 @@ function fallbackReply({ reason = 'error', config } = {}) {
   return response;
 }
 
-module.exports = { NOT_WORTH_RE, countQuestionClauses, speakAsLay, dropFiller, mergeShortPair, dropCertainty, OUT_OF_SCOPE_RE, salvage, isStyleOnly, stripClosers, STYLE_RULES, applyPolicy, fallbackReply, strings, PRICE_RE, PRICE_REF_RE, BENEFITS_CAVEAT_RE, QUICK_REPLY_MAX, QUICK_REPLY_LABEL_MAX };
+module.exports = { NOT_WORTH_RE, CLAIMED_ACTION_RE, WAITS_FOR_PERSON_RE, countQuestionClauses, speakAsLay, dropFiller, mergeShortPair, dropCertainty, OUT_OF_SCOPE_RE, salvage, isStyleOnly, stripClosers, STYLE_RULES, applyPolicy, fallbackReply, strings, PRICE_RE, PRICE_REF_RE, BENEFITS_CAVEAT_RE, QUICK_REPLY_MAX, QUICK_REPLY_LABEL_MAX };
