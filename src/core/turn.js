@@ -759,11 +759,14 @@ const GEO_LINES = [
     'ระหว่างนี้ทำเองได้ครับ เขียนหน้าเว็บหรือโปรไฟล์ร้านให้ตอบคำถามที่ลูกค้ามักถามให้ชัด เช่น อยู่ที่ไหน ขายอะไร ราคาประมาณเท่าไหร่ เปิดกี่โมง เพราะ AI มักหยิบข้อมูลที่เขียนชัดและตรงคำถามไปใช้',
     'ไม่มีใครรับประกันได้ว่า AI จะแนะนำร้านไหนนะครับ เราก็ไม่รับประกัน และเราไม่รับทำเว็บเป็นบริการ ถ้าสนใจ Review ทักต่อได้เลย หรือคุยฟรี 30 นาทีก่อนก็ได้ครับ',
 ];
-// A4 vs doing it yourself in Claude Projects (faq.a4-vs-projects): the question names the tool AND asks why / the difference
-const A4_VS_PROJECTS_RE = /(?:Claude|ChatGPT|GPT|Gemini)\s*Projects?|โปรเจกต์(?:ของ)?\s*(?:Claude|ChatGPT)|อัปโหลดไฟล์เอง|ทำเอง(?:ก็)?(?:ได้|เป็น)|ต่างจาก(?:ที่)?\s*(?:ผม|ฉัน|เรา|หนู|พี่)?\s*ทำเอง/iu;
-const A4_WHY_RE = /ต่าง|ทำไม|คุ้ม|จ้าง|ดีกว่า|ยังไง|อย่างไร|ไหม|มั้ย|\?/u;
-// a time / availability question during the booking that the buttons do not answer
-const BOOKING_TIME_ASK_RE = /ว่าง|กี่โมง|เวลาไหน|ช่วงไหน|วันไหน|เมื่อไหร่|เมื่อไร|สะดวก|คิว|ไม่ได้|ขอ(?:วัน|เวลา)อื่น|เปลี่ยน(?:วัน|เวลา)|ได้(?:ไหม|มั้ย|มั๊ย|รึเปล่า|หรือเปล่า)/u;
+// A4 vs doing it yourself in Claude Projects (faq.a4-vs-projects): the message names the tool or A4 AND asks about the
+// difference or doing it oneself (CE review 24 Oct: "ตั้งค่า LINE OA ทำเองได้ไหม" must not get this answer)
+const A4_VS_PROJECTS_RE = /(?:Claude|ChatGPT|GPT|Gemini)\s*Projects?|โปรเจกต์(?:ของ)?\s*(?:Claude|ChatGPT)|\bProjects?\b|AI\s*Workspace|Workspace\s*Setup|\bA4\b/iu;
+const A4_WHY_RE = /ต่าง(?:กัน|จาก|ตรง|ยังไง)|ทำไม|ดีกว่า|ทำเอง|อัปโหลด(?:ไฟล์)?เอง/u;
+// a time / availability question during the booking that the buttons do not answer: time words, or a bare "ได้ไหม /
+// ไม่สะดวก / ไม่ได้" right next to a day or time word (CE review 24 Oct: "ขอถามเรื่องราคาก่อนได้ไหม" is not one)
+const BOOKING_DAYTIME = 'วันนี้|พรุ่งนี้|มะรืน|เช้า|บ่าย|เย็น|ค่ำ|เที่ยง|โมง|ทุ่ม|วัน(?:จันทร์|อังคาร|พุธ|พฤหัส|ศุกร์|เสาร์|อาทิตย์)|สัปดาห์หน้า|อาทิตย์หน้า|เวลา';
+const BOOKING_TIME_ASK_RE = new RegExp(`ว่าง|กี่โมง|เวลาไหน|ช่วงไหน|วันไหน|เมื่อไหร่|เมื่อไร|ขอ(?:วัน|เวลา)อื่น|เปลี่ยน(?:วัน|เวลา)|(?:${BOOKING_DAYTIME})[^\\n]{0,12}(?:ได้(?:ไหม|มั้ย|มั๊ย|รึเปล่า|หรือเปล่า)|ไม่(?:สะดวก|ได้))|ไม่(?:สะดวก|ได้)[^\\n]{0,8}(?:${BOOKING_DAYTIME})`, 'u');
 // an approved FAQ answer from the pack: the section without its bold question line
 function faqAnswer(pack, id) {
     const ex = lazy('../flows/examples');

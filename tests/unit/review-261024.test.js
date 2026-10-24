@@ -183,3 +183,43 @@ test('CE review: a negated day / time during the booking is not taken as a slot 
     assert.match(w.line.texts().slice(-1)[0], /ขอเช็กคิวกับมอสก่อนนะครับ/, said);
   }
 });
+
+// CE review 24 Oct (f339295..da4333e): two regex fixes before ship
+test('CE review: the A4 answer needs a named tool / A4 AND a difference or do-it-yourself ask — "ตั้งค่า LINE OA ทำเองได้ไหม" does not get it', async () => {
+  for (const t of ['ตั้งค่า LINE OA ทำเองได้ไหม', 'ทำเองได้ไหมครับ ไม่อยากจ้าง', 'AI Workspace คืออะไรครับ']) {
+    const w = world();
+    w.model.push(text('ได้ครับ', { intent: 'capability' }));
+    await runTurn(w.input({ text: t }), w.deps);
+    assert.doesNotMatch(w.line.texts().join('\n'), /Claude Projects คือที่ใส่ไฟล์/, t);
+  }
+  for (const t of ['ใช้ ChatGPT Projects อยู่แล้ว ต่างกันยังไง', 'AI Workspace ทำไมต้องจ้าง ทำเองไม่ได้เหรอ']) {
+    const w = world();
+    await runTurn(w.input({ text: t }), w.deps);
+    assert.match(w.line.texts().join('\n'), /Claude Projects คือที่ใส่ไฟล์/, t);
+  }
+});
+
+test('CE review: during the booking only time questions hand off — price, chat-instead-of-phone and queue-length questions do not', async () => {
+  const toDay = async (w) => {
+    await runTurn(w.input({ kind: 'postback', data: 'BOOK_START', text: '' }), w.deps);
+    for (let i = 0; i < 6; i++) {
+      const step = (await w.store.sessions.get('U1')).booking_step;
+      if (step === 'window_day') break;
+      await runTurn(w.input({ text: step === 'name' || step === 'name_text' ? 'มอส' : 'ร้านเค้กตามสั่ง ตามรายละเอียดลูกค้าไม่ทัน' }), w.deps);
+    }
+  };
+  for (const t of ['ขอถามเรื่องราคาก่อนได้ไหม', 'ไม่สะดวกคุยโทรศัพท์ คุยในแชทได้ไหม', 'คิวยาวไหมครับ']) {
+    const w = world();
+    await toDay(w);
+    w.model.push(text('ได้ครับ', { intent: 'faq' }));
+    await runTurn(w.input({ text: t }), w.deps);
+    assert.doesNotMatch(w.line.texts().slice(-1)[0], /ขอเช็กคิวกับมอส/, t);
+    assert.notEqual((await w.store.sessions.get('U1')).mode, 'quiet', t);
+  }
+  for (const t of ['ว่างกี่โมงบ้าง', 'พรุ่งนี้ไม่ว่าง']) {
+    const w = world();
+    await toDay(w);
+    await runTurn(w.input({ text: t }), w.deps);
+    assert.match(w.line.texts().slice(-1)[0], /ขอเช็กคิวกับมอสก่อนนะครับ/, t);
+  }
+});
