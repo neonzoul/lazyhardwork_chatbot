@@ -128,6 +128,14 @@ async function runTurn(input, deps, opts = {}) {
             if (demo?.onModelAction && demo.shopFromText?.(text)) return await demo.onModelAction({ action: 'demo_enter', response: null, input, session: s, deps, config, send, persist, done, senders });
             if (demo?.onDemoPostback) return await demo.onDemoPostback({ data: 'DEMO_PICK', input, session: s, deps, config, send, persist, done, senders });
         }
+        // the visitor JUST came from that demo (v2.0.2, Head 24 Oct): when the message is only the website's prefill, code
+        // acknowledges the demo and asks one question about their work. Never the demo link back; the free talk is offered.
+        // A prefill with the visitor's own question added goes to the model, which knows the demo from the session line.
+        if (demoTag && DEMO_FOLLOW_UP[demoTag] && (!s.mode || s.mode === 'lay') && WEB_PREFILL_RE.test(text) && [...text].length <= 60) {
+            const sent = await send(input, [msg.text(DEMO_FOLLOW_UP[demoTag])], ['นัดคุยกับมอส', 'ราคาเท่าไหร่'], senders.lay);
+            await persist(input, s, sent, { role: 'lay' });
+            return done(sent, null);
+        }
 
         // 4a. Human Mode (Mos took the chat): Lay never answers; every customer message goes to the lead thread. Only Mos
         // releases it (▶️Lay / /lay / @บอท resume), so the customer's own "เรียก Lay" is relayed too.
@@ -791,6 +799,16 @@ function policyAllow(sess) {
 }
 // Safe line when the model keeps claiming an action Lay did not perform (Mos's test 24 Oct, freeze exception (b))
 const CLAIM_SAFE_LINE = 'ผมจองหรือยืนยันอะไรแทนไม่ได้ครับ ตอนนี้ยังไม่มีอะไรถูกจองไว้ ถ้าอยากเห็นบอทรับจองจริง ลองเป็นลูกค้าร้านตัวอย่างได้เลยครับ';
+// after a website demo (v2.0.2): acknowledge it, one question about their own work. Draft wording, for Head approval.
+const DEMO_FOLLOW_UP = {
+    a4: 'เห็นว่าเพิ่งลองเดโม AI Workspace มาครับ ถ้าเป็นร้านของพี่เอง อยากให้ AI อ่านไฟล์อะไรแล้วช่วยตอบหรือทำงานอะไรให้ครับ',
+    c1: 'เห็นว่าเพิ่งลองเดโม AI Business Review มาครับ ตอนนี้งานไหนในร้านที่กินเวลาที่สุดครับ',
+    a2: 'เห็นว่าเพิ่งลองคุยกับบอทเดโมมาครับ ลูกค้าของพี่ทักมาถามเรื่องอะไรบ่อยที่สุดครับ',
+    a1: 'เห็นว่าเพิ่งลองเดโมระบบงานภายใน (AI Agent) มาครับ ตอนนี้งานในทีมที่ต้องตามหรือส่งต่อกันเองบ่อยที่สุดคืออะไรครับ',
+    a3: 'เห็นว่าเพิ่งลองเดโมออโตเมชันมาครับ งานไหนที่พี่หรือทีมต้องคีย์หรือทำซ้ำทุกวันครับ',
+};
+// the website's prefilled texts start like this ("มาจากเว็บ ดูเดโม Workspace", "มาจากเว็บ ลองถาม Lay")
+const WEB_PREFILL_RE = /^มาจากเว็บ/u;
 // website CTA tokens (Head GTM 23 Oct): a4 · c1 · a2 · a2-shop · a1 · a3
 const DEMO_TAG_RE = /#demo-(a2-shop|a[1-4]|c1)(?![\w-])/iu;
 const GUARANTEE_ASK_RE = /รับประกัน|การันตี|guarantee|รับรองผล|(?:รับรอง|สัญญา)(?:ได้)?(?:ไหม|มั้ย)?ว่า/iu;
