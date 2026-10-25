@@ -62,7 +62,7 @@ function uncoveredTopics(covered = []) {
 function looseEndsReply(covered = []) {
     const un = uncoveredTopics(covered).slice(0, 2);
     if (un.length === 0) {
-        return { text: 'ยินดีครับ ถ้าเคลียร์แล้ว นัดคุยกับมอส 30 นาทีได้เลยครับ', quickReplies: ['นัดคุยกับมอส'] };
+        return { text: 'ยินดีครับ ถ้าเคลียร์แล้ว นัดคุยฟรีกับมอส 30 นาทีได้เลยครับ', quickReplies: ['นัดคุยกับมอส'] };
     }
     const names = un.map((t) => TOPIC_LABELS[t]);
     const text = un.length === 2

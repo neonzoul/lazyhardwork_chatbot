@@ -799,13 +799,14 @@ function policyAllow(sess) {
 }
 // Safe line when the model keeps claiming an action Lay did not perform (Mos's test 24 Oct, freeze exception (b))
 const CLAIM_SAFE_LINE = 'ผมจองหรือยืนยันอะไรแทนไม่ได้ครับ ตอนนี้ยังไม่มีอะไรถูกจองไว้ ถ้าอยากเห็นบอทรับจองจริง ลองเป็นลูกค้าร้านตัวอย่างได้เลยครับ';
-// after a website demo (v2.0.2): acknowledge it, one question about their own work. Draft wording, for Head approval.
+// after a website demo (v2.0.2): acknowledge it, one question about their own work. Wording approved by the Head, 25 Oct
+// (only A2 / A4 are "ลอง": A1 / A3 are storyboards, C1 is a sample report).
 const DEMO_FOLLOW_UP = {
     a4: 'เห็นว่าเพิ่งลองเดโม AI Workspace มาครับ ถ้าเป็นร้านของพี่เอง อยากให้ AI อ่านไฟล์อะไรแล้วช่วยตอบหรือทำงานอะไรให้ครับ',
-    c1: 'เห็นว่าเพิ่งลองเดโม AI Business Review มาครับ ตอนนี้งานไหนในร้านที่กินเวลาที่สุดครับ',
-    a2: 'เห็นว่าเพิ่งลองคุยกับบอทเดโมมาครับ ลูกค้าของพี่ทักมาถามเรื่องอะไรบ่อยที่สุดครับ',
-    a1: 'เห็นว่าเพิ่งลองเดโมระบบงานภายใน (AI Agent) มาครับ ตอนนี้งานในทีมที่ต้องตามหรือส่งต่อกันเองบ่อยที่สุดคืออะไรครับ',
-    a3: 'เห็นว่าเพิ่งลองเดโมออโตเมชันมาครับ งานไหนที่พี่หรือทีมต้องคีย์หรือทำซ้ำทุกวันครับ',
+    c1: 'เห็นว่าเพิ่งดูรายงานตัวอย่าง AI Business Review มาครับ ตอนนี้งานไหนในร้านที่กินเวลาที่สุดครับ',
+    a2: 'เห็นว่าเพิ่งดูหน้าเดโมแชทบอทมาครับ ตอนนี้พี่ก็กำลังคุยกับ Agent Lay แชทบอทตัวจริงของเราอยู่ครับ ลูกค้าของพี่ทักมาถามเรื่องอะไรบ่อยที่สุดครับ',
+    a1: 'เห็นว่าเพิ่งดูภาพตัวอย่างระบบงานภายใน (AI Agent) มาครับ ตอนนี้งานในทีมที่ต้องตามหรือส่งต่อกันเองบ่อยที่สุดคืออะไรครับ',
+    a3: 'เห็นว่าเพิ่งดูภาพตัวอย่างออโตเมชันมาครับ งานไหนที่พี่หรือทีมต้องคีย์หรือทำซ้ำทุกวันครับ',
 };
 // the website's prefilled texts start like this ("มาจากเว็บ ดูเดโม Workspace", "มาจากเว็บ ลองถาม Lay")
 const WEB_PREFILL_RE = /^มาจากเว็บ/u;

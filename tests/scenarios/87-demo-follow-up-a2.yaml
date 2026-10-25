@@ -5,4 +5,4 @@ steps:
   - follow: true
     expect: { replies: 1, sender: lay }
   - user: "มาจากเว็บ ลองถาม Lay #demo-a2"
-    expect: { replies: 1, sender: lay, text_contains: ["เห็นว่าเพิ่งลอง", "บอทเดโม"], text_not_contains: ["#demo", "anant-agent.com", "prototype"], quick_replies_includes: ["นัดคุยกับมอส"] }
+    expect: { replies: 1, sender: lay, text_contains: ["แชทบอทตัวจริงของเรา"], text_not_contains: ["#demo", "anant-agent.com", "prototype"], quick_replies_includes: ["นัดคุยกับมอส"] }
