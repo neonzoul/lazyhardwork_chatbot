@@ -40,7 +40,7 @@ const normaliseText = (text) => String(text || '').split('\n')
 
 function lazy(path) { try { return require(path); } catch (e) { if (e.code === 'MODULE_NOT_FOUND' && e.message.includes(path.split('/').pop())) return null; throw e; } }
 
-function defaultConfig() { return lazy('../config') || { contact: { phoneDisplay: '095 569 1674 (มอส)', hoursStart: 13, hoursEnd: 22 }, identity: { layName: 'Lay · ผู้ช่วย AI', mosName: 'มอส' }, quiet: { windowMinutes: 30, debounceMs: 6500 }, publicBaseUrl: '' }; }
+function defaultConfig() { return lazy('../config') || { contact: { phoneDisplay: '095 569 1674 (มอส)', hoursStart: 13, hoursEnd: 22 }, identity: { layName: 'Agent Lay · AI', mosName: 'มอส' }, quiet: { windowMinutes: 30, debounceMs: 6500 }, publicBaseUrl: '' }; }
 
 function fallbackText(config) { return `ตอนนี้ระบบขัดข้องชั่วคราวครับ ถ้ารีบ โทร ${config.contact.phoneDisplay} ได้เลย`; }
 
@@ -567,7 +567,7 @@ async function runTurn(input, deps, opts = {}) {
         const kbSelection = selectSections(pack, { intentHint, draft: sess.draft, previousRefs: intentHint === 'tell_me_more' ? sess.last_kb_refs : [] });
         const system = prompt?.buildSystemPrompt
             ? prompt.buildSystemPrompt({ pack, session: sess, intentHint, kbSelection, now: at, config: cfg })
-            : `คุณคือ Lay ผู้ช่วย AI ของมอส (LazyHardWork) ตอบสั้น สุภาพ ครับ ตอบเป็น JSON ตาม schema`;
+            : `คุณคือ Agent Lay ผู้ช่วย AI ของ LazyHardWork ตอบสั้น สุภาพ ครับ ตอบเป็น JSON ตาม schema`;
         const messages = prompt?.buildMessages ? prompt.buildMessages({ systemPrompt: system, history, userText }) : [{ role: 'system', content: system }, ...history.map((h) => ({ role: h.role === 'customer' ? 'user' : 'assistant', content: h.text })), { role: 'user', content: userText }];
         const { responseSchema } = require('../brain/schema');
         const degraded = d.degraded || lazy('./degraded');
