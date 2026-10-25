@@ -1,0 +1,14 @@
+name: "89 · /en pages are kept and a wrong-case path is repaired to the live page (CE review of PR #15)"
+covers: ["§9.2", "CE review PR #15 blocker 1"]
+user: { id: U89e, displayName: "ลิงก์ภาษาอังกฤษ" }
+steps:
+  - follow: true
+    expect: { replies: 1, sender: lay }
+  - user: "Do you have the sample report in English?"
+    model: { messages: [{ type: text, text: "Yes: https://lhw.anant-agent.com/en/prototype/review", explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: [capability], kb_refs: [], intent: capability }
+    expect: { replies_min: 1, sender: lay }
+    expect_scripted: { text_contains: ["https://lhw.anant-agent.com/en/prototype/review"] }
+  - user: "แล้วหน้าแชทบอทล่ะครับ"
+    model: { messages: [{ type: text, text: "ดูได้ที่ https://lhw.anant-agent.com/prototype/ChatBot ครับ", explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: [capability], kb_refs: [], intent: capability }
+    expect: { replies_min: 1, sender: lay, text_not_contains: ["/prototype/ChatBot"] }
+    expect_scripted: { text_contains: ["https://lhw.anant-agent.com/prototype/chatbot"] }

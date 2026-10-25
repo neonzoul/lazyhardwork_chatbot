@@ -115,7 +115,11 @@ function dedupePriceSentence(t) {
 // never blocked (Head GTM 22 Oct)
 // "Not worth hiring us yet": said outright, or as "use LINE's free auto-reply first and come back later" (Head GTM round-2
 // ruling, 23 Oct). Shared with flows/endings so no code-added offer card lands under it.
-const NOT_WORTH_RE = /ยังไม่(?:ต้อง)?จ้าง|ไม่คุ้ม(?:ที่จะ)?จ้าง|อาจไม่คุ้ม|(?:ข้อความ)?ตอบอัตโนมัติ(?:ฟรี)?ของ\s*LINE\s*(?:OA\s*)?(?:เอง\s*)?ก่อน|ฟรีของ\s*LINE\s*ก่อน|ค่อยกลับมาคุย|รอให้แชท(?:เข้า)?(?:มา)?(?:มาก|เยอะ)/u;
+// promises that AI will never be wrong again (the B2 over-claim)
+const OVERCLAIM_RE = /ไม่ต้อง(?:กังวล|ห่วง)[^\n]{0,60}อีกต่อไป|(?:จะ)?ไม่(?:ตอบ)?ผิด(?:พลาด)?อีก(?:ต่อไป|เลย)?|ไม่มีวัน(?:ตอบ)?ผิด|แม่นยำ\s*100\s*%|ถูกต้อง\s*100\s*%/u;
+// a chatbot or an internal system offered as the answer (for a GEO lead these are never the answer, D-39)
+const GEO_PITCH_RE = /แชทบอท|chat\s*bot|AI\s*Chatbot|บอท(?:ตอบ|LINE|ไลน์)|ระบบงานภายใน|ระบบภายใน|AI\s*Agent|ออโตเมชัน|Automation/iu;
+const NOT_WORTH_RE =/ยังไม่(?:ต้อง)?จ้าง|ไม่คุ้ม(?:ที่จะ)?จ้าง|อาจไม่คุ้ม|(?:ข้อความ)?ตอบอัตโนมัติ(?:ฟรี)?ของ\s*LINE\s*(?:OA\s*)?(?:เอง\s*)?ก่อน|ฟรีของ\s*LINE\s*ก่อน|ค่อยกลับมาคุย|รอให้แชท(?:เข้า)?(?:มา)?(?:มาก|เยอะ)/u;
 // Claimed actions, completed and done by "us" (CE review 24 Oct: narrow, so describing what a bot does is not a claim):
 // "ได้ทำการจองคิว… แล้ว / เรียบร้อย", "จองคิว… ให้(พี่) … เรียบร้อย(แล้ว)", "จองให้แล้ว", "การจองของพี่สำเร็จแล้ว / ยืนยันแล้ว".
 // Checked per clause; a clause with a condition or a future (เมื่อ · หลัง · ถ้า · หาก · พอ · จะ) is a description, not a claim.
@@ -387,6 +391,35 @@ function applyPolicy(input, { session = {}, pack = null, allow, userText } = {})
       const pkgButton = new RegExp(`^(?:${PKG})$`, 'iu');
       r.quick_replies = (r.quick_replies || []).filter((q) => !pkgButton.test(q));
       fixed.push('package menu question removed: recommend one small start');
+    }
+  }
+  // --- no promise that AI won't be wrong again (v2.0.2, Mos's test B2: "ไม่ต้องกังวลเรื่องการหยิบราคา… อีกต่อไป"): the clause is
+  // removed in place; the honest part of the reply stays ---
+  (r.messages || []).forEach((m, i) => {
+    if (!m || m.type !== 'text' || typeof m.text !== 'string' || !OVERCLAIM_RE.test(m.text)) return;
+    // clauses also split right before "ไม่ต้องกังวล / ห่วง" (CE review of PR #15: "AI จะอ่านไฟล์ล่าสุดเสมอ ไม่ต้องกังวล… อีกต่อไปครับ")
+    const n = m.text.split('\n').map((line) => line.split(/(?<=ครับ|ค่ะ|คะ)\s+|\s+(?=และ|แถม|ไม่ต้อง(?:กังวล|ห่วง))/u)
+      .filter((c) => !OVERCLAIM_RE.test(c)).join(' ').trim()).filter(Boolean).join('\n');
+    if (n && n !== m.text) { m.text = n; fixed.push(`messages[${i}]: over-claim ("won't be wrong again") removed`); }
+    // the over-claim IS the whole message: nothing honest is left to keep → the model answers again
+    else if (!n) violate('overclaim', 'regenerate', 'the whole message is a "won\'t be wrong again" promise', i);
+  });
+  // --- a GEO lead never gets a chatbot or an internal system pitched for being found (Head ruling D-39; v2.0.2, real-model
+  // run 24 Oct: scenario 81 step 3 still offered "ระบบงานภายใน" once). Sentences pitching them are removed in place, unless
+  // the customer's own message asks about them. ---
+  if (session && session.geo_asked && !GEO_PITCH_RE.test(userText || '')) {
+    let cut = false;
+    (r.messages || []).forEach((m) => {
+      if (!m || m.type !== 'text' || typeof m.text !== 'string' || !GEO_PITCH_RE.test(m.text)) return;
+      const n = m.text.split('\n').map((line) => line.split(/(?<=ครับ|ค่ะ|คะ)\s+|\s+(?=แต่|หรือ(?:จะ)?(?:วาง|ทำ))/u)
+        .filter((c) => !GEO_PITCH_RE.test(c)).join(' ').trim()).filter(Boolean).join('\n');
+      if (n !== m.text) { m.text = n; cut = true; }
+    });
+    if (cut) {
+      r.messages = r.messages.filter((m) => !(m && m.type === 'text' && !String(m.text || '').trim()));
+      r.messages = r.messages.filter((m) => !(m && m.type === 'card' && /^(?:A1|A2|A3)$/u.test(String(m.data && m.data.card_id || ''))));
+      if (!r.messages.some((m) => m && m.type === 'text')) violate('geo_pitch', 'regenerate', 'a GEO lead asked about being found — never offer a chatbot or an internal system for it');
+      else fixed.push('chatbot / internal-system pitch removed for a GEO lead');
     }
   }
   // --- one message per turn (head correction 19 Oct): a short reply split in two bubbles goes out as one ---

@@ -37,10 +37,14 @@ test('every table page is kept; unknown site pages are dropped; bare /prototype 
   assert.equal(site.fixSiteUrls(other).text, other);
 });
 
-test('the generated pack names no site URL outside the table', () => {
-  const dir = path.resolve(__dirname, '..', '..', 'knowledge', 'kb');
-  const bad = fs.readdirSync(dir).flatMap((f) => urls(fs.readFileSync(path.join(dir, f), 'utf8')).filter((u) => site.fixSiteUrls(u).changed.length).map((u) => `${f}: ${u}`));
+test('nothing under knowledge/ names a site URL outside the table (CE review: the whole folder, not only kb/)', () => {
+  const root = path.resolve(__dirname, '..', '..', 'knowledge');
+  const files = []; const walk = (d) => { for (const e of fs.readdirSync(d, { withFileTypes: true })) { const p = path.join(d, e.name); if (e.isDirectory()) walk(p); else files.push(p); } };
+  walk(root);
+  const bad = files.flatMap((f) => urls(fs.readFileSync(f, 'utf8')).filter((u) => site.fixSiteUrls(u).changed.length).map((u) => `${path.relative(root, f)}: ${u}`));
+  assert.ok(files.length > 5);
   assert.deepEqual(bad, []);
+  const dir = path.join(root, 'kb');
   const about = fs.readFileSync(path.join(dir, 'about.md'), 'utf8');
   for (const p of site.PROTOTYPES) assert.ok(about.includes(site.siteUrl(p.path)), p.path);
   assert.doesNotMatch(about, /\{service\}/);
@@ -54,4 +58,27 @@ test('card data from the model: a cta with an invented site URL is repaired; one
   assert.equal(gone.cta, undefined);
   const kept = policy.applyPolicy(card({ label: 'Fastwork', uri: 'https://fastwork.co/user/moslazyhardwork' }), { session: {} }).response.messages.find((m) => m.type === 'card').data.cta;
   assert.equal(kept.uri, 'https://fastwork.co/user/moslazyhardwork');
+});
+
+test('exact aliases only: business-automation or similar keyword paths are dropped, not mapped (CE review)', () => {
+  for (const p of ['/prototype/business-automation', '/prototype/review-demo', '/prototype/agent-workflow-x']) {
+    const r = site.fixSiteUrls(`ดูที่ https://lhw.anant-agent.com${p} ครับ`);
+    assert.equal(r.changed[0].to, null, p);
+  }
+  assert.match(site.fixSiteUrls('https://lhw.anant-agent.com/prototype/ai-agent').text, /\/prototype\/agentic-workflow$/);
+});
+
+// CE review of PR #15 (blocker 1): the URL ends at the first non-ASCII character; /en pages and case are handled
+test('a link with Thai right after it keeps the link and the Thai; /en kept; wrong case repaired; uppercase host kept', () => {
+  const { fixSiteUrls } = require('../../src/brain/site');
+  const B = 'https://lhw.anant-agent.com';
+  assert.equal(fixSiteUrls(`ดูได้ที่ ${B}/prototype/reviewครับ`).text, `ดูได้ที่ ${B}/prototype/reviewครับ`);
+  assert.equal(fixSiteUrls(`ดูได้ที่ ${B}/prototype/chatbotค่ะ`).text, `ดูได้ที่ ${B}/prototype/chatbotค่ะ`);
+  assert.equal(fixSiteUrls(`ดูได้ที่ ${B}/prototype/business-reviewครับ`).text, `ดูได้ที่ ${B}/prototype/reviewครับ`);
+  assert.equal(fixSiteUrls(`${B}/en/prototype/review`).changed.length, 0);
+  assert.equal(fixSiteUrls(`${B}/en/prototype/agent`).text, `${B}/en/prototype/agentic-workflow`);
+  assert.equal(fixSiteUrls('https://LHW.Anant-Agent.com/prototype/review').changed.length, 0);
+  assert.equal(fixSiteUrls(`${B}/prototype/Review.`).text, `${B}/prototype/review.`);
+  assert.equal(fixSiteUrls(`${B}/prototype/review?x=1#a`).changed.length, 0);
+  assert.doesNotMatch(fixSiteUrls(`ดูที่ ${B}/prototype/nopeครับ`).text, /nope|anant-agent/);
 });

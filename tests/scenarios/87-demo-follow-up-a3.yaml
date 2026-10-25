@@ -1,0 +1,8 @@
+name: 87 · after the website demo #demo-a3 — Lay acknowledges the demo, asks one question about their work, never sends the demo link back
+covers: ["§9.2", "v2.0.2 demo follow-up (Head 24 Oct)", "Issue #2"]
+user: { id: U87a3, displayName: "เดโม a3" }
+steps:
+  - follow: true
+    expect: { replies: 1, sender: lay }
+  - user: "มาจากเว็บ ดูเดโม AI Automation #demo-a3"
+    expect: { replies: 1, sender: lay, text_contains: ["เห็นว่าเพิ่งดูภาพตัวอย่างออโตเมชัน"], text_not_contains: ["#demo", "anant-agent.com", "prototype"], quick_replies_includes: ["นัดคุยกับมอส"] }

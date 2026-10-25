@@ -27,39 +27,60 @@ const SITE_PATHS = new Set([
 // web-demo-<id> (lead last_touch) → that demo's page
 const DEMO_PAGE = { a4: '/prototype/workspace', c1: '/prototype/review', a2: '/prototype/chatbot', 'a2-shop': '/prototype/chatbot', a1: '/prototype/agentic-workflow', a3: '/prototype/automation' };
 
-// a wrong prototype path → the page it most likely meant (Mos's test: business-review → review, agent → agentic-workflow)
-const NEAREST = [
-  [/review|business/i, '/prototype/review'],
-  [/agent|workflow|internal/i, '/prototype/agentic-workflow'],
-  [/chat|bot|line/i, '/prototype/chatbot'],
-  [/automat/i, '/prototype/automation'],
-  [/workspace|claude/i, '/prototype/workspace'],
-];
+// exact aliases only (CE review, v2.0.2): a wrong prototype path that is a known name for a real page → that page.
+// Anything else is dropped. Mos's test: business-review → review, agent → agentic-workflow.
+const ALIASES = {
+  '/prototype/business-review': '/prototype/review', '/prototype/ai-business-review': '/prototype/review',
+  '/prototype/agent': '/prototype/agentic-workflow', '/prototype/ai-agent': '/prototype/agentic-workflow', '/prototype/agentic': '/prototype/agentic-workflow',
+  '/prototype/chat-bot': '/prototype/chatbot', '/prototype/ai-chatbot': '/prototype/chatbot', '/prototype/line-bot': '/prototype/chatbot',
+  '/prototype/ai-automation': '/prototype/automation',
+  '/prototype/ai-workspace': '/prototype/workspace', '/prototype/workspace-setup': '/prototype/workspace',
+};
 
 const siteUrl = (path) => `${SITE_BASE}${path}`;
 
-// absolute site URLs, and bare /prototype/… paths written without the domain
-const SITE_URL_RE = /https?:\/\/(?:www\.)?lhw\.anant-agent\.com(\/[^\s)"'<>]*)?|(?<![\w/.])(\/prototype\/[a-z0-9-]+)/giu;
+// absolute site URLs, and bare /prototype/… paths written without the domain. A URL ends at the first character that
+// is not URL-safe ASCII (CE review of PR #15: "…/prototype/reviewครับ" — Thai written right after the link stays text)
+const SITE_URL_RE = /https?:\/\/(?:www\.)?lhw\.anant-agent\.com(\/[A-Za-z0-9\-._~%/?#=&+:@]*)?|(?<![\w/.])(\/prototype\/[a-z0-9-]+)/giu;
+// trailing sentence punctuation is not part of the link
+const TRAIL_RE = /[.,!?;:]+$/u;
 
 function normPath(p) {
-  let path = String(p || '/').split(/[?#]/)[0].replace(/[.,!?;:)\]]+$/u, '');
+  let path = String(p || '/').split(/[?#]/)[0];
   if (path.length > 1) path = path.replace(/\/+$/u, '');
   return path || '/';
+}
+
+// a known page: exact, or under /en (every /en/<page> checked live 25 Oct)
+function known(path) {
+  if (SITE_PATHS.has(path)) return true;
+  return path.startsWith('/en/') && SITE_PATHS.has(path.slice(3));
+}
+
+// the canonical page for a wrong-case or alias path (the site is case-sensitive: /prototype/Review is a 404), else null
+function repair(path) {
+  const lower = path.toLowerCase();
+  const en = lower.startsWith('/en/') ? '/en' : '';
+  const rest = en ? lower.slice(3) : lower;
+  if (known(lower)) return lower;
+  return ALIASES[rest] ? `${en}${ALIASES[rest]}` : null;
 }
 
 function fixSiteUrls(text, { lastTouch } = {}) {
   const changed = [];
   void lastTouch;   // kept in the signature; the session no longer picks the page (Head review, PR #14)
   const out = String(text || '').replace(SITE_URL_RE, (whole, absPath, barePath) => {
-    const raw = absPath !== undefined || /^https?:/iu.test(whole) ? (absPath || '/') : barePath;
+    const trail = (whole.match(TRAIL_RE) || [''])[0];
+    const link = trail ? whole.slice(0, -trail.length) : whole;
+    const isAbs = /^https?:/iu.test(link);
+    const raw = isAbs ? (absPath ? absPath.slice(0, absPath.length - Math.min(trail.length, absPath.length)) : '/') : barePath;
     const path = normPath(raw);
-    if (SITE_PATHS.has(path)) return whole;
-    // repaired only through the known alias map; anything else is dropped, never guessed from the session (Head review)
-    let to = null;
-    if (/^\/prototype\//u.test(path)) to = (NEAREST.find(([re]) => re.test(path)) || [])[1] || null;
+    if (known(path)) return whole;
+    // repaired only through the case fix and the exact alias list; anything else is dropped, never guessed (Head + CE)
+    const to = repair(path);
     const replacement = to ? siteUrl(to) : '';
-    changed.push({ from: whole, to: replacement || null });
-    return replacement;
+    changed.push({ from: link, to: replacement || null });
+    return replacement + (replacement ? trail : '');
   });
   if (!changed.length) return { text: String(text || ''), changed };
   // a dropped link leaves "…ได้ที่นี่ครับ:" with nothing after it: clean the lead-in and stray spaces

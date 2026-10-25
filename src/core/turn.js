@@ -40,7 +40,7 @@ const normaliseText = (text) => String(text || '').split('\n')
 
 function lazy(path) { try { return require(path); } catch (e) { if (e.code === 'MODULE_NOT_FOUND' && e.message.includes(path.split('/').pop())) return null; throw e; } }
 
-function defaultConfig() { return lazy('../config') || { contact: { phoneDisplay: '095 569 1674 (มอส)', hoursStart: 13, hoursEnd: 22 }, identity: { layName: 'Lay · ผู้ช่วย AI', mosName: 'มอส' }, quiet: { windowMinutes: 30, debounceMs: 6500 }, publicBaseUrl: '' }; }
+function defaultConfig() { return lazy('../config') || { contact: { phoneDisplay: '095 569 1674 (มอส)', hoursStart: 13, hoursEnd: 22 }, identity: { layName: 'Agent Lay · AI', mosName: 'มอส' }, quiet: { windowMinutes: 30, debounceMs: 6500 }, publicBaseUrl: '' }; }
 
 function fallbackText(config) { return `ตอนนี้ระบบขัดข้องชั่วคราวครับ ถ้ารีบ โทร ${config.contact.phoneDisplay} ได้เลย`; }
 
@@ -127,6 +127,14 @@ async function runTurn(input, deps, opts = {}) {
             const demo = deps.flows?.demo || lazy('../flows/demo');
             if (demo?.onModelAction && demo.shopFromText?.(text)) return await demo.onModelAction({ action: 'demo_enter', response: null, input, session: s, deps, config, send, persist, done, senders });
             if (demo?.onDemoPostback) return await demo.onDemoPostback({ data: 'DEMO_PICK', input, session: s, deps, config, send, persist, done, senders });
+        }
+        // the visitor JUST came from that demo (v2.0.2, Head 24 Oct): when the message is only the website's prefill, code
+        // acknowledges the demo and asks one question about their work. Never the demo link back; the free talk is offered.
+        // A prefill with the visitor's own question added goes to the model, which knows the demo from the session line.
+        if (demoTag && DEMO_FOLLOW_UP[demoTag] && (!s.mode || s.mode === 'lay') && WEB_PREFILL_RE.test(text)) {
+            const sent = await send(input, [msg.text(DEMO_FOLLOW_UP[demoTag])], ['นัดคุยกับมอส', 'ราคาเท่าไหร่'], senders.lay);
+            await persist(input, s, sent, { role: 'lay' });
+            return done(sent, null);
         }
 
         // 4a. Human Mode (Mos took the chat): Lay never answers; every customer message goes to the lead thread. Only Mos
@@ -321,7 +329,7 @@ async function runTurn(input, deps, opts = {}) {
             if (r) return r;
         }
         // 9. the model
-        const response = await askModel({ s, userText, intentHint, now, config, deps, errors });
+        const response = await askModel({ s, userText, intentHint, now, config, deps, errors, demoNow: demoTag });
 
         // 10. state from the response
         session.unionTopics(s, response.topics);
@@ -551,15 +559,15 @@ async function runTurn(input, deps, opts = {}) {
         return done(sent, null);
     }
 
-    async function askModel({ s: sess, userText, intentHint, now: at, config: cfg, deps: d, errors: errs }) {
+    async function askModel({ s: sess, userText, intentHint, now: at, config: cfg, deps: d, errors: errs, demoNow = null }) {
         const prompt = d.brain || lazy('../brain/prompt');
         const policy = d.policy || lazy('./policy');
         const pack = d.pack || null;
         const history = (await d.store.messages.recent(sess.user_id, 12)).filter((m) => m.role !== 'system' && (!sess.context_since || !m.created_at || m.created_at >= sess.context_since)).map((m) => ({ role: m.role, text: m.text }));
         const kbSelection = selectSections(pack, { intentHint, draft: sess.draft, previousRefs: intentHint === 'tell_me_more' ? sess.last_kb_refs : [] });
         const system = prompt?.buildSystemPrompt
-            ? prompt.buildSystemPrompt({ pack, session: sess, intentHint, kbSelection, now: at, config: cfg })
-            : `คุณคือ Lay ผู้ช่วย AI ของมอส (LazyHardWork) ตอบสั้น สุภาพ ครับ ตอบเป็น JSON ตาม schema`;
+            ? prompt.buildSystemPrompt({ pack, session: sess, intentHint, kbSelection, now: at, config: cfg, demoNow })
+            : `คุณคือ Agent Lay ผู้ช่วย AI ของ LazyHardWork ตอบสั้น สุภาพ ครับ ตอบเป็น JSON ตาม schema`;
         const messages = prompt?.buildMessages ? prompt.buildMessages({ systemPrompt: system, history, userText }) : [{ role: 'system', content: system }, ...history.map((h) => ({ role: h.role === 'customer' ? 'user' : 'assistant', content: h.text })), { role: 'user', content: userText }];
         const { responseSchema } = require('../brain/schema');
         const degraded = d.degraded || lazy('./degraded');
@@ -575,28 +583,32 @@ async function runTurn(input, deps, opts = {}) {
         };
 
         let response;
-        try {
-            response = await attempt();
-            // The model proposes, code disposes: a human handoff only when the customer asked for a person (brief §3.9).
-            // Profanity or banter is answered with one calm line, never a handoff (brief §3.2; replay 18 Oct step 12).
-            if (response && response.action === 'handoff_human' && response.intent !== 'ask_human' && !handoff.isAskHuman(userText)) {
-                d.log.info('model.handoff_ignored', { intent: response.intent });
-                response = { ...response, action: null };
+        // The model proposes, code disposes — on EVERY model reply, a regenerated one too (CE review of PR #15).
+        const gateActions = (resp) => {
+            // a human handoff only when the customer asked for a person (brief §3.9). Profanity or banter is answered with
+            // one calm line, never a handoff (brief §3.2; replay 18 Oct step 12).
+            if (resp && resp.action === 'handoff_human' && resp.intent !== 'ask_human' && !handoff.isAskHuman(userText)) {
+                d.log.info('model.handoff_ignored', { intent: resp.intent });
+                return { ...resp, action: null };
             }
             // A scope handoff only for special price / discount / firm quote; "not what we do" is an honest no in words
             // (brief §2 row "อยากได้คนขาย"; replay 18 Oct on gpt-4.1-mini silenced Lay for the rest of the chat).
             // Allowed: special price / discount / firm quote, and help applying for a subsidy (brief §5.7).
-            const HELP_APPLY_RE = /ช่วย\s*(?:ยื่น|สมัคร|ทำเรื่อง|กรอก)|ยื่นขอ|ทำเรื่องขอ/u;
             // A stated budget is not a handoff (Head GTM ruling 23 Oct, flower shop): only the customer's own words count.
-            if (response && response.action === 'handoff_scope' && response.intent !== 'benefits' && !handoff.isSpecialPrice(userText) && !HELP_APPLY_RE.test(userText || '') && !handoff.isAskHuman(userText)) {
-                d.log.info('model.handoff_ignored', { intent: response.intent, action: 'handoff_scope' });
-                response = { ...response, action: null };
+            if (resp && resp.action === 'handoff_scope' && resp.intent !== 'benefits' && !handoff.isSpecialPrice(userText) && !HELP_APPLY_RE.test(userText || '') && !handoff.isAskHuman(userText)) {
+                d.log.info('model.handoff_ignored', { intent: resp.intent, action: 'handoff_scope' });
+                return { ...resp, action: null };
             }
+            return resp;
+        };
+
+        try {
+            response = gateActions(await attempt());
             if (policy?.applyPolicy) {
                 let p = policy.applyPolicy(response, { session: sess, pack, allow: policyAllow(sess), userText });
                 if (p.severity === 'regenerate') {
                     d.log.warn('policy.regenerate', { violations: p.violations.map((v) => v.rule || v).join(',') });
-                    response = await attempt(`คำตอบก่อนหน้าละเมิดกฎ: ${p.violations.map((v) => v.rule || v).join(', ')} — ตอบใหม่โดยไม่ละเมิด ถ้ายาวหรือเป็นรายการ ให้แบ่งเป็น 2 ข้อความสั้น หรือใช้การ์ด steps/info แทนรายการ`);
+                    response = gateActions(await attempt(`คำตอบก่อนหน้าละเมิดกฎ: ${p.violations.map((v) => v.rule || v).join(', ')} — ตอบใหม่โดยไม่ละเมิด ถ้ายาวหรือเป็นรายการ ให้แบ่งเป็น 2 ข้อความสั้น หรือใช้การ์ด steps/info แทนรายการ`));
                     p = policy.applyPolicy(response, { session: sess, pack, allow: policyAllow(sess), userText });
                     if ((p.severity === 'regenerate' || p.severity === 'fallback') && policy.salvage && policy.isStyleOnly(p.violations)) {
                         // style-only twice: repair by code (split, unlist) instead of claiming a system error (honesty)
@@ -615,6 +627,23 @@ async function runTurn(input, deps, opts = {}) {
                 if (p.violations?.length) await d.store.events.append({ kind: 'policy_violation', user_id: sess.user_id, payload: { violations: p.violations, fixed: p.fixed }, created_at: at.toISOString() });
             } else {
                 response = minimalPolicy(response);
+            }
+            // never the same message twice (P1, Mos 25 Oct on production: "/forgot" and "/reset" got the last demo reply
+            // back word for word from the model): regenerate once; a second copy → one honest "say it again" line
+            if (repeatsRecentLay(response, history)) {
+                d.log.warn('model.repeat', { userId: sess.user_id });
+                await d.store.events.append({ kind: 'model_repeat', user_id: sess.user_id, payload: { intent: response.intent || null }, created_at: at.toISOString() });
+                let again = null;
+                try {
+                    again = gateActions(await attempt(REPEAT_NOTE));
+                    if (policy?.applyPolicy) {
+                        const p2 = policy.applyPolicy(again, { session: sess, pack, allow: policyAllow(sess), userText });
+                        again = p2.severity === 'regenerate' || p2.severity === 'fallback' ? null : p2.response;
+                    } else again = minimalPolicy(again);
+                } catch (e) { if (e.kind === 'exhausted') throw e; again = null; }
+                response = again && !repeatsRecentLay(again, history)
+                    ? again
+                    : emptyResponse({ messages: [{ type: 'text', text: REPEAT_SAFE_LINE, explain: false, template: null, alt: null, data: null }], quick_replies: topics.nextQuickReplies(null, sess.topics_covered), intent: 'unknown' });
             }
             return response;
         } catch (err) {
@@ -791,6 +820,30 @@ function policyAllow(sess) {
 }
 // Safe line when the model keeps claiming an action Lay did not perform (Mos's test 24 Oct, freeze exception (b))
 const CLAIM_SAFE_LINE = 'ผมจองหรือยืนยันอะไรแทนไม่ได้ครับ ตอนนี้ยังไม่มีอะไรถูกจองไว้ ถ้าอยากเห็นบอทรับจองจริง ลองเป็นลูกค้าร้านตัวอย่างได้เลยครับ';
+// a reply that copies one of Lay's last messages (P1, Mos 25 Oct): compared without spaces; short lines ("ได้ครับ") may repeat
+const HELP_APPLY_RE = /ช่วย\s*(?:ยื่น|สมัคร|ทำเรื่อง|กรอก)|ยื่นขอ|ทำเรื่องขอ/u;
+const REPEAT_LOOKBACK = 3;
+const REPEAT_MIN_CHARS = 20;
+const squash = (t) => String(t || '').replace(/\s+/gu, '');
+function repeatsRecentLay(response, history) {
+    const recent = (history || []).filter((h) => h.role === 'lay').slice(-REPEAT_LOOKBACK).map((h) => squash(h.text));
+    if (!recent.length || !response || !Array.isArray(response.messages)) return false;
+    return response.messages.some((m) => m && m.type === 'text' && [...squash(m.text)].length >= REPEAT_MIN_CHARS && recent.includes(squash(m.text)));
+}
+const REPEAT_NOTE = 'คำตอบก่อนหน้าซ้ำกับข้อความที่ Lay ส่งไปแล้ว ห้ามส่งข้อความเดิมหรือลิงก์เดิมซ้ำ ตอบข้อความล่าสุดของลูกค้าเท่านั้น ถ้าไม่เข้าใจว่าลูกค้าหมายถึงอะไร ให้ถามสั้นๆ ข้อเดียวว่าอยากรู้เรื่องไหน';
+const REPEAT_SAFE_LINE = 'ผมยังไม่แน่ใจว่าหมายถึงเรื่องไหนครับ พิมพ์บอกได้เลยว่าอยากรู้อะไร หรือกดเลือกด้านล่างก็ได้ครับ';
+// after a website demo (v2.0.2): acknowledge it, one question about their own work. Wording approved by the Head, 25 Oct
+// (only A2 / A4 are "ลอง": A1 / A3 are storyboards, C1 is a sample report).
+const DEMO_FOLLOW_UP = {
+    a4: 'เห็นว่าเพิ่งลองเดโม AI Workspace มาครับ ถ้าเป็นร้านของพี่เอง อยากให้ AI อ่านไฟล์อะไรแล้วช่วยตอบหรือทำงานอะไรให้ครับ',
+    c1: 'เห็นว่าเพิ่งดูรายงานตัวอย่าง AI Business Review มาครับ ตอนนี้งานไหนในร้านที่กินเวลาที่สุดครับ',
+    a2: 'เห็นว่าเพิ่งดูหน้าเดโมแชทบอทมาครับ ตอนนี้พี่ก็กำลังคุยกับ Agent Lay แชทบอทตัวจริงของเราอยู่ครับ ลูกค้าของพี่ทักมาถามเรื่องอะไรบ่อยที่สุดครับ',
+    a1: 'เห็นว่าเพิ่งดูภาพตัวอย่างระบบงานภายใน (AI Agent) มาครับ ตอนนี้งานในทีมที่ต้องตามหรือส่งต่อกันเองบ่อยที่สุดคืออะไรครับ',
+    a3: 'เห็นว่าเพิ่งดูภาพตัวอย่างออโตเมชันมาครับ งานไหนที่พี่หรือทีมต้องคีย์หรือทำซ้ำทุกวันครับ',
+};
+// the website's bare prefill ("มาจากเว็บ ดูเดโม Workspace", "มาจากเว็บ ลองถาม Lay"): the demo's name is Latin, so any Thai
+// word after it is the visitor's own (P1 25 Oct: "…AI Agent อยากรู้ว่าใช้กับร้านดอกไม้ได้ไหม" goes to the model)
+const WEB_PREFILL_RE = /^มาจากเว็บ\s*(?:ดูเดโม|ลองถาม)\s*[A-Za-z][A-Za-z ]*$/u;
 // website CTA tokens (Head GTM 23 Oct): a4 · c1 · a2 · a2-shop · a1 · a3
 const DEMO_TAG_RE = /#demo-(a2-shop|a[1-4]|c1)(?![\w-])/iu;
 const GUARANTEE_ASK_RE = /รับประกัน|การันตี|guarantee|รับรองผล|(?:รับรอง|สัญญา)(?:ได้)?(?:ไหม|มั้ย)?ว่า/iu;

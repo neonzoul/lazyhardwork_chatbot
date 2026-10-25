@@ -1,0 +1,21 @@
+name: "90 · a regenerated reply cannot hand off unasked: repeat regenerate and policy regenerate (CE review of PR #15)"
+covers: ["§9.2", "brief §3.9", "CE review PR #15 should-fix 2"]
+user: { id: U90, displayName: "ไม่ได้ขอคุยกับคน" }
+steps:
+  - follow: true
+    expect: { replies: 1, sender: lay }
+  - user: "ร้านเค้กครับ ตอบแชทไม่ทัน"
+    model: { messages: [{ type: text, text: "แชทเข้าเยอะตอบไม่ทันแบบนี้ บอทช่วยรับคำถามเดิมๆ ได้ครับ", explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: [fit], kb_refs: [], intent: fit, lead_updates: { business: "ร้านเค้ก", problem_verbatim: "ตอบแชทไม่ทัน" } }
+    expect: { replies_min: 1, sender: lay }
+  - user: "โอเค"
+    note: "scripted: the first reply copies the last one (repeat guard regenerates); the regenerated one sets handoff_human unasked"
+    model:
+      - { messages: [{ type: text, text: "แชทเข้าเยอะตอบไม่ทันแบบนี้ บอทช่วยรับคำถามเดิมๆ ได้ครับ", explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: [fit], kb_refs: [], intent: fit }
+      - { messages: [{ type: text, text: "ตอนนี้ลูกค้าถามเรื่องอะไรบ่อยที่สุดครับ", explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: [fit], kb_refs: [], intent: fit, action: handoff_human }
+    expect: { replies_min: 1, sender: lay, not_notified: [handoff], session: { mode: lay } }
+  - user: "ราคาเท่าไหร่ครับ งบผมมี 5,000"
+    note: "scripted: the first reply over-claims (policy regenerates); the regenerated one sets handoff_scope for a stated budget"
+    model:
+      - { messages: [{ type: text, text: "บอทจะไม่ตอบผิดอีกเลยครับ", explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: [pricing], kb_refs: [], intent: pricing }
+      - { messages: [{ type: text, text: "แชทบอทเริ่มต้น 5,900 บาทครับ งบ 5,000 อาจเริ่มจากเครื่องมือพื้นฐานก่อนได้ครับ", explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: [pricing], kb_refs: [], intent: pricing, action: handoff_scope }
+    expect: { replies_min: 1, sender: lay, not_notified: [handoff], session: { mode: lay } }

@@ -9,7 +9,8 @@
 //   session: { mode: lay, topics_covered: [], ... }       # optional initial session fields
 //   steps:
 //     - user: "ราคาเท่าไหร่"                               # customer text (one burst)
-//       model: { messages: [...], topics: [pricing], ... }  # scripted model response for THIS step (scripted mode)
+//       model: { messages: [...], topics: [pricing], ... }  # scripted model response for THIS step (scripted mode);
+//                                                          # a list = the reply, then the regenerated one(s)
 //       expect: { ... }                                    # see assert() below
 //     - postback: FIT_chat_overload
 //     - media: image
@@ -188,10 +189,11 @@ async function runScenario(sc, { turn, modelMode }) {
     }
     if (step.clock) { if (step.clock.advance_minutes) clock.advanceMinutes(step.clock.advance_minutes); stepResults.push({ i, kind: 'clock', ok: true }); continue; }
     if (step.allow) { allow = new Set(step.allow); continue; }
-    if (step.model && modelMode !== 'real') model.push(step.model);
+    // `model:` may be a list: the first reply, then the regenerated one(s) for the same step (repeat / policy regenerate)
+    const scriptedList = step.model && modelMode !== 'real' ? (Array.isArray(step.model) ? step.model : [step.model]) : [];
+    if (scriptedList.length) model.push(...scriptedList);
     // a scripted reply the turn did not use (code answered it: price range, out of scope, details) must not leak into the
     // next step's model call (19 Oct: the price answer moved from the model to the approved FAQ)
-    const scripted = step.model && modelMode !== 'real' ? step.model : null;
 
     if (step.decision) {
       // Mos's booking decision from Discord: not a turn — flows/endings.applyMosDecision pushes to the customer as Lay.
@@ -224,7 +226,7 @@ async function runScenario(sc, { turn, modelMode }) {
     const sentBefore = line.sent.length;
     let result = null; let err = null;
     try { result = await turn.runTurn(input, deps); } catch (e) { err = e; }
-    if (scripted) { const k = model.queue.indexOf(scripted); if (k >= 0) model.queue.splice(k, 1); }
+    for (const sc1 of scriptedList) { const k = model.queue.indexOf(sc1); if (k >= 0) model.queue.splice(k, 1); }
     if (pendingModelFault !== null) { const k = model.queue.indexOf(pendingModelFault); if (k >= 0) model.queue.splice(k, 1); pendingModelFault = null; }
     const session = await store.sessions.get(userId);
     const fails = err ? [`runTurn threw: ${err.message}`] : assertStep(stepExpect(step, modelMode), { line, notifier, alerts, result, session, sentBefore, allow });

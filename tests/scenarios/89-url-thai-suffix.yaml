@@ -1,0 +1,14 @@
+name: "89 · a site link written right before Thai (…/prototype/reviewครับ) keeps the link and the Thai (CE review of PR #15)"
+covers: ["§9.2", "CE review PR #15 blocker 1"]
+user: { id: U89t, displayName: "ลิงก์ติดภาษาไทย" }
+steps:
+  - follow: true
+    expect: { replies: 1, sender: lay }
+  - user: "มีตัวอย่างรายงานรีวิวธุรกิจให้ดูไหมครับ"
+    model: { messages: [{ type: text, text: "มีครับ ดูรายงานตัวอย่างได้ที่ https://lhw.anant-agent.com/prototype/reviewครับ", explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: [capability], kb_refs: [], intent: capability }
+    expect: { replies_min: 1, sender: lay }
+    expect_scripted: { text_contains: ["https://lhw.anant-agent.com/prototype/review", "reviewครับ"] }
+  - user: "แล้วหน้า AI Agent ล่ะครับ"
+    model: { messages: [{ type: text, text: "หน้านี้ครับ https://lhw.anant-agent.com/prototype/agentค่ะ", explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: [capability], kb_refs: [], intent: capability }
+    expect: { replies_min: 1, sender: lay, text_not_contains: ["/prototype/agentค่ะ"] }
+    expect_scripted: { text_contains: ["https://lhw.anant-agent.com/prototype/agentic-workflow"] }

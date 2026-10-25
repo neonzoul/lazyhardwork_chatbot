@@ -23,7 +23,7 @@ const BANGKOK = 'Asia/Bangkok';
 
 // ---------- 1. static prefix ----------
 
-const PERSONA = `คุณคือ "Lay" ผู้ช่วย AI ของสตูดิโอ LazyHardWork (LhW) คุยกับลูกค้าที่ทักมาทาง LINE OA
+const PERSONA = `คุณคือ "Agent Lay" (เรียกสั้นๆ ว่า Lay) ผู้ช่วย AI ของสตูดิโอ LazyHardWork (LhW) คุยกับลูกค้าที่ทักมาทาง LINE OA
 งานของคุณ: ตอบคำถามเบื้องต้นให้ตรงและสั้น เก็บเรื่องราวของลูกค้าไว้ก่อนคุยต่อ และส่งต่อให้คนเมื่อเกินขอบเขต
 น้ำเสียง: ทักสั้น ถามถึงงานของเขาก่อน ถามทีละข้อ อบอุ่น ใช้งานได้จริง ใส่ใจคน ไม่เคยยัดเยียดขาย
 คุณไม่ใช่คน และไม่แกล้งเป็นคน ถ้าถูกถาม ให้บอกตรงๆ ว่าเป็น Agent Lay ผู้ช่วย AI ของ LazyHardWork`;
@@ -90,6 +90,7 @@ const BEHAVIOUR = `## พฤติกรรมตามสถานการณ�
 
 const NOT_LAY = `## สิ่งที่ Lay ไม่ทำ (ระบบมีด่านตรวจ ถ้าฝ่าฝืนคำตอบจะถูกทิ้ง)
 - ไม่ยืนยันราคาจริง ไม่ให้ส่วนลด ไม่รับปากวันส่งงาน ไม่สร้าง URL เอง ลิงก์เว็บ LazyHardWork ใช้ได้เฉพาะที่เขียนไว้ใน KB ตรงตัว ห้ามแต่งหรือเดาชื่อหน้า
+- ไม่สัญญาว่า AI จะไม่ตอบผิดอีก หรือ "ไม่ต้องกังวลอีกต่อไป" ให้บอกตรงๆ ว่าช่วยลดโอกาสผิด เช่น อ่านไฟล์ล่าสุดเสมอ ลดการหยิบข้อมูลเก่า
 - ไม่ยืนยันนัดหมาย คำว่า "ยืนยันแล้ว" หรือ "นัดเรียบร้อย" พูดได้ก็ต่อเมื่อมอสยืนยันแล้วเท่านั้น (ระบบจะบอก) ก่อนหน้านั้นใช้ "ส่งให้มอสแล้ว รอมอสยืนยัน"
 - ไม่บอกว่าส่งเรื่องให้มอสแล้วก่อนที่ระบบจะส่งจริง (คุณแค่เสนอ action ระบบเป็นคนส่งและเลือกคำ)
 - ไม่พูดถึงแพ็กเก่า (Sprint 1/2/3) ไม่พูดจำนวนงานหรือจำนวนลูกค้า ไม่การันตีผลลัพธ์ ไม่สัญญาเงินอุดหนุน
@@ -136,10 +137,12 @@ function filledFields(obj) {
   return Object.entries(obj).filter(([, v]) => v !== null && v !== undefined && v !== '');
 }
 
-function renderSession(session = {}, { intentHint } = {}) {
+function renderSession(session = {}, { intentHint, demoNow } = {}) {
   const lines = [];
   lines.push(`- mode: ${session.mode || 'lay'}`);
   if (session.too_early) lines.push('- ลูกค้าคนนี้ยังไม่เริ่มขาย: ห้ามเสนอแพ็ก การ์ด ราคา หรือ AI Business Review และไม่ต้องถามต่อเรื่องงาน (ไม่ถามว่างานไหนกินเวลา ไม่ถามคำถามคัดกรอง) ตอบสั้นๆ ข้อความเดียว บอกว่าเราช่วยได้ตอนออเดอร์หรือแชทเริ่มล้น แล้วชวนกลับมา');
+  // only on the message that carries the token (P1, Mos 25 Oct): homework.last_touch is for the lead, not for every turn
+  if (demoNow) lines.push(`- ลูกค้าเพิ่งมาจากหน้าเดโม ${String(demoNow).toUpperCase()} บนเว็บ: ไม่ต้องส่งลิงก์เดโมนั้นซ้ำ ถามเรื่องงานของเขาหนึ่งข้อ แล้วค่อยชวนคุยฟรี 30 นาทีหรือเสนอการ์ดที่ตรงงาน`);
   if (session.geo_asked) lines.push('- ลูกค้าคนนี้ถามเรื่องให้ AI หรือ Google แนะนำร้าน: เสนอ AI Business Review ได้ (ตรวจข้อมูลร้านตรงกันทุกช่องทางไหม หน้าไหนตอบคำถามลูกค้าได้ อะไรทำเองได้ อะไรควรจ้าง และจะดูผลยังไง) ห้ามเสนอแชทบอทหรือระบบงานภายในเป็นทางแก้เรื่องนี้ ไม่รับประกันว่า AI จะแนะนำร้าน และเราไม่รับทำเว็บเป็นบริการ ถ้ายังไม่รู้ว่าข้อมูลร้านอยู่ช่องทางไหน ให้ถามข้อเดียวว่าอยู่ช่องทางไหนบ้าง (Facebook, Google Maps, เว็บจองที่พัก หรือยังไม่มีเว็บ) ถ้ายังไม่แน่ใจ เสนอคุยฟรี 30 นาทีก่อนได้');
   if (session.out_of_scope) lines.push('- ลูกค้าคนนี้เคยถามเรื่องที่ไม่ใช่บริการของเรา (เช่น การเทรด) ห้ามเสนอบริการที่ดัดแปลงเข้ากับเรื่องนั้น ตอบด้วยบริการจริงเท่านั้น ถ้าเขายังไม่ได้เล่างานหลังบ้านจริงของธุรกิจ ห้ามเสนอแพ็กหรือการ์ดใดๆ (รวม AI Business Review) ให้ปิดอย่างสุภาพสั้นๆ ไม่ถามต่อ');
   if (session.displayName) lines.push(`- ชื่อลูกค้า (จาก LINE): ${session.displayName}`);
@@ -147,7 +150,7 @@ function renderSession(session = {}, { intentHint } = {}) {
   lines.push(`- topics_covered (คุยไปแล้ว อย่าเสนอซ้ำเป็นปุ่ม): ${covered.length ? covered.join(', ') : 'ยังไม่มี'}`);
   const draft = filledFields(session.draft);
   if (draft.length) lines.push(`- draft (สิ่งที่ลูกค้าเลือกไว้): ${draft.map(([k, v]) => `${k}=${JSON.stringify(v)}`).join(', ')}`);
-  const hw = filledFields(session.homework);
+  const hw = filledFields(session.homework).filter(([k]) => k !== 'last_touch' && k !== 'last_touch_at');
   lines.push(`- homework ที่รู้แล้ว: ${hw.length ? hw.map(([k, v]) => `${k}=${JSON.stringify(v)}`).join(', ') : 'ยังไม่มี'}`);
   // Head GTM 22 Oct: after a symptom tap a hotel got the shop few-shot's "ราคา สต็อก ค่าส่ง … ปิดการขาย"
   if (session.homework && session.homework.business) lines.push(`- ธุรกิจของลูกค้า: ${JSON.stringify(session.homework.business)} — ยกตัวอย่างงานและคำถามของลูกค้าจากธุรกิจนี้เท่านั้น ห้ามยืมตัวอย่างของร้านค้า (สต็อก ค่าส่ง ปิดการขาย) ถ้าธุรกิจนี้ไม่ได้ขายของส่ง`);
@@ -184,9 +187,9 @@ function renderNow(now, config = {}) {
   return `## ตอนนี้\n- วันเวลา (กรุงเทพฯ): ${weekday} ${date} ${time}\n- เวลาทำการของมอส: ${start}:00–${end}:00 ทุกวัน · ตอนนี้${open ? 'อยู่ในเวลาทำการ' : 'นอกเวลาทำการ ถ้าต้องรอมอส ให้บอกว่ามอสจะตอบในเวลาทำการ'}`;
 }
 
-function buildSystemPrompt({ pack, session = {}, intentHint = null, kbSelection = [], now, config } = {}) {
+function buildSystemPrompt({ pack, session = {}, intentHint = null, kbSelection = [], now, config, demoNow = null } = {}) {
   void pack; // the caller selects sections from the pack; the prompt only renders what it is given
-  return [STATIC_PREFIX, renderKb(kbSelection), renderSession(session, { intentHint }), renderNow(now, config)].join('\n\n');
+  return [STATIC_PREFIX, renderKb(kbSelection), renderSession(session, { intentHint, demoNow }), renderNow(now, config)].join('\n\n');
 }
 
 // ---------- demo mode (design §7) ----------
