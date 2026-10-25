@@ -27,14 +27,15 @@ const SITE_PATHS = new Set([
 // web-demo-<id> (lead last_touch) → that demo's page
 const DEMO_PAGE = { a4: '/prototype/workspace', c1: '/prototype/review', a2: '/prototype/chatbot', 'a2-shop': '/prototype/chatbot', a1: '/prototype/agentic-workflow', a3: '/prototype/automation' };
 
-// a wrong prototype path → the page it most likely meant (Mos's test: business-review → review, agent → agentic-workflow)
-const NEAREST = [
-  [/review|business/i, '/prototype/review'],
-  [/agent|workflow|internal/i, '/prototype/agentic-workflow'],
-  [/chat|bot|line/i, '/prototype/chatbot'],
-  [/automat/i, '/prototype/automation'],
-  [/workspace|claude/i, '/prototype/workspace'],
-];
+// exact aliases only (CE review, v2.0.2): a wrong prototype path that is a known name for a real page → that page.
+// Anything else is dropped. Mos's test: business-review → review, agent → agentic-workflow.
+const ALIASES = {
+  '/prototype/business-review': '/prototype/review', '/prototype/ai-business-review': '/prototype/review',
+  '/prototype/agent': '/prototype/agentic-workflow', '/prototype/ai-agent': '/prototype/agentic-workflow', '/prototype/agentic': '/prototype/agentic-workflow',
+  '/prototype/chat-bot': '/prototype/chatbot', '/prototype/ai-chatbot': '/prototype/chatbot', '/prototype/line-bot': '/prototype/chatbot',
+  '/prototype/ai-automation': '/prototype/automation',
+  '/prototype/ai-workspace': '/prototype/workspace', '/prototype/workspace-setup': '/prototype/workspace',
+};
 
 const siteUrl = (path) => `${SITE_BASE}${path}`;
 
@@ -54,9 +55,9 @@ function fixSiteUrls(text, { lastTouch } = {}) {
     const raw = absPath !== undefined || /^https?:/iu.test(whole) ? (absPath || '/') : barePath;
     const path = normPath(raw);
     if (SITE_PATHS.has(path)) return whole;
-    // repaired only through the known alias map; anything else is dropped, never guessed from the session (Head review)
+    // repaired only through the exact alias list; anything else is dropped, never guessed (Head + CE review)
     let to = null;
-    if (/^\/prototype\//u.test(path)) to = (NEAREST.find(([re]) => re.test(path)) || [])[1] || null;
+    to = ALIASES[path] || null;
     const replacement = to ? siteUrl(to) : '';
     changed.push({ from: whole, to: replacement || null });
     return replacement;
