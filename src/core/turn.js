@@ -583,28 +583,32 @@ async function runTurn(input, deps, opts = {}) {
         };
 
         let response;
-        try {
-            response = await attempt();
-            // The model proposes, code disposes: a human handoff only when the customer asked for a person (brief §3.9).
-            // Profanity or banter is answered with one calm line, never a handoff (brief §3.2; replay 18 Oct step 12).
-            if (response && response.action === 'handoff_human' && response.intent !== 'ask_human' && !handoff.isAskHuman(userText)) {
-                d.log.info('model.handoff_ignored', { intent: response.intent });
-                response = { ...response, action: null };
+        // The model proposes, code disposes — on EVERY model reply, a regenerated one too (CE review of PR #15).
+        const gateActions = (resp) => {
+            // a human handoff only when the customer asked for a person (brief §3.9). Profanity or banter is answered with
+            // one calm line, never a handoff (brief §3.2; replay 18 Oct step 12).
+            if (resp && resp.action === 'handoff_human' && resp.intent !== 'ask_human' && !handoff.isAskHuman(userText)) {
+                d.log.info('model.handoff_ignored', { intent: resp.intent });
+                return { ...resp, action: null };
             }
             // A scope handoff only for special price / discount / firm quote; "not what we do" is an honest no in words
             // (brief §2 row "อยากได้คนขาย"; replay 18 Oct on gpt-4.1-mini silenced Lay for the rest of the chat).
             // Allowed: special price / discount / firm quote, and help applying for a subsidy (brief §5.7).
-            const HELP_APPLY_RE = /ช่วย\s*(?:ยื่น|สมัคร|ทำเรื่อง|กรอก)|ยื่นขอ|ทำเรื่องขอ/u;
             // A stated budget is not a handoff (Head GTM ruling 23 Oct, flower shop): only the customer's own words count.
-            if (response && response.action === 'handoff_scope' && response.intent !== 'benefits' && !handoff.isSpecialPrice(userText) && !HELP_APPLY_RE.test(userText || '') && !handoff.isAskHuman(userText)) {
-                d.log.info('model.handoff_ignored', { intent: response.intent, action: 'handoff_scope' });
-                response = { ...response, action: null };
+            if (resp && resp.action === 'handoff_scope' && resp.intent !== 'benefits' && !handoff.isSpecialPrice(userText) && !HELP_APPLY_RE.test(userText || '') && !handoff.isAskHuman(userText)) {
+                d.log.info('model.handoff_ignored', { intent: resp.intent, action: 'handoff_scope' });
+                return { ...resp, action: null };
             }
+            return resp;
+        };
+
+        try {
+            response = gateActions(await attempt());
             if (policy?.applyPolicy) {
                 let p = policy.applyPolicy(response, { session: sess, pack, allow: policyAllow(sess), userText });
                 if (p.severity === 'regenerate') {
                     d.log.warn('policy.regenerate', { violations: p.violations.map((v) => v.rule || v).join(',') });
-                    response = await attempt(`คำตอบก่อนหน้าละเมิดกฎ: ${p.violations.map((v) => v.rule || v).join(', ')} — ตอบใหม่โดยไม่ละเมิด ถ้ายาวหรือเป็นรายการ ให้แบ่งเป็น 2 ข้อความสั้น หรือใช้การ์ด steps/info แทนรายการ`);
+                    response = gateActions(await attempt(`คำตอบก่อนหน้าละเมิดกฎ: ${p.violations.map((v) => v.rule || v).join(', ')} — ตอบใหม่โดยไม่ละเมิด ถ้ายาวหรือเป็นรายการ ให้แบ่งเป็น 2 ข้อความสั้น หรือใช้การ์ด steps/info แทนรายการ`));
                     p = policy.applyPolicy(response, { session: sess, pack, allow: policyAllow(sess), userText });
                     if ((p.severity === 'regenerate' || p.severity === 'fallback') && policy.salvage && policy.isStyleOnly(p.violations)) {
                         // style-only twice: repair by code (split, unlist) instead of claiming a system error (honesty)
@@ -631,7 +635,7 @@ async function runTurn(input, deps, opts = {}) {
                 await d.store.events.append({ kind: 'model_repeat', user_id: sess.user_id, payload: { intent: response.intent || null }, created_at: at.toISOString() });
                 let again = null;
                 try {
-                    again = await attempt(REPEAT_NOTE);
+                    again = gateActions(await attempt(REPEAT_NOTE));
                     if (policy?.applyPolicy) {
                         const p2 = policy.applyPolicy(again, { session: sess, pack, allow: policyAllow(sess), userText });
                         again = p2.severity === 'regenerate' || p2.severity === 'fallback' ? null : p2.response;
@@ -817,6 +821,7 @@ function policyAllow(sess) {
 // Safe line when the model keeps claiming an action Lay did not perform (Mos's test 24 Oct, freeze exception (b))
 const CLAIM_SAFE_LINE = 'ผมจองหรือยืนยันอะไรแทนไม่ได้ครับ ตอนนี้ยังไม่มีอะไรถูกจองไว้ ถ้าอยากเห็นบอทรับจองจริง ลองเป็นลูกค้าร้านตัวอย่างได้เลยครับ';
 // a reply that copies one of Lay's last messages (P1, Mos 25 Oct): compared without spaces; short lines ("ได้ครับ") may repeat
+const HELP_APPLY_RE = /ช่วย\s*(?:ยื่น|สมัคร|ทำเรื่อง|กรอก)|ยื่นขอ|ทำเรื่องขอ/u;
 const REPEAT_LOOKBACK = 3;
 const REPEAT_MIN_CHARS = 20;
 const squash = (t) => String(t || '').replace(/\s+/gu, '');

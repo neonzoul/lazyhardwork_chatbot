@@ -1,0 +1,12 @@
+name: "91 · a reply that is only a \"won't be wrong again\" promise is answered again, never sent (CE review of PR #15)"
+covers: ["§9.2", "Mos B2", "CE review PR #15 should-fix 3"]
+user: { id: U91, displayName: "กลัวราคาผิด" }
+steps:
+  - follow: true
+    expect: { replies: 1, sender: lay }
+  - user: "AI Workspace ช่วยเรื่องหยิบราคาเก่ามาตอบลูกค้าได้ไหมครับ"
+    model:
+      - { messages: [{ type: text, text: "ไม่ต้องกังวลเรื่องการหยิบราคาผิดอีกต่อไปครับ", explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: [capability], kb_refs: [], intent: capability }
+      - { messages: [{ type: text, text: "AI อ่านไฟล์ราคาล่าสุดของร้าน ช่วยลดโอกาสหยิบราคาเก่ามาตอบครับ", explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: [capability], kb_refs: [], intent: capability }
+    expect: { replies_min: 1, sender: lay, text_not_contains: ["อีกต่อไป", "ไม่ผิดอีก"] }
+    expect_scripted: { text_contains: ["ลดโอกาส"] }

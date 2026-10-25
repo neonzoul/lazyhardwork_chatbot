@@ -39,28 +39,48 @@ const ALIASES = {
 
 const siteUrl = (path) => `${SITE_BASE}${path}`;
 
-// absolute site URLs, and bare /prototype/… paths written without the domain
-const SITE_URL_RE = /https?:\/\/(?:www\.)?lhw\.anant-agent\.com(\/[^\s)"'<>]*)?|(?<![\w/.])(\/prototype\/[a-z0-9-]+)/giu;
+// absolute site URLs, and bare /prototype/… paths written without the domain. A URL ends at the first character that
+// is not URL-safe ASCII (CE review of PR #15: "…/prototype/reviewครับ" — Thai written right after the link stays text)
+const SITE_URL_RE = /https?:\/\/(?:www\.)?lhw\.anant-agent\.com(\/[A-Za-z0-9\-._~%/?#=&+:@]*)?|(?<![\w/.])(\/prototype\/[a-z0-9-]+)/giu;
+// trailing sentence punctuation is not part of the link
+const TRAIL_RE = /[.,!?;:]+$/u;
 
 function normPath(p) {
-  let path = String(p || '/').split(/[?#]/)[0].replace(/[.,!?;:)\]]+$/u, '');
+  let path = String(p || '/').split(/[?#]/)[0];
   if (path.length > 1) path = path.replace(/\/+$/u, '');
   return path || '/';
+}
+
+// a known page: exact, or under /en (every /en/<page> checked live 25 Oct)
+function known(path) {
+  if (SITE_PATHS.has(path)) return true;
+  return path.startsWith('/en/') && SITE_PATHS.has(path.slice(3));
+}
+
+// the canonical page for a wrong-case or alias path (the site is case-sensitive: /prototype/Review is a 404), else null
+function repair(path) {
+  const lower = path.toLowerCase();
+  const en = lower.startsWith('/en/') ? '/en' : '';
+  const rest = en ? lower.slice(3) : lower;
+  if (known(lower)) return lower;
+  return ALIASES[rest] ? `${en}${ALIASES[rest]}` : null;
 }
 
 function fixSiteUrls(text, { lastTouch } = {}) {
   const changed = [];
   void lastTouch;   // kept in the signature; the session no longer picks the page (Head review, PR #14)
   const out = String(text || '').replace(SITE_URL_RE, (whole, absPath, barePath) => {
-    const raw = absPath !== undefined || /^https?:/iu.test(whole) ? (absPath || '/') : barePath;
+    const trail = (whole.match(TRAIL_RE) || [''])[0];
+    const link = trail ? whole.slice(0, -trail.length) : whole;
+    const isAbs = /^https?:/iu.test(link);
+    const raw = isAbs ? (absPath ? absPath.slice(0, absPath.length - Math.min(trail.length, absPath.length)) : '/') : barePath;
     const path = normPath(raw);
-    if (SITE_PATHS.has(path)) return whole;
-    // repaired only through the exact alias list; anything else is dropped, never guessed (Head + CE review)
-    let to = null;
-    to = ALIASES[path] || null;
+    if (known(path)) return whole;
+    // repaired only through the case fix and the exact alias list; anything else is dropped, never guessed (Head + CE)
+    const to = repair(path);
     const replacement = to ? siteUrl(to) : '';
-    changed.push({ from: whole, to: replacement || null });
-    return replacement;
+    changed.push({ from: link, to: replacement || null });
+    return replacement + (replacement ? trail : '');
   });
   if (!changed.length) return { text: String(text || ''), changed };
   // a dropped link leaves "…ได้ที่นี่ครับ:" with nothing after it: clean the lead-in and stray spaces

@@ -67,3 +67,18 @@ test('exact aliases only: business-automation or similar keyword paths are dropp
   }
   assert.match(site.fixSiteUrls('https://lhw.anant-agent.com/prototype/ai-agent').text, /\/prototype\/agentic-workflow$/);
 });
+
+// CE review of PR #15 (blocker 1): the URL ends at the first non-ASCII character; /en pages and case are handled
+test('a link with Thai right after it keeps the link and the Thai; /en kept; wrong case repaired; uppercase host kept', () => {
+  const { fixSiteUrls } = require('../../src/brain/site');
+  const B = 'https://lhw.anant-agent.com';
+  assert.equal(fixSiteUrls(`ดูได้ที่ ${B}/prototype/reviewครับ`).text, `ดูได้ที่ ${B}/prototype/reviewครับ`);
+  assert.equal(fixSiteUrls(`ดูได้ที่ ${B}/prototype/chatbotค่ะ`).text, `ดูได้ที่ ${B}/prototype/chatbotค่ะ`);
+  assert.equal(fixSiteUrls(`ดูได้ที่ ${B}/prototype/business-reviewครับ`).text, `ดูได้ที่ ${B}/prototype/reviewครับ`);
+  assert.equal(fixSiteUrls(`${B}/en/prototype/review`).changed.length, 0);
+  assert.equal(fixSiteUrls(`${B}/en/prototype/agent`).text, `${B}/en/prototype/agentic-workflow`);
+  assert.equal(fixSiteUrls('https://LHW.Anant-Agent.com/prototype/review').changed.length, 0);
+  assert.equal(fixSiteUrls(`${B}/prototype/Review.`).text, `${B}/prototype/review.`);
+  assert.equal(fixSiteUrls(`${B}/prototype/review?x=1#a`).changed.length, 0);
+  assert.doesNotMatch(fixSiteUrls(`ดูที่ ${B}/prototype/nopeครับ`).text, /nope|anant-agent/);
+});

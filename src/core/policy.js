@@ -397,9 +397,12 @@ function applyPolicy(input, { session = {}, pack = null, allow, userText } = {})
   // removed in place; the honest part of the reply stays ---
   (r.messages || []).forEach((m, i) => {
     if (!m || m.type !== 'text' || typeof m.text !== 'string' || !OVERCLAIM_RE.test(m.text)) return;
-    const n = m.text.split('\n').map((line) => line.split(/(?<=ครับ|ค่ะ|คะ)\s+|\s+(?=และ|แถม)/u)
+    // clauses also split right before "ไม่ต้องกังวล / ห่วง" (CE review of PR #15: "AI จะอ่านไฟล์ล่าสุดเสมอ ไม่ต้องกังวล… อีกต่อไปครับ")
+    const n = m.text.split('\n').map((line) => line.split(/(?<=ครับ|ค่ะ|คะ)\s+|\s+(?=และ|แถม|ไม่ต้อง(?:กังวล|ห่วง))/u)
       .filter((c) => !OVERCLAIM_RE.test(c)).join(' ').trim()).filter(Boolean).join('\n');
     if (n && n !== m.text) { m.text = n; fixed.push(`messages[${i}]: over-claim ("won't be wrong again") removed`); }
+    // the over-claim IS the whole message: nothing honest is left to keep → the model answers again
+    else if (!n) violate('overclaim', 'regenerate', 'the whole message is a "won\'t be wrong again" promise', i);
   });
   // --- a GEO lead never gets a chatbot or an internal system pitched for being found (Head ruling D-39; v2.0.2, real-model
   // run 24 Oct: scenario 81 step 3 still offered "ระบบงานภายใน" once). Sentences pitching them are removed in place, unless
