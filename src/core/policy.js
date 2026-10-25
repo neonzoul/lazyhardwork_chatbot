@@ -115,6 +115,8 @@ function dedupePriceSentence(t) {
 // never blocked (Head GTM 22 Oct)
 // "Not worth hiring us yet": said outright, or as "use LINE's free auto-reply first and come back later" (Head GTM round-2
 // ruling, 23 Oct). Shared with flows/endings so no code-added offer card lands under it.
+// promises that AI will never be wrong again (the B2 over-claim)
+const OVERCLAIM_RE = /ไม่ต้อง(?:กังวล|ห่วง)[^\n]{0,60}อีกต่อไป|(?:จะ)?ไม่(?:ตอบ)?ผิด(?:พลาด)?อีก(?:ต่อไป|เลย)?|ไม่มีวัน(?:ตอบ)?ผิด|แม่นยำ\s*100\s*%|ถูกต้อง\s*100\s*%/u;
 // a chatbot or an internal system offered as the answer (for a GEO lead these are never the answer, D-39)
 const GEO_PITCH_RE = /แชทบอท|chat\s*bot|AI\s*Chatbot|บอท(?:ตอบ|LINE|ไลน์)|ระบบงานภายใน|ระบบภายใน|AI\s*Agent|ออโตเมชัน|Automation/iu;
 const NOT_WORTH_RE =/ยังไม่(?:ต้อง)?จ้าง|ไม่คุ้ม(?:ที่จะ)?จ้าง|อาจไม่คุ้ม|(?:ข้อความ)?ตอบอัตโนมัติ(?:ฟรี)?ของ\s*LINE\s*(?:OA\s*)?(?:เอง\s*)?ก่อน|ฟรีของ\s*LINE\s*ก่อน|ค่อยกลับมาคุย|รอให้แชท(?:เข้า)?(?:มา)?(?:มาก|เยอะ)/u;
@@ -391,6 +393,14 @@ function applyPolicy(input, { session = {}, pack = null, allow, userText } = {})
       fixed.push('package menu question removed: recommend one small start');
     }
   }
+  // --- no promise that AI won't be wrong again (v2.0.2, Mos's test B2: "ไม่ต้องกังวลเรื่องการหยิบราคา… อีกต่อไป"): the clause is
+  // removed in place; the honest part of the reply stays ---
+  (r.messages || []).forEach((m, i) => {
+    if (!m || m.type !== 'text' || typeof m.text !== 'string' || !OVERCLAIM_RE.test(m.text)) return;
+    const n = m.text.split('\n').map((line) => line.split(/(?<=ครับ|ค่ะ|คะ)\s+|\s+(?=และ|แถม)/u)
+      .filter((c) => !OVERCLAIM_RE.test(c)).join(' ').trim()).filter(Boolean).join('\n');
+    if (n && n !== m.text) { m.text = n; fixed.push(`messages[${i}]: over-claim ("won't be wrong again") removed`); }
+  });
   // --- a GEO lead never gets a chatbot or an internal system pitched for being found (Head ruling D-39; v2.0.2, real-model
   // run 24 Oct: scenario 81 step 3 still offered "ระบบงานภายใน" once). Sentences pitching them are removed in place, unless
   // the customer's own message asks about them. ---

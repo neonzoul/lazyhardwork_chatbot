@@ -22,3 +22,13 @@ test('GEO lead: scenario 81 step 3 (23 Oct real reply) and a paraphrase lose the
   // not a GEO session: untouched
   assert.match(said(policy.applyPolicy(mk('แชทบอทช่วยตอบลูกค้าได้ครับ'), { session: {}, userText: 'ตอบแชทไม่ทัน' })), /แชทบอท/);
 });
+
+test('B2 over-claim (Mos test 24 Oct): "ไม่ต้องกังวล… อีกต่อไป" is removed, the honest part stays', () => {
+  const b2 = 'ปัญหานี้ตรงกับที่ AI Workspace จะช่วยได้ครับ โดย AI จะอ่านข้อมูลจากไฟล์จริงของคุณและสามารถให้คำตอบที่ถูกต้องตามข้อมูลล่าสุดได้เลย ไม่ต้องอธิบายใหม่ทุกครั้ง และจะช่วยให้คุณไม่ต้องกังวลเรื่องการหยิบราคาหรือข้อมูลเก่าไปตอบลูกค้าอีกต่อไป';
+  const out = said(policy.applyPolicy(mk(b2), { session: {}, userText: 'ปัญหาคือต้องเล่าเรื่องลูกค้าใหม่ทุกครั้ง และบางทีหยิบราคาเก่ามาตอบ' }));
+  assert.doesNotMatch(out, /อีกต่อไป|ไม่ต้องกังวล/);
+  assert.match(out, /อ่านข้อมูลจากไฟล์จริงของคุณ/);
+  for (const t of ['บอทจะไม่ตอบผิดอีกเลยครับ', 'ตอบได้แม่นยำ 100% ครับ']) assert.ok(policy.applyPolicy(mk(`ตั้งค่าเสร็จใน 5 วันครับ ${t}`), { session: {} }).fixed.some((f) => /over-claim/.test(f)), t);
+  // an honest sentence is untouched
+  assert.match(said(policy.applyPolicy(mk('ช่วยลดโอกาสหยิบราคาเก่ามาตอบครับ เพราะ AI อ่านไฟล์ล่าสุดเสมอ'), { session: {} })), /ลดโอกาส/);
+});
