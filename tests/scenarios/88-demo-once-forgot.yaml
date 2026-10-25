@@ -1,0 +1,12 @@
+name: "88 · after #demo-a1 the visitor types \"/forgot\" — the demo reply is never sent again (P1, Mos on production 25 Oct)"
+covers: ["§9.2", "v2.0.2 demo follow-up once per token", "P1 25 Oct"]
+user: { id: U88f, displayName: "เดโมแล้วพิมพ์อื่น" }
+steps:
+  - follow: true
+    expect: { replies: 1, sender: lay }
+  - user: "มาจากเว็บ ดูเดโม AI Agent #demo-a1"
+    expect: { replies: 1, sender: lay, text_contains: ["เห็นว่าเพิ่งดูภาพตัวอย่างระบบงานภายใน"] }
+  - user: "/forgot"
+    note: "scripted: the model copies the demo follow-up word for word (what gpt-4o-mini did on production); code regenerates, then sends the honest line"
+    model: { messages: [{ type: text, text: "เห็นว่าเพิ่งดูภาพตัวอย่างระบบงานภายใน (AI Agent) มาครับ ตอนนี้งานในทีมที่ต้องตามหรือส่งต่อกันเองบ่อยที่สุดคืออะไรครับ", explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: [], kb_refs: [], intent: unknown }
+    expect: { replies: 1, sender: lay, text_not_contains: ["เห็นว่าเพิ่ง", "prototype", "#demo"] }

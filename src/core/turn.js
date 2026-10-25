@@ -131,7 +131,7 @@ async function runTurn(input, deps, opts = {}) {
         // the visitor JUST came from that demo (v2.0.2, Head 24 Oct): when the message is only the website's prefill, code
         // acknowledges the demo and asks one question about their work. Never the demo link back; the free talk is offered.
         // A prefill with the visitor's own question added goes to the model, which knows the demo from the session line.
-        if (demoTag && DEMO_FOLLOW_UP[demoTag] && (!s.mode || s.mode === 'lay') && WEB_PREFILL_RE.test(text) && [...text].length <= 60) {
+        if (demoTag && DEMO_FOLLOW_UP[demoTag] && (!s.mode || s.mode === 'lay') && WEB_PREFILL_RE.test(text)) {
             const sent = await send(input, [msg.text(DEMO_FOLLOW_UP[demoTag])], ['นัดคุยกับมอส', 'ราคาเท่าไหร่'], senders.lay);
             await persist(input, s, sent, { role: 'lay' });
             return done(sent, null);
@@ -329,7 +329,7 @@ async function runTurn(input, deps, opts = {}) {
             if (r) return r;
         }
         // 9. the model
-        const response = await askModel({ s, userText, intentHint, now, config, deps, errors });
+        const response = await askModel({ s, userText, intentHint, now, config, deps, errors, demoNow: demoTag });
 
         // 10. state from the response
         session.unionTopics(s, response.topics);
@@ -559,14 +559,14 @@ async function runTurn(input, deps, opts = {}) {
         return done(sent, null);
     }
 
-    async function askModel({ s: sess, userText, intentHint, now: at, config: cfg, deps: d, errors: errs }) {
+    async function askModel({ s: sess, userText, intentHint, now: at, config: cfg, deps: d, errors: errs, demoNow = null }) {
         const prompt = d.brain || lazy('../brain/prompt');
         const policy = d.policy || lazy('./policy');
         const pack = d.pack || null;
         const history = (await d.store.messages.recent(sess.user_id, 12)).filter((m) => m.role !== 'system' && (!sess.context_since || !m.created_at || m.created_at >= sess.context_since)).map((m) => ({ role: m.role, text: m.text }));
         const kbSelection = selectSections(pack, { intentHint, draft: sess.draft, previousRefs: intentHint === 'tell_me_more' ? sess.last_kb_refs : [] });
         const system = prompt?.buildSystemPrompt
-            ? prompt.buildSystemPrompt({ pack, session: sess, intentHint, kbSelection, now: at, config: cfg })
+            ? prompt.buildSystemPrompt({ pack, session: sess, intentHint, kbSelection, now: at, config: cfg, demoNow })
             : `คุณคือ Agent Lay ผู้ช่วย AI ของ LazyHardWork ตอบสั้น สุภาพ ครับ ตอบเป็น JSON ตาม schema`;
         const messages = prompt?.buildMessages ? prompt.buildMessages({ systemPrompt: system, history, userText }) : [{ role: 'system', content: system }, ...history.map((h) => ({ role: h.role === 'customer' ? 'user' : 'assistant', content: h.text })), { role: 'user', content: userText }];
         const { responseSchema } = require('../brain/schema');
@@ -623,6 +623,23 @@ async function runTurn(input, deps, opts = {}) {
                 if (p.violations?.length) await d.store.events.append({ kind: 'policy_violation', user_id: sess.user_id, payload: { violations: p.violations, fixed: p.fixed }, created_at: at.toISOString() });
             } else {
                 response = minimalPolicy(response);
+            }
+            // never the same message twice (P1, Mos 25 Oct on production: "/forgot" and "/reset" got the last demo reply
+            // back word for word from the model): regenerate once; a second copy → one honest "say it again" line
+            if (repeatsRecentLay(response, history)) {
+                d.log.warn('model.repeat', { userId: sess.user_id });
+                await d.store.events.append({ kind: 'model_repeat', user_id: sess.user_id, payload: { intent: response.intent || null }, created_at: at.toISOString() });
+                let again = null;
+                try {
+                    again = await attempt(REPEAT_NOTE);
+                    if (policy?.applyPolicy) {
+                        const p2 = policy.applyPolicy(again, { session: sess, pack, allow: policyAllow(sess), userText });
+                        again = p2.severity === 'regenerate' || p2.severity === 'fallback' ? null : p2.response;
+                    } else again = minimalPolicy(again);
+                } catch (e) { if (e.kind === 'exhausted') throw e; again = null; }
+                response = again && !repeatsRecentLay(again, history)
+                    ? again
+                    : emptyResponse({ messages: [{ type: 'text', text: REPEAT_SAFE_LINE, explain: false, template: null, alt: null, data: null }], quick_replies: topics.nextQuickReplies(null, sess.topics_covered), intent: 'unknown' });
             }
             return response;
         } catch (err) {
@@ -799,6 +816,17 @@ function policyAllow(sess) {
 }
 // Safe line when the model keeps claiming an action Lay did not perform (Mos's test 24 Oct, freeze exception (b))
 const CLAIM_SAFE_LINE = 'ผมจองหรือยืนยันอะไรแทนไม่ได้ครับ ตอนนี้ยังไม่มีอะไรถูกจองไว้ ถ้าอยากเห็นบอทรับจองจริง ลองเป็นลูกค้าร้านตัวอย่างได้เลยครับ';
+// a reply that copies one of Lay's last messages (P1, Mos 25 Oct): compared without spaces; short lines ("ได้ครับ") may repeat
+const REPEAT_LOOKBACK = 3;
+const REPEAT_MIN_CHARS = 20;
+const squash = (t) => String(t || '').replace(/\s+/gu, '');
+function repeatsRecentLay(response, history) {
+    const recent = (history || []).filter((h) => h.role === 'lay').slice(-REPEAT_LOOKBACK).map((h) => squash(h.text));
+    if (!recent.length || !response || !Array.isArray(response.messages)) return false;
+    return response.messages.some((m) => m && m.type === 'text' && [...squash(m.text)].length >= REPEAT_MIN_CHARS && recent.includes(squash(m.text)));
+}
+const REPEAT_NOTE = 'คำตอบก่อนหน้าซ้ำกับข้อความที่ Lay ส่งไปแล้ว ห้ามส่งข้อความเดิมหรือลิงก์เดิมซ้ำ ตอบข้อความล่าสุดของลูกค้าเท่านั้น ถ้าไม่เข้าใจว่าลูกค้าหมายถึงอะไร ให้ถามสั้นๆ ข้อเดียวว่าอยากรู้เรื่องไหน';
+const REPEAT_SAFE_LINE = 'ผมยังไม่แน่ใจว่าหมายถึงเรื่องไหนครับ พิมพ์บอกได้เลยว่าอยากรู้อะไร หรือกดเลือกด้านล่างก็ได้ครับ';
 // after a website demo (v2.0.2): acknowledge it, one question about their own work. Wording approved by the Head, 25 Oct
 // (only A2 / A4 are "ลอง": A1 / A3 are storyboards, C1 is a sample report).
 const DEMO_FOLLOW_UP = {
@@ -808,8 +836,9 @@ const DEMO_FOLLOW_UP = {
     a1: 'เห็นว่าเพิ่งดูภาพตัวอย่างระบบงานภายใน (AI Agent) มาครับ ตอนนี้งานในทีมที่ต้องตามหรือส่งต่อกันเองบ่อยที่สุดคืออะไรครับ',
     a3: 'เห็นว่าเพิ่งดูภาพตัวอย่างออโตเมชันมาครับ งานไหนที่พี่หรือทีมต้องคีย์หรือทำซ้ำทุกวันครับ',
 };
-// the website's prefilled texts start like this ("มาจากเว็บ ดูเดโม Workspace", "มาจากเว็บ ลองถาม Lay")
-const WEB_PREFILL_RE = /^มาจากเว็บ/u;
+// the website's bare prefill ("มาจากเว็บ ดูเดโม Workspace", "มาจากเว็บ ลองถาม Lay"): the demo's name is Latin, so any Thai
+// word after it is the visitor's own (P1 25 Oct: "…AI Agent อยากรู้ว่าใช้กับร้านดอกไม้ได้ไหม" goes to the model)
+const WEB_PREFILL_RE = /^มาจากเว็บ\s*(?:ดูเดโม|ลองถาม)\s*[A-Za-z][A-Za-z ]*$/u;
 // website CTA tokens (Head GTM 23 Oct): a4 · c1 · a2 · a2-shop · a1 · a3
 const DEMO_TAG_RE = /#demo-(a2-shop|a[1-4]|c1)(?![\w-])/iu;
 const GUARANTEE_ASK_RE = /รับประกัน|การันตี|guarantee|รับรองผล|(?:รับรอง|สัญญา)(?:ได้)?(?:ไหม|มั้ย)?ว่า/iu;

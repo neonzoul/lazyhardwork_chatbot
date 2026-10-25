@@ -137,11 +137,12 @@ function filledFields(obj) {
   return Object.entries(obj).filter(([, v]) => v !== null && v !== undefined && v !== '');
 }
 
-function renderSession(session = {}, { intentHint } = {}) {
+function renderSession(session = {}, { intentHint, demoNow } = {}) {
   const lines = [];
   lines.push(`- mode: ${session.mode || 'lay'}`);
   if (session.too_early) lines.push('- ลูกค้าคนนี้ยังไม่เริ่มขาย: ห้ามเสนอแพ็ก การ์ด ราคา หรือ AI Business Review และไม่ต้องถามต่อเรื่องงาน (ไม่ถามว่างานไหนกินเวลา ไม่ถามคำถามคัดกรอง) ตอบสั้นๆ ข้อความเดียว บอกว่าเราช่วยได้ตอนออเดอร์หรือแชทเริ่มล้น แล้วชวนกลับมา');
-  if (session.homework && session.homework.last_touch) lines.push(`- ลูกค้าเพิ่งมาจากหน้าเดโม ${String(session.homework.last_touch).replace(/^web-demo-/u, '').toUpperCase()} บนเว็บ: ไม่ต้องส่งลิงก์เดโมนั้นซ้ำ ถามเรื่องงานของเขาหนึ่งข้อ แล้วค่อยชวนคุยฟรี 30 นาทีหรือเสนอการ์ดที่ตรงงาน`);
+  // only on the message that carries the token (P1, Mos 25 Oct): homework.last_touch is for the lead, not for every turn
+  if (demoNow) lines.push(`- ลูกค้าเพิ่งมาจากหน้าเดโม ${String(demoNow).toUpperCase()} บนเว็บ: ไม่ต้องส่งลิงก์เดโมนั้นซ้ำ ถามเรื่องงานของเขาหนึ่งข้อ แล้วค่อยชวนคุยฟรี 30 นาทีหรือเสนอการ์ดที่ตรงงาน`);
   if (session.geo_asked) lines.push('- ลูกค้าคนนี้ถามเรื่องให้ AI หรือ Google แนะนำร้าน: เสนอ AI Business Review ได้ (ตรวจข้อมูลร้านตรงกันทุกช่องทางไหม หน้าไหนตอบคำถามลูกค้าได้ อะไรทำเองได้ อะไรควรจ้าง และจะดูผลยังไง) ห้ามเสนอแชทบอทหรือระบบงานภายในเป็นทางแก้เรื่องนี้ ไม่รับประกันว่า AI จะแนะนำร้าน และเราไม่รับทำเว็บเป็นบริการ ถ้ายังไม่รู้ว่าข้อมูลร้านอยู่ช่องทางไหน ให้ถามข้อเดียวว่าอยู่ช่องทางไหนบ้าง (Facebook, Google Maps, เว็บจองที่พัก หรือยังไม่มีเว็บ) ถ้ายังไม่แน่ใจ เสนอคุยฟรี 30 นาทีก่อนได้');
   if (session.out_of_scope) lines.push('- ลูกค้าคนนี้เคยถามเรื่องที่ไม่ใช่บริการของเรา (เช่น การเทรด) ห้ามเสนอบริการที่ดัดแปลงเข้ากับเรื่องนั้น ตอบด้วยบริการจริงเท่านั้น ถ้าเขายังไม่ได้เล่างานหลังบ้านจริงของธุรกิจ ห้ามเสนอแพ็กหรือการ์ดใดๆ (รวม AI Business Review) ให้ปิดอย่างสุภาพสั้นๆ ไม่ถามต่อ');
   if (session.displayName) lines.push(`- ชื่อลูกค้า (จาก LINE): ${session.displayName}`);
@@ -149,7 +150,7 @@ function renderSession(session = {}, { intentHint } = {}) {
   lines.push(`- topics_covered (คุยไปแล้ว อย่าเสนอซ้ำเป็นปุ่ม): ${covered.length ? covered.join(', ') : 'ยังไม่มี'}`);
   const draft = filledFields(session.draft);
   if (draft.length) lines.push(`- draft (สิ่งที่ลูกค้าเลือกไว้): ${draft.map(([k, v]) => `${k}=${JSON.stringify(v)}`).join(', ')}`);
-  const hw = filledFields(session.homework);
+  const hw = filledFields(session.homework).filter(([k]) => k !== 'last_touch' && k !== 'last_touch_at');
   lines.push(`- homework ที่รู้แล้ว: ${hw.length ? hw.map(([k, v]) => `${k}=${JSON.stringify(v)}`).join(', ') : 'ยังไม่มี'}`);
   // Head GTM 22 Oct: after a symptom tap a hotel got the shop few-shot's "ราคา สต็อก ค่าส่ง … ปิดการขาย"
   if (session.homework && session.homework.business) lines.push(`- ธุรกิจของลูกค้า: ${JSON.stringify(session.homework.business)} — ยกตัวอย่างงานและคำถามของลูกค้าจากธุรกิจนี้เท่านั้น ห้ามยืมตัวอย่างของร้านค้า (สต็อก ค่าส่ง ปิดการขาย) ถ้าธุรกิจนี้ไม่ได้ขายของส่ง`);
@@ -186,9 +187,9 @@ function renderNow(now, config = {}) {
   return `## ตอนนี้\n- วันเวลา (กรุงเทพฯ): ${weekday} ${date} ${time}\n- เวลาทำการของมอส: ${start}:00–${end}:00 ทุกวัน · ตอนนี้${open ? 'อยู่ในเวลาทำการ' : 'นอกเวลาทำการ ถ้าต้องรอมอส ให้บอกว่ามอสจะตอบในเวลาทำการ'}`;
 }
 
-function buildSystemPrompt({ pack, session = {}, intentHint = null, kbSelection = [], now, config } = {}) {
+function buildSystemPrompt({ pack, session = {}, intentHint = null, kbSelection = [], now, config, demoNow = null } = {}) {
   void pack; // the caller selects sections from the pack; the prompt only renders what it is given
-  return [STATIC_PREFIX, renderKb(kbSelection), renderSession(session, { intentHint }), renderNow(now, config)].join('\n\n');
+  return [STATIC_PREFIX, renderKb(kbSelection), renderSession(session, { intentHint, demoNow }), renderNow(now, config)].join('\n\n');
 }
 
 // ---------- demo mode (design §7) ----------

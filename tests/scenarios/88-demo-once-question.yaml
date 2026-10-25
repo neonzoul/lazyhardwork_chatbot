@@ -1,0 +1,11 @@
+name: "88 · after #demo-a1 the visitor asks a real question — answered normally, no demo reply again"
+covers: ["§9.2", "v2.0.2 demo follow-up once per token", "P1 25 Oct"]
+user: { id: U88q, displayName: "เดโมแล้วถาม" }
+steps:
+  - follow: true
+    expect: { replies: 1, sender: lay }
+  - user: "มาจากเว็บ ดูเดโม AI Agent #demo-a1"
+    expect: { replies: 1, sender: lay, text_contains: ["เห็นว่าเพิ่งดูภาพตัวอย่างระบบงานภายใน"] }
+  - user: "ร้านดอกไม้ทำคนเดียว ใช้ได้ไหมครับ"
+    model: { messages: [{ type: text, text: "ใช้ได้ครับ ร้านดอกไม้ที่ทำคนเดียว ตอนนี้งานไหนกินเวลาที่สุดครับ", explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: [fit], kb_refs: [], intent: fit, lead_updates: { business: "ร้านดอกไม้" } }
+    expect: { replies_min: 1, sender: lay, text_not_contains: ["เห็นว่าเพิ่ง", "prototype", "#demo"] }

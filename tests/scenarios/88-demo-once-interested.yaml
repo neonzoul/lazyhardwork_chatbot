@@ -1,0 +1,11 @@
+name: "88 · after #demo-a1 the visitor says \"สนใจ\" — handled normally, no demo reply again"
+covers: ["§9.2", "v2.0.2 demo follow-up once per token", "P1 25 Oct"]
+user: { id: U88i, displayName: "เดโมแล้วสนใจ" }
+steps:
+  - follow: true
+    expect: { replies: 1, sender: lay }
+  - user: "มาจากเว็บ ดูเดโม AI Agent #demo-a1"
+    expect: { replies: 1, sender: lay, text_contains: ["เห็นว่าเพิ่งดูภาพตัวอย่างระบบงานภายใน"] }
+  - user: "สนใจ"
+    model: { messages: [{ type: text, text: "ยินดีครับ ตอนนี้งานในทีมที่ต้องตามเองบ่อยที่สุดคืออะไรครับ จะได้ดูว่าเริ่มตรงไหนคุ้ม", explain: false, template: null, alt: null, data: null }], quick_replies: [], topics: [fit], kb_refs: [], intent: fit }
+    expect: { replies_min: 1, sender: lay, text_not_contains: ["เห็นว่าเพิ่ง", "prototype", "#demo"] }
